@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 06, 2026 at 09:57 AM
+-- Generation Time: Sep 13, 2026 at 08:01 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -48,6 +48,13 @@ CREATE TABLE `bibliographic_records` (
   `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `bibliographic_records`
+--
+
+INSERT INTO `bibliographic_records` (`bib_id`, `isbn`, `title`, `subtitle`, `authors`, `publisher_id`, `publish_year`, `edition`, `language`, `description`, `page_count`, `call_number`, `ddc_class`, `subject_headings`, `keywords`, `cover_url`, `metadata`, `created_at`) VALUES
+('88cc3751-a92b-431a-91e0-3a03066cf96a', '978-604-0123', 'Lập trình Flutter Pro 2026 (Đã cập nhật)', NULL, '[{\"name\":\"Nguyễn Văn A\",\"role\":\"author\"}]', NULL, 2026, NULL, 'vi', 'Tài liệu tái bản mới nhất có bổ sung kiến thức AI', NULL, NULL, NULL, '[]', '[]', NULL, '{}', '2026-09-11 15:42:49');
+
 -- --------------------------------------------------------
 
 --
@@ -64,6 +71,15 @@ CREATE TABLE `book_copies` (
   `acquired_date` date DEFAULT NULL,
   `acquired_price` decimal(12,2) DEFAULT 0.00
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `book_copies`
+--
+
+INSERT INTO `book_copies` (`copy_id`, `bib_id`, `barcode`, `condition`, `location_id`, `status`, `acquired_date`, `acquired_price`) VALUES
+('1d33d4f4-b40c-4013-8b07-d2ddd17d91a7', '88cc3751-a92b-431a-91e0-3a03066cf96a', 'BC-169661-03', 'good', NULL, 'available', '2026-09-11', 0.00),
+('2ed45c21-7fb6-4c34-b3be-3d791ab20cca', '88cc3751-a92b-431a-91e0-3a03066cf96a', 'BC-169656-02', 'good', NULL, 'available', '2026-09-11', 0.00),
+('852c3384-a284-464c-ae1e-1d2d9954f6e3', '88cc3751-a92b-431a-91e0-3a03066cf96a', 'BC-169641-01', 'good', NULL, 'available', '2026-09-11', 0.00);
 
 -- --------------------------------------------------------
 
@@ -183,6 +199,7 @@ CREATE TABLE `shelf_locations` (
   `section` varchar(20) NOT NULL COMMENT 'Khu A, B, C...',
   `shelf` varchar(10) NOT NULL COMMENT 'Kệ số...',
   `position` varchar(10) DEFAULT NULL COMMENT 'Ngăn/Vị trí',
+  `capacity` int(11) DEFAULT 50 COMMENT 'Suc chua toi da',
   `ddc_range` varchar(50) DEFAULT NULL COMMENT '000-099 Tin học...'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
