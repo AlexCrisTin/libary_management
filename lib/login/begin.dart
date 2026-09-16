@@ -65,7 +65,7 @@ class Begin extends StatelessWidget {
                 left: 64,
                 top: 125,
                 child: Text(
-                    'NERD REEDER',
+                    'READILY',
                     style: TextStyle(
                         color: Colors.white,
                         fontSize: 40,

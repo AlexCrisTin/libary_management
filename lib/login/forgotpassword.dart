@@ -36,9 +36,48 @@ Container(
                 left: 109,
                 top: 736,
                 child: Text(
-                    'Bạn đã nhớ được  rồi sao?',
+                    'Bạn đã nhớ được rồi sao?',
                     style: TextStyle(
                         color: const Color(0xFFD76464),
+                        fontSize: 15,
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w700,
+                    ),
+                ),
+            ),
+            Positioned(
+                left: 143,
+                top: 423,
+                child: Text(
+                    'Liên hệ thủ thư:',
+                    style: TextStyle(
+                        color: const Color(0xFFDDD9D9),
+                        fontSize: 15,
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w700,
+                    ),
+                ),
+            ),
+            Positioned(
+                left: 127,
+                top: 445,
+                child: Text(
+                    'SDT: 03333333333',
+                    style: TextStyle(
+                        color: const Color(0xFFDDD9D9),
+                        fontSize: 15,
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w700,
+                    ),
+                ),
+            ),
+            Positioned(
+                left: 89,
+                top: 467,
+                child: Text(
+                    'Email:  sdfndsfdjn@gmail.com',
+                    style: TextStyle(
+                        color: const Color(0xFFDDD9D9),
                         fontSize: 15,
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.w700,
