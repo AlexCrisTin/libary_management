@@ -1,16 +1,45 @@
-# libary_management
+# Readily – Ứng dụng quản lý thư viện
 
-A new Flutter project.
 
-## Getting Started
 
-This project is a starting point for a Flutter application.
+## Chức năng hiện có
 
-A few resources to get you started if this is your first Flutter project:
+- Màn hình chào mừng, đăng nhập, đăng ký và quên mật khẩu.
+- Trang chủ gợi ý sách và điều hướng nhanh đến các khu vực chính.
+- Tìm kiếm sách và xem thông tin chi tiết của một đầu sách.
+- Theo dõi sách đang mượn, lịch sử mượn/trả và các khoản phạt.
+- Xem thông báo, hồ sơ cá nhân và chỉnh sửa thông tin hồ sơ.
+- Khu vực nhắn tin với AI hoặc thủ thư ở giao diện mẫu.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+
+## Công nghệ
+
+- Flutter và Dart
+- Material Design
+- Hỗ trợ Android, iOS và các nền tảng Flutter khác
+
+## Cài đặt và chạy dự án
+
+Yêu cầu: [Flutter SDK](https://docs.flutter.dev/get-started/install).
+
+```bash
+flutter pub get
+flutter run
+```
+
+Để kiểm tra chất lượng mã nguồn:
+
+```bash
+flutter analyze
+```
+
+## Cấu trúc thư mục
+
+```text
+lib/
+├── login/       # Các màn hình xác thực
+├── reader/      # Các chức năng dành cho độc giả
+└── main.dart    # Điểm khởi chạy ứng dụng
+```
+
