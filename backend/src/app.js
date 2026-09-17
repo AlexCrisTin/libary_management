@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 
 // Import routes
@@ -7,6 +7,7 @@ const usersRoutes = require('./modules/users/users.routes');
 const booksRoutes = require('./modules/books/books.routes');
 const shelvesRoutes = require('./modules/shelves/shelves.routes');
 const readersRoutes = require('./modules/readers/readers.routes');
+const circulationRoutes = require('./modules/circulation/circulation.routes');
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/books', booksRoutes);
 app.use('/api/shelves', shelvesRoutes);
 app.use('/api/readers', readersRoutes);
+app.use('/api/circulation', circulationRoutes);
 
 // Route kiem tra suc khoe server
 app.get('/health', (req, res) => {
