@@ -6,137 +6,99 @@ class Signup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-    width: 402,
-    height: 874,
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(color: Colors.white),
-    child: Stack(
-        children: [
-            Positioned(
-                left: 162,
-                top: 777,
-                child: Text(
-                    'Đăng nhập',
-                    style: TextStyle(
-                        color: const Color(0xFFE9BCB9),
-                        fontSize: 15,
-                        fontFamily: 'Arial',
-                        fontWeight: FontWeight.w700,
-                    ),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Column(
+            children: [
+              const SizedBox(height: 80),
+              const Text(
+                'Đăng kí',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 36,
+                  fontFamily: 'Arial',
+                  fontWeight: FontWeight.w700,
                 ),
-            ),
-            Positioned(
-                left: 86,
-                top: 638,
-                child: Text(
-                    'Đăng kí bằng phương thức khác',
-                    style: TextStyle(
-                        color: const Color(0xFFBDBDBD),
-                        fontSize: 15,
-                        fontFamily: 'Arial',
-                        fontWeight: FontWeight.w700,
-                    ),
+              ),
+              const SizedBox(height: 48),
+              const TextField(
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Email',
                 ),
-            ),
-            Positioned(
-                left: 168,
-                top: 537,
-                child: Container(
-                    width: 70,
-                    height: 70,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFDBB9A0),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                        ),
-                    ),
+              ),
+              const SizedBox(height: 20),
+              const TextField(
+                obscureText: true,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Nhập mật khẩu',
                 ),
-            ),
-            Positioned(
-                left: 53,
-                top: 228,
-                child: Container(
-                width: 296,
-                height: 61,
-                child: TextField(
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'Email',
+              ),
+              const SizedBox(height: 20),
+              const TextField(
+                obscureText: true,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Xác nhận mật khẩu',
+                ),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: 70,
+                height: 70,
+                child: ElevatedButton(
+                  onPressed: () {},
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFDBB9A0),
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Icon(Icons.arrow_forward, color: Colors.white),
+                ),
+              ),
+              const Spacer(),
+              const Text(
+                'Đăng kí bằng phương thức khác',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFFBDBDBD),
+                  fontSize: 15,
+                  fontFamily: 'Arial',
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CircleAvatar(
+                radius: 25,
+                backgroundColor: const Color(0xFFD9D9D9),
+                backgroundImage: const NetworkImage(
+                  'https://placehold.co/34x34',
+                ),
+              ),
+              const SizedBox(height: 32),
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: const Text(
+                  'Đăng nhập',
+                  style: TextStyle(
+                    color: Color(0xFFE9BCB9),
+                    fontSize: 15,
+                    fontFamily: 'Arial',
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-            ),
-            Positioned(
-                left: 53,
-                top: 318,
-                child: Container(
-                width: 296,
-                height: 61,
-                child: TextField(
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'Nhập mật khẩu',
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-                left: 53,
-                top: 407,
-                child: Container(
-                width: 296,
-                height: 61,
-                child: TextField(
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'Xác nhận mật khẩu',
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-                left: 178,
-                top: 676,
-                child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFD9D9D9),
-                        shape: OvalBorder(),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 186,
-                top: 684,
-                child: Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                        image: DecorationImage(
-                            image: NetworkImage("https://placehold.co/34x34"),
-                            fit: BoxFit.cover,
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 137,
-                top: 144,
-                child: Text(
-                    'Đăng kí',
-                    style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 36,
-                        fontFamily: 'Arial',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-        ],
-    ),
-)
-      );
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

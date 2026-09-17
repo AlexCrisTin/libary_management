@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/login/forgotpassword.dart';
+import 'package:libary_management/login/signup.dart';
 
 class Login extends StatelessWidget {
   const Login({super.key});
@@ -6,17 +8,14 @@ class Login extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: 402,
-        height: 874,
-        clipBehavior: Clip.antiAlias,
-        decoration: const BoxDecoration(color: Colors.white),
-        child: Stack(
-          children: [
-            const Positioned(
-              left: 107,
-              top: 142,
-              child: Text(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Column(
+            children: [
+              const SizedBox(height: 80),
+              const Text(
                 'Đăng nhập',
                 style: TextStyle(
                   color: Colors.black,
@@ -25,76 +24,62 @@ class Login extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-            ),
-            Positioned(
-              left: 53,
-              top: 283,
-              child: Container(
-                width: 296,
-                height: 61,
-                child: TextField(
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'Email',
-                  ),
+              const SizedBox(height: 56),
+              const TextField(
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Email',
                 ),
               ),
-            ),
-            Positioned(
-              left: 53,
-              top: 365,
-              child: Container(
-                width: 296,
-                height: 61,
-                child: TextField(
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'Mật khẩu',
-                  ),
+              const SizedBox(height: 20),
+              const TextField(
+                obscureText: true,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Mật khẩu',
                 ),
               ),
-            ),
-            Positioned(
-              left: 142,
-              top: 463,
-              child: GestureDetector(
+              const SizedBox(height: 24),
+              GestureDetector(
                 onTap: () {
-      //Navigator.push(
-        //context,
-        //MaterialPageRoute(
-          //builder: (context) => ForgotPasswordPage(),
-        //),
-      //);
-                            },
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ForgotPassword(),
+                    ),
+                  );
+                },
                 child: const Text(
-                'Quên mật khẩu?',
-                 style: TextStyle(
-                 color: Color(0xFFE9BCB9),
-                 fontSize: 15,
-                 fontFamily: 'Arial',
-                 fontWeight: FontWeight.w700,
-                 ),
-               ),
-             ),
-           ),
-            const Positioned(
-              left: 152,
-              top: 780,
-              child: Text(
-                'Tạo tài khoản',
-                style: TextStyle(
-                  color: Color(0xFFE9BCB9),
-                  fontSize: 15,
-                  fontFamily: 'Arial',
-                  fontWeight: FontWeight.w700,
+                  'Quên mật khẩu?',
+                  style: TextStyle(
+                    color: Color(0xFFE9BCB9),
+                    fontSize: 15,
+                    fontFamily: 'Arial',
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-            ),
-            const Positioned(
-              left: 73,
-              top: 641,
-              child: Text(
+              const SizedBox(height: 32),
+              SizedBox(
+                width: 70,
+                height: 70,
+                child: ElevatedButton(
+                  onPressed: () {},
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFDBB9A0),
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Icon(Icons.arrow_forward, color: Colors.white),
+                ),
+              ),
+              const Spacer(),
+              const Text(
                 'Đăng nhập bằng phương thức khác',
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFFBDBDBD),
                   fontSize: 15,
@@ -102,48 +87,35 @@ class Login extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-            ),
-            Positioned(
-              left: 166,
-              top: 540,
-              child: Container(
-                width: 70,
-                height: 70,
-                decoration: ShapeDecoration(
-                  color: const Color(0xFFDBB9A0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+              const SizedBox(height: 16),
+              CircleAvatar(
+                radius: 25,
+                backgroundColor: const Color(0xFFD9D9D9),
+                backgroundImage: const NetworkImage(
+                  'https://placehold.co/34x34',
+                ),
+              ),
+              const SizedBox(height: 32),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const Signup()),
+                  );
+                },
+                child: const Text(
+                  'Tạo tài khoản',
+                  style: TextStyle(
+                    color: Color(0xFFE9BCB9),
+                    fontSize: 15,
+                    fontFamily: 'Arial',
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-            ),
-            Positioned(
-              left: 176,
-              top: 679,
-              child: Container(
-                width: 50,
-                height: 50,
-                decoration: const ShapeDecoration(
-                  color: Color(0xFFD9D9D9),
-                  shape: OvalBorder(),
-                ),
-              ),
-            ),
-            Positioned(
-              left: 184,
-              top: 687,
-              child: Container(
-                width: 34,
-                height: 34,
-                decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    image: NetworkImage("https://placehold.co/34x34"),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-            ),
-          ],
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );

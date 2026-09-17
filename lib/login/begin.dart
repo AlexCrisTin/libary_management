@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/login/login.dart';
 
 class Begin extends StatelessWidget {
   const Begin({super.key});
@@ -7,107 +8,77 @@ class Begin extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-    width: 402,
-    height: 874,
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(color: Colors.white),
-    child: Stack(
-        children: [
-            Positioned(
-                left: -75,
-                top: 0,
-                child: Container(
-                    width: 5745,
-                    height: 2763,
-                    decoration: BoxDecoration(color: const Color(0x0AD9D9D9)),
-                ),
-            ),
-            Positioned(
-                left: -279,
-                top: -15,
-                child: Container(
-                    width: 960,
-                    height: 960,
-                    decoration: BoxDecoration(
-                        image: DecorationImage(
-                            image: NetworkImage("https://placehold.co/960x960"),
-                            fit: BoxFit.cover,
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: -91,
-                top: -36,
-                child: Container(
-                    width: 565,
-                    height: 1006,
-                    decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.54),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 72,
-                top: 758,
-                child: Container(
-                    width: 257,
-                    height: 52,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFE2C5B5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 64,
-                top: 125,
-                child: Text(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          image: DecorationImage(
+            image: NetworkImage('https://placehold.co/960x960'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.54),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              child: Column(
+                children: [
+                  const SizedBox(height: 80),
+                  const Text(
                     'READILY',
                     style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 40,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      fontSize: 40,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w700,
                     ),
-                ),
-            ),
-            Positioned(
-                left: 112,
-                top: 173,
-                child: SizedBox(
-                    width: 177,
-                    child: Text(
-                        'Thư viện với hàng chục nghìn cuốn sách trực tuyến',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w400,
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 166,
-                top: 775,
-                child: Text(
-                    'Tiếp theo',
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Thư viện với hàng chục nghìn cuốn sách trực tuyến',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w400,
                     ),
-                ),
+                  ),
+                  const Spacer(),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const Login()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE2C5B5),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      child: const Text(
+                        'Tiếp theo',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-        ],
-    ),
-),
-);
+          ),
+        ),
+      ),
+    );
   }
 }
