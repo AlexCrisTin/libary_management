@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:libary_management/login/forgotpassword.dart';
 import 'package:libary_management/login/signup.dart';
+import 'package:libary_management/reader/home.dart';
 
 class Login extends StatelessWidget {
   const Login({super.key});
@@ -65,7 +66,12 @@ class Login extends StatelessWidget {
                 width: 70,
                 height: 70,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const Home()),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFDBB9A0),
                     padding: EdgeInsets.zero,

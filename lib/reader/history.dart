@@ -1,193 +1,138 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/reader/reader_nav.dart';
 
-class History extends StatelessWidget {
+class History extends StatefulWidget {
   const History({super.key});
+
+  @override
+  State<History> createState() => _HistoryState();
+}
+
+class _HistoryState extends State<History> {
+  bool returned = true;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-    width: 402,
-    height: 874,
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(color: Colors.white),
-    child: Stack(
+      backgroundColor: Colors.white,
+      body: Column(
         children: [
-            Positioned(
-                left: 0,
-                top: 0,
-                child: Container(
-                    width: 402,
-                    height: 63,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFDBB9A0),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(10),
-                                bottomRight: Radius.circular(10),
+          const TitleHeader(title: 'Lịch sử', showBack: true, color: Colors.white),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(32, 16, 32, 8),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: kBeigeButton,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  Expanded(child: _tab('Mượn', !returned)),
+                  Expanded(child: _tab('Trả', returned)),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: kCardFill,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(5),
+                  bottomRight: Radius.circular(5),
+                ),
+              ),
+              child: ListView(
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const BookCover(),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Toán cao cấp',
+                              style: TextStyle(
+                                color: kBookTitle,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 39,
-                top: 104,
-                child: Container(
-                    width: 322,
-                    height: 40,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFE2C5B5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 25,
-                top: 164,
-                child: Container(
-                    width: 346,
-                    height: 651,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFF7F0EA),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(5),
-                                bottomRight: Radius.circular(5),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Ngày mượn: 27/7/2727',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
+                            const Text(
+                              'Ngày trả: 27/7/2727',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: ElevatedButton(
+                                onPressed: () {},
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: kBeigeButton,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: Text(
+                                  returned ? 'Mượn lại' : 'Đang mượn',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                    ),
-                ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            Positioned(
-                left: 98,
-                top: 115,
-                child: Text(
-                    'Mượn',
-                    style: TextStyle(
-                        color: const Color(0xFFE2C5B5),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 264,
-                top: 115,
-                child: Text(
-                    'Trả',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 8,
-                top: 8,
-                child: Container(width: 37, height: 37, child: Stack()),
-            ),
-            Positioned(
-                left: 156,
-                top: 15,
-                child: Text(
-                    'Lịch sử',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 25,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 174,
-                top: 185,
-                child: Text(
-                    'Toán cao cấp',
-                    style: TextStyle(
-                        color: const Color(0xFF6F3636),
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 57,
-                top: 193,
-                child: Container(
-                    width: 89,
-                    height: 134,
-                    decoration: BoxDecoration(
-                        image: DecorationImage(
-                            image: NetworkImage("https://placehold.co/89x134"),
-                            fit: BoxFit.cover,
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 174,
-                top: 208,
-                child: Text(
-                    'Ngày mượn: 27/7/2727',
-                    style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 10,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 174,
-                top: 227,
-                child: Text(
-                    'Ngày trả: 27/7/2727',
-                    style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 10,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 239,
-                top: 304,
-                child: Container(
-                    width: 116,
-                    height: 38,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFE2C5B5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 267,
-                top: 314,
-                child: Text(
-                    'Mượn lại',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
+          ),
         ],
-    ),
-)
+      ),
+    );
+  }
+
+  Widget _tab(String label, bool selected) {
+    return GestureDetector(
+      onTap: () => setState(() => returned = label == 'Trả'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? Colors.white.withValues(alpha: 0.25) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : kBrownTitle,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
     );
   }
 }

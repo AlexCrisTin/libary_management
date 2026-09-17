@@ -1,190 +1,126 @@
 import 'package:flutter/material.dart';
-class Message extends StatelessWidget {
+import 'package:libary_management/reader/reader_nav.dart';
+
+class Message extends StatefulWidget {
   const Message({super.key});
 
   @override
+  State<Message> createState() => _MessageState();
+}
+
+class _MessageState extends State<Message> {
+  bool librarian = true;
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-    width: 402,
-    height: 874,
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(color: Colors.white),
-    child: Stack(
-        children: [
-            Positioned(
-                left: 0,
-                top: 0,
-                child: Container(
-                    width: 402,
-                    height: 97,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFDBB9A0),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(10),
-                                bottomRight: Radius.circular(10),
-                            ),
-                        ),
-                    ),
+    return Column(
+      children: [
+        const TitleHeader(title: 'Tin nhắn', color: Colors.white),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: kBeigeButton,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _tab('AI', !librarian, () {
+                    setState(() => librarian = false);
+                  }),
                 ),
-            ),
-            Positioned(
-                left: 26,
-                top: 798,
-                child: Container(
-                    width: 349,
-                    height: 61,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFEFE2D9),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                        ),
-                    ),
+                Expanded(
+                  child: _tab('Thủ thư', librarian, () {
+                    setState(() => librarian = true);
+                  }),
                 ),
+              ],
             ),
-            Positioned(
-                left: 47,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
+          ),
+        ),
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: kCardFill,
+              borderRadius: BorderRadius.circular(20),
             ),
-            Positioned(
-                left: 315,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 113,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 180,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 247,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 28,
-                top: 113,
-                child: Container(
-                    width: 346,
-                    height: 51,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFE2C5B5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                        ),
-                    ),
+            child: Center(
+              child: Text(
+                librarian
+                    ? 'Nhắn tin với thủ thư (chưa có backend)'
+                    : 'Trò chuyện với AI (chưa có backend)',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: kBrownTitle,
+                  fontWeight: FontWeight.w700,
                 ),
+              ),
             ),
-            Positioned(
-                left: 28,
-                top: 694,
-                child: Container(
-                    width: 346,
-                    height: 51,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFE2C5B5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                        ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: kBeigeButton,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
                     ),
+                  ),
                 ),
-            ),
-            Positioned(
-                left: 27,
-                top: 177,
-                child: Container(
-                    width: 346,
-                    height: 504,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFF7F0EA),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                        ),
-                    ),
+                IconButton(
+                  onPressed: () => _controller.clear(),
+                  icon: const Icon(Icons.send, color: Colors.white),
                 ),
+              ],
             ),
-            Positioned(
-                left: 147,
-                top: 34,
-                child: Text(
-                    'Tin nhắn',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 25,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 326,
-                top: 701,
-                child: Container(width: 37, height: 37, child: Stack()),
-            ),
-            Positioned(
-                left: 37,
-                top: 701,
-                child: Container(
-                    width: 282,
-                    height: 37,
-                    decoration: ShapeDecoration(
-                        color: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 40,
-                top: 119,
-                child: Container(
-                    width: 322,
-                    height: 40,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFE2C5B5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 113,
-                top: 130,
-                child: Text(
-                    'AI',
-                    style: TextStyle(
-                        color: const Color(0xFFE2C5B5),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 254,
-                top: 130,
-                child: Text(
-                    'Thủ thư',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-        ],
-    ),
-)
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _tab(String label, bool selected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white.withValues(alpha: 0.25) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : kBrownTitle,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
     );
   }
 }

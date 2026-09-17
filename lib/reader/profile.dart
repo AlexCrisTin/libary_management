@@ -1,374 +1,154 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/reader/fine.dart';
+import 'package:libary_management/reader/history.dart';
+import 'package:libary_management/reader/notice.dart';
+import 'package:libary_management/reader/profile-detail.dart';
+import 'package:libary_management/reader/reader_nav.dart';
 
 class Profile extends StatelessWidget {
   const Profile({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-    width: 402,
-    height: 874,
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(color: Colors.white),
-    child: Stack(
-        children: [
-            Positioned(
-                left: 0,
-                top: 0,
-                child: Container(
-                    width: 402,
-                    height: 226,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFDBB9A0),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(10),
-                                bottomRight: Radius.circular(10),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 26,
-                top: 798,
-                child: Container(
-                    width: 349,
-                    height: 61,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFEFE2D9),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 47,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 315,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 113,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 180,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 247,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 27,
-                top: 54,
-                child: Container(
-                    width: 118,
-                    height: 118,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFEFE2D9),
-                        shape: OvalBorder(),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 150,
-                top: 54,
-                child: Text(
-                    'Trần Ngọc An',
-                    style: TextStyle(
+    return Column(
+      children: [
+        BeigeHeader(
+          child: Row(
+            children: [
+              const CircleAvatar(
+                radius: 48,
+                backgroundColor: kBeigeSoft,
+                child: Icon(Icons.person, size: 48, color: kBrownTitle),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Trần Ngọc An',
+                      style: TextStyle(
                         color: Colors.white,
                         fontSize: 25,
-                        fontFamily: 'Inter',
                         fontWeight: FontWeight.w700,
+                      ),
                     ),
-                ),
-            ),
-            Positioned(
-                left: 155,
-                top: 89,
-                child: Text(
-                    '23010283@st.phenikaa-uni.edu.vn',
-                    style: TextStyle(
+                    SizedBox(height: 4),
+                    Text(
+                      '23010283@st.phenikaa-uni.edu.vn',
+                      style: TextStyle(
                         color: Colors.white,
                         fontSize: 10,
-                        fontFamily: 'Inter',
                         fontWeight: FontWeight.w700,
+                      ),
                     ),
+                  ],
                 ),
-            ),
-            Positioned(
-                left: 27,
-                top: 256,
-                child: Container(
-                    width: 346,
-                    height: 40,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFE2C5B5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(10),
-                                topRight: Radius.circular(10),
-                            ),
-                        ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            children: [
+              SectionCard(
+                title: 'Tài khoản',
+                child: Column(
+                  children: [
+                    MenuRow(
+                      label: 'Thông tin cá nhân',
+                      icon: Icons.badge_outlined,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ProfileDetail(),
+                          ),
+                        );
+                      },
                     ),
-                ),
-            ),
-            Positioned(
-                left: 27,
-                top: 296,
-                child: Container(
-                    width: 346,
-                    height: 197,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFF7F0EA),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(5),
-                                bottomRight: Radius.circular(5),
-                            ),
-                        ),
+                    MenuRow(
+                      label: 'Lịch sử mượn/trả sách',
+                      icon: Icons.history,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const History()),
+                        );
+                      },
                     ),
-                ),
-            ),
-            Positioned(
-                left: 33,
-                top: 300,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 27,
-                top: 527,
-                child: Container(
-                    width: 346,
-                    height: 40,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFE2C5B5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(10),
-                                topRight: Radius.circular(10),
-                            ),
-                        ),
+                    MenuRow(
+                      label: 'Tiền phạt',
+                      icon: Icons.payments_outlined,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const Fine()),
+                        );
+                      },
                     ),
-                ),
-            ),
-            Positioned(
-                left: 27,
-                top: 567,
-                child: Container(
-                    width: 346,
-                    height: 204,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFF7F0EA),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(5),
-                                bottomRight: Radius.circular(5),
-                            ),
-                        ),
+                    MenuRow(
+                      label: 'Thông báo',
+                      icon: Icons.notifications_outlined,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const Notice()),
+                        );
+                      },
                     ),
+                  ],
                 ),
-            ),
-            Positioned(
-                left: 38,
-                top: 267,
-                child: Text(
-                    'Tài khoản',
-                    style: TextStyle(
-                        color: Colors.white,
+              ),
+              const SizedBox(height: 24),
+              SectionCard(
+                title: 'Cài đặt khác',
+                child: Column(
+                  children: [
+                    MenuRow(
+                      label: 'Cài đặt',
+                      icon: Icons.settings_outlined,
+                      onTap: () {},
+                    ),
+                    MenuRow(
+                      label: 'Thông tin khác',
+                      icon: Icons.info_outline,
+                      onTap: () {},
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Center(
+                child: SizedBox(
+                  width: 151,
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF16F6F),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'Đăng xuất',
+                      style: TextStyle(
                         fontSize: 15,
-                        fontFamily: 'Inter',
                         fontWeight: FontWeight.w700,
+                      ),
                     ),
+                  ),
                 ),
-            ),
-            Positioned(
-                left: 89,
-                top: 314,
-                child: Text(
-                    'Thông tin cá nhân',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 125,
-                top: 748,
-                child: Container(
-                    width: 151,
-                    height: 46,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFF16F6F),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 89,
-                top: 585,
-                child: Text(
-                    'Cài đặt',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 165,
-                top: 762,
-                child: Text(
-                    'Đăng xuất',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 89,
-                top: 632,
-                child: Text(
-                    'Thông tin khác',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 38,
-                top: 538,
-                child: Text(
-                    'Cài đặt khác',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 337,
-                top: 311,
-                child: Container(width: 24, height: 24, child: Stack()),
-            ),
-            Positioned(
-                left: 336,
-                top: 582,
-                child: Container(width: 24, height: 24, child: Stack()),
-            ),
-            Positioned(
-                left: 336,
-                top: 629,
-                child: Container(width: 24, height: 24, child: Stack()),
-            ),
-            Positioned(
-                left: 32,
-                top: 349,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 89,
-                top: 363,
-                child: Text(
-                    'Lịch sử mượn/trả sách',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 337,
-                top: 360,
-                child: Container(width: 24, height: 24, child: Stack()),
-            ),
-            Positioned(
-                left: 89,
-                top: 412,
-                child: Text(
-                    'Tiền phạt',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 337,
-                top: 409,
-                child: Container(width: 24, height: 24, child: Stack()),
-            ),
-            Positioned(
-                left: 33,
-                top: 443,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 89,
-                top: 457,
-                child: Text(
-                    'Thông tin cá nhân',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 337,
-                top: 454,
-                child: Container(width: 24, height: 24, child: Stack()),
-            ),
-            Positioned(
-                left: 32,
-                top: 571,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 33,
-                top: 398,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 32,
-                top: 617,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-        ],
-    ),
-)
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
