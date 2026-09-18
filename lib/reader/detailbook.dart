@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:libary_management/reader/reader_nav.dart';
 import 'package:libary_management/reader/reader_routes.dart';
+import 'package:libary_management/reader/message.dart';
+import 'package:libary_management/reader/qr_scanner.dart';
 
 class DetailBook extends StatelessWidget {
   const DetailBook({super.key});
@@ -10,11 +12,18 @@ class DetailBook extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       floatingActionButton: ChatFab(
-        onPressed: () => openReaderTab(context, 3),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const Message()),
+        ),
       ),
       bottomNavigationBar: ReaderBottomBar(
         currentIndex: 0,
         onSelect: (i) => openReaderTab(context, i),
+        onScan: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const QrScanner()),
+        ),
       ),
       body: Column(
         children: [

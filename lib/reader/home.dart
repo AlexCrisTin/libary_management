@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/reader/allbook.dart';
 import 'package:libary_management/reader/detailbook.dart';
 import 'package:libary_management/reader/message.dart';
 import 'package:libary_management/reader/profile.dart';
+import 'package:libary_management/reader/qr_scanner.dart';
 import 'package:libary_management/reader/reader_nav.dart';
-import 'package:libary_management/reader/search.dart';
 import 'package:libary_management/reader/notice.dart';
 import 'package:libary_management/reader/seeborrowbook.dart';
 
@@ -37,32 +38,37 @@ class _HomeState extends State<Home> {
           );
         },
       ),
-      const Search(),
+      const AllBook(),
+      const SizedBox.shrink(),
       SeeBorrowBook(onOpenSearch: () => setState(() => _index = 1)),
-      const Message(),
       const Profile(),
     ];
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: pages[_index],
-      floatingActionButton: _index < 3
-          ? ChatFab(onPressed: () => setState(() => _index = 3))
+      floatingActionButton: _index < 4
+          ? ChatFab(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const Message()),
+              ),
+            )
           : null,
       bottomNavigationBar: ReaderBottomBar(
         currentIndex: _index,
         onSelect: (i) => setState(() => _index = i),
+        onScan: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const QrScanner()),
+        ),
       ),
     );
   }
 }
 
 class HomeContent extends StatelessWidget {
-  const HomeContent({
-    super.key,
-    this.onOpenSearch,
-    this.onOpenNotice,
-  });
+  const HomeContent({super.key, this.onOpenSearch, this.onOpenNotice});
 
   final VoidCallback? onOpenSearch;
   final VoidCallback? onOpenNotice;
@@ -104,9 +110,7 @@ class HomeContent extends StatelessWidget {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const DetailBook(),
-                          ),
+                          MaterialPageRoute(builder: (_) => const DetailBook()),
                         );
                       },
                       child: const Column(

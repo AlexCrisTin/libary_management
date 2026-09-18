@@ -14,10 +14,12 @@ class ReaderBottomBar extends StatelessWidget {
     super.key,
     required this.currentIndex,
     this.onSelect,
+    this.onScan,
   });
 
   final int currentIndex;
   final ValueChanged<int>? onSelect;
+  final VoidCallback? onScan;
 
   void _open(BuildContext context, int index) {
     onSelect?.call(index);
@@ -38,9 +40,17 @@ class ReaderBottomBar extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _item(context, 0, Icons.home_rounded),
-              _item(context, 1, Icons.search_rounded),
-              _item(context, 2, Icons.menu_book_rounded),
-              _item(context, 3, Icons.chat_bubble_outline_rounded),
+              _item(context, 1, Icons.auto_stories_rounded),
+              IconButton(
+                tooltip: 'Quét mã QR sách',
+                onPressed: onScan,
+                icon: Icon(
+                  Icons.camera_alt_rounded,
+                  size: 28,
+                  color: kBrownTitle.withValues(alpha: 0.6),
+                ),
+              ),
+              _item(context, 3, Icons.menu_book_rounded),
               _item(context, 4, Icons.person_rounded),
             ],
           ),
@@ -78,11 +88,7 @@ class ChatFab extends StatelessWidget {
 }
 
 class BeigeHeader extends StatelessWidget {
-  const BeigeHeader({
-    super.key,
-    required this.child,
-    this.height,
-  });
+  const BeigeHeader({super.key, required this.child, this.height});
 
   final Widget child;
   final double? height;
@@ -150,19 +156,22 @@ class SearchHeaderBar extends StatelessWidget {
                 suffixIcon: const Icon(Icons.search, color: Colors.grey),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
-                  borderSide: const BorderSide(width: 3, color: Color(0xFFDDDDDD)),
+                  borderSide: const BorderSide(
+                    width: 3,
+                    color: Color(0xFFDDDDDD),
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
-                  borderSide: const BorderSide(width: 3, color: Color(0xFFDDDDDD)),
+                  borderSide: const BorderSide(
+                    width: 3,
+                    color: Color(0xFFDDDDDD),
+                  ),
                 ),
               ),
             ),
           ),
-          if (trailing != null) ...[
-            const SizedBox(width: 8),
-            trailing!,
-          ],
+          if (trailing != null) ...[const SizedBox(width: 8), trailing!],
         ],
       ),
     );
@@ -214,11 +223,7 @@ class TitleHeader extends StatelessWidget {
 }
 
 class BookCover extends StatelessWidget {
-  const BookCover({
-    super.key,
-    this.width = 89,
-    this.height = 134,
-  });
+  const BookCover({super.key, this.width = 89, this.height = 134});
 
   final double width;
   final double height;
@@ -238,11 +243,7 @@ class BookCover extends StatelessWidget {
 }
 
 class SectionCard extends StatelessWidget {
-  const SectionCard({
-    super.key,
-    required this.title,
-    required this.child,
-  });
+  const SectionCard({super.key, required this.title, required this.child});
 
   final String title;
   final Widget child;
