@@ -1,6 +1,8 @@
-﻿const express = require('express');
+const express = require('express');
 const router = express.Router();
 const readersController = require('./readers.controller');
+
+const authMiddleware = require('../../middlewares/auth.middleware');
 
 // 1. Xem danh sách độc giả (hỗ trợ tìm kiếm, lọc theo khoa, trạng thái)
 router.get('/', readersController.getAllReaders);
@@ -17,7 +19,11 @@ router.get('/:id/borrowing', readersController.getBorrowingBooks);
 // 5. Xem lịch sử mượn trả của độc giả
 router.get('/:id/history', readersController.getBorrowHistory);
 
-// 6. Xem chi tiết hồ sơ 1 độc giả
+// 6. Lấy và cập nhật cấu hình sở thích đọc sách của độc giả
+router.get('/:id/preferences', authMiddleware, readersController.getReaderPreferences);
+router.put('/:id/preferences', authMiddleware, readersController.updateReaderPreferences);
+
+// 7. Xem chi tiết hồ sơ 1 độc giả
 router.get('/:id', readersController.getReaderById);
 
 // 7. Chỉnh sửa thông tin độc giả
