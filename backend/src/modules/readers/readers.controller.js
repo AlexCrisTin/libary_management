@@ -1,4 +1,4 @@
-﻿const readersService = require('./readers.service');
+const readersService = require('./readers.service');
 const { sendSuccess, sendError } = require('../../utils/response');
 
 /**
@@ -130,3 +130,30 @@ exports.getBorrowHistory = async (req, res, next) => {
         next(error);
     }
 };
+
+/**
+ * 9. GET /api/readers/:id/preferences - Lấy cấu hình sở thích đọc sách của độc giả
+ */
+exports.getReaderPreferences = async (req, res, next) => {
+    try {
+        const readerId = req.params.id === 'me' && req.user ? req.user.readerId : req.params.id;
+        const preferences = await readersService.getReaderPreferences(readerId);
+        return sendSuccess(res, 'Lấy sở thích độc giả thành công', preferences);
+    } catch (error) {
+        return sendError(res, error.message, 400);
+    }
+};
+
+/**
+ * 10. PUT /api/readers/:id/preferences - Cập nhật cấu hình sở thích đọc sách của độc giả
+ */
+exports.updateReaderPreferences = async (req, res, next) => {
+    try {
+        const readerId = req.params.id === 'me' && req.user ? req.user.readerId : req.params.id;
+        const updated = await readersService.updateReaderPreferences(readerId, req.body);
+        return sendSuccess(res, 'Cập nhật sở thích độc giả thành công', updated);
+    } catch (error) {
+        return sendError(res, error.message, 400);
+    }
+};
+

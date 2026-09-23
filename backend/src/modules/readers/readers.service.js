@@ -1,4 +1,4 @@
-﻿const db = require('../../config/db');
+const db = require('../../config/db');
 const { v4: uuidv4 } = require('uuid');
 
 const parseJSONField = (data, defaultValue = []) => {
@@ -270,3 +270,82 @@ exports.getBorrowHistory = async (readerId) => {
     const [rows] = await db.query(sql, [readerId]);
     return rows;
 };
+
+/**
+ * 9. Lấy cấu hình sở thích đọc sách của độc giả
+ */
+exports.getReaderPreferences = async (readerId) => {
+    const [readers] = await db.query('SELECT reader_id, full_name, reader_code FROM readers WHERE reader_id = ?', [readerId]);
+    if (readers.length === 0) {
+        throw new Error('Không tìm thấy độc giả này!');
+    }
+
+    const [rows] = await db.query('SELECT * FROM reader_preferences WHERE reader_id = ?', [readerId]);
+    if (rows.length === 0) {
+        return {
+            reader_id: readerId,
+            preferred_subjects: [],
+            preferred_authors: [],
+            preferred_langs: ['vi'],
+            reading_pace: 'medium',
+            notification_pref: { email: true, app: true, sms: false }
+        };
+    }
+
+    const pref = rows[0];
+    return {
+        reader_id: pref.reader_id,
+        preferred_subjects: parseJSONField(pref.preferred_subjects, []),
+        preferred_authors: parseJSONField(pref.preferred_authors, []),
+        preferred_langs: parseJSONField(pref.preferred_langs, ['vi']),
+        reading_pace: pref.reading_pace || 'medium',
+        notification_pref: parseJSONField(pref.notification_pref, { email: true, app: true, sms: false })
+    };
+};
+
+/**
+ * 10. Cập nhật / Thiết lập sở thích đọc sách của độc giả (Cơ chế Upsert)
+ */
+exports.updateReaderPreferences = async (readerId, data) => {
+    const [readers] = await db.query('SELECT reader_id FROM readers WHERE reader_id = ?', [readerId]);
+    if (readers.length === 0) {
+        throw new Error('Không tìm thấy độc giả này!');
+    }
+
+    const {
+        preferred_subjects = [],
+        preferred_authors = [],
+        preferred_langs = ['vi'],
+        reading_pace = 'medium',
+        notification_pref = { email: true, app: true, sms: false }
+    } = data;
+
+    const subjectsJSON = JSON.stringify(preferred_subjects);
+    const authorsJSON = JSON.stringify(preferred_authors);
+    const langsJSON = JSON.stringify(preferred_langs);
+    const notifJSON = JSON.stringify(notification_pref);
+
+    const sql = `
+        INSERT INTO reader_preferences (
+            reader_id, preferred_subjects, preferred_authors, preferred_langs, reading_pace, notification_pref
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            preferred_subjects = VALUES(preferred_subjects),
+            preferred_authors = VALUES(preferred_authors),
+            preferred_langs = VALUES(preferred_langs),
+            reading_pace = VALUES(reading_pace),
+            notification_pref = VALUES(notification_pref)
+    `;
+
+    await db.query(sql, [readerId, subjectsJSON, authorsJSON, langsJSON, reading_pace, notifJSON]);
+
+    return {
+        reader_id: readerId,
+        preferred_subjects,
+        preferred_authors,
+        preferred_langs,
+        reading_pace,
+        notification_pref
+    };
+};
+

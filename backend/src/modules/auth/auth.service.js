@@ -1,4 +1,4 @@
-﻿const db = require('../../config/db');
+const db = require('../../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
@@ -48,6 +48,13 @@ exports.register = async ({ username, password, full_name, email, phone, reader_
             status, max_books
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "active", 5)`,
         [readerId, userId, readerCode, full_name, birth_date, phone, email, reader_type, faculty, cardIssued, cardExpired]
+    );
+
+    // Tạo cấu hình sở thích mặc định trong bảng reader_preferences
+    await db.query(
+        `INSERT INTO reader_preferences (reader_id, preferred_subjects, preferred_authors, preferred_langs, reading_pace, notification_pref)
+         VALUES (?, '[]', '[]', '["vi"]', 'medium', '{"email": true, "app": true, "sms": false}')`,
+        [readerId]
     );
 
     // Tạo JWT Token
