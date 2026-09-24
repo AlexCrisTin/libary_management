@@ -7,11 +7,15 @@ class Dashboard extends StatelessWidget {
     this.onOpenTab,
     this.onOpenReaderManagement,
     this.onOpenReport,
+    this.onOpenMessages,
+    this.onOpenProfile,
   });
 
   final ValueChanged<int>? onOpenTab;
   final VoidCallback? onOpenReaderManagement;
   final VoidCallback? onOpenReport;
+  final VoidCallback? onOpenMessages;
+  final VoidCallback? onOpenProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -94,12 +98,12 @@ class Dashboard extends StatelessWidget {
                     _QuickCard(
                       icon: Icons.swap_horiz_rounded,
                       label: 'Mượn / Trả',
-                      onTap: () => onOpenTab?.call(2),
+                      onTap: () => onOpenTab?.call(3),
                     ),
                     _QuickCard(
                       icon: Icons.chat_bubble_outline_rounded,
                       label: 'Tin nhắn',
-                      onTap: () => onOpenTab?.call(3),
+                      onTap: onOpenMessages,
                     ),
                     _QuickCard(
                       icon: Icons.bar_chart_rounded,
@@ -109,7 +113,7 @@ class Dashboard extends StatelessWidget {
                     _QuickCard(
                       icon: Icons.person_rounded,
                       label: 'Hồ sơ',
-                      onTap: () => onOpenTab?.call(4),
+                      onTap: onOpenProfile,
                     ),
                   ],
                 ),

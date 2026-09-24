@@ -5,6 +5,7 @@ import 'book_management.dart';
 import 'borrow_return_book_management.dart';
 import 'message_all.dart';
 import 'profile_admin.dart';
+import 'librarian_scanner.dart';
 import 'reader_management.dart';
 import 'report.dart';
 
@@ -25,9 +26,9 @@ class _LibrarianShellState extends State<LibrarianShell> {
   /// Pages matched to the 5 bottom-nav tabs:
   ///  0 → Dashboard
   ///  1 → Book Management
-  ///  2 → Borrow/Return Management
-  ///  3 → Messages
-  ///  4 → Profile
+  ///  2 → Camera action
+  ///  3 → Borrow/Return Management
+  ///  4 → Reader Management
   @override
   void initState() {
     super.initState();
@@ -43,27 +44,56 @@ class _LibrarianShellState extends State<LibrarianShell> {
     final pages = [
       _DashboardPage(
         onOpenTab: _onTabSelected,
-        onOpenReaderManagement: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ReaderManagement()),
-        ),
+        onOpenReaderManagement: () => _onTabSelected(4),
         onOpenReport: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const Report()),
         ),
+        onOpenMessages: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MessageAll()),
+        ),
+        onOpenProfile: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ProfileAdmin()),
+        ),
       ),
       const _BookManagementPage(),
+      const SizedBox.shrink(),
       const _BorrowReturnPage(),
-      const _MessagesPage(),
-      const _ProfilePage(),
+      const _ReaderManagementPage(),
     ];
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: IndexedStack(index: _currentIndex, children: pages),
+      floatingActionButton: SizedBox(
+        width: 110,
+        height: 110,
+        child: FloatingActionButton(
+          heroTag: 'librarianMessages',
+          backgroundColor: kLibBeigeSoft,
+          elevation: 0,
+          shape: const CircleBorder(),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const MessageAll()),
+          ),
+          child: const Icon(
+            Icons.more_horiz_rounded,
+            size: 42,
+            color: kLibBrownTitle,
+          ),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: LibrarianBottomBar(
         currentIndex: _currentIndex,
         onSelect: _onTabSelected,
+        onScan: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const LibrarianScanner()),
+        ),
       ),
     );
   }
@@ -78,17 +108,23 @@ class _DashboardPage extends StatelessWidget {
     required this.onOpenTab,
     required this.onOpenReaderManagement,
     required this.onOpenReport,
+    required this.onOpenMessages,
+    required this.onOpenProfile,
   });
 
   final ValueChanged<int> onOpenTab;
   final VoidCallback onOpenReaderManagement;
   final VoidCallback onOpenReport;
+  final VoidCallback onOpenMessages;
+  final VoidCallback onOpenProfile;
 
   @override
   Widget build(BuildContext context) => Dashboard(
     onOpenTab: onOpenTab,
     onOpenReaderManagement: onOpenReaderManagement,
     onOpenReport: onOpenReport,
+    onOpenMessages: onOpenMessages,
+    onOpenProfile: onOpenProfile,
   );
 }
 
@@ -104,14 +140,8 @@ class _BorrowReturnPage extends StatelessWidget {
   Widget build(BuildContext context) => const BorrowReturnBookManagement();
 }
 
-class _MessagesPage extends StatelessWidget {
-  const _MessagesPage();
+class _ReaderManagementPage extends StatelessWidget {
+  const _ReaderManagementPage();
   @override
-  Widget build(BuildContext context) => const MessageAll();
-}
-
-class _ProfilePage extends StatelessWidget {
-  const _ProfilePage();
-  @override
-  Widget build(BuildContext context) => const ProfileAdmin();
+  Widget build(BuildContext context) => const ReaderManagement();
 }

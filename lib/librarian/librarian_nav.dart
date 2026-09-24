@@ -11,35 +11,46 @@ const kLibRed = Color(0xFFD18282);
 const kLibCardFill = Color(0xFFF7F0EA);
 
 // ─── Bottom Navigation Bar ────────────────────────────────────────────────────
-/// Tabs: 0=Dashboard, 1=Books, 2=Borrow/Return, 3=Messages, 4=Profile
+/// Tabs: 0=Dashboard, 1=Books, 3=Borrow/Return, 4=Reader management.
+/// Index 2 is reserved for the camera action.
 class LibrarianBottomBar extends StatelessWidget {
   const LibrarianBottomBar({
     super.key,
     required this.currentIndex,
     this.onSelect,
+    this.onScan,
   });
 
   final int currentIndex;
   final ValueChanged<int>? onSelect;
+  final VoidCallback? onScan;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 16),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: kLibBeigeSoft,
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(52),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.symmetric(vertical: 18),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _item(0, Icons.dashboard_rounded),
-              _item(1, Icons.menu_book_rounded),
-              _item(2, Icons.swap_horiz_rounded),
-              _item(3, Icons.chat_bubble_outline_rounded),
+              _item(0, Icons.view_list_rounded),
+              _item(1, Icons.auto_stories_rounded),
+              IconButton(
+                tooltip: 'Quét QR / mã vạch',
+                onPressed: onScan,
+                icon: Icon(
+                  Icons.camera_alt_rounded,
+                  size: 30,
+                  color: kLibBrownTitle.withValues(alpha: 0.6),
+                ),
+              ),
+              _item(3, Icons.menu_book_rounded),
               _item(4, Icons.person_rounded),
             ],
           ),
@@ -68,11 +79,11 @@ class LibrarianBottomBar extends StatelessWidget {
       case 1:
         return 'Quản lý sách';
       case 2:
-        return 'Mượn / Trả';
+        return 'Quét QR / mã vạch';
       case 3:
-        return 'Tin nhắn';
+        return 'Mượn / Trả';
       case 4:
-        return 'Hồ sơ';
+        return 'Quản lý độc giả';
       default:
         return '';
     }
