@@ -27,10 +27,9 @@ class ProfileAdminDetail extends StatelessWidget {
                 children: [
                   Align(
                     alignment: Alignment.topLeft,
-                    child: Container(
-                      width: 37,
-                      height: 37,
-                      child: const Stack(),
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
                     ),
                   ),
                   // Avatar
@@ -48,7 +47,10 @@ class ProfileAdminDetail extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Container(width: 45, height: 45, child: const Stack()),
+                      const Icon(
+                        Icons.photo_camera_outlined,
+                        color: Colors.white,
+                      ),
                       const SizedBox(width: 8),
                       const Text(
                         'Đổi ảnh',
@@ -103,27 +105,6 @@ class ProfileAdminDetail extends StatelessWidget {
                     const SizedBox(height: 24),
                   ],
                 ),
-              ),
-            ),
-            // Bottom nav
-            Container(
-              margin: const EdgeInsets.fromLTRB(26, 0, 26, 8),
-              height: 61,
-              decoration: ShapeDecoration(
-                color: const Color(0xFFEFE2D9),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                ],
               ),
             ),
           ],

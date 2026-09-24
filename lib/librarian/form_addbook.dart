@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'librarian_nav.dart';
+
 class FormAddBook extends StatelessWidget {
   const FormAddBook({super.key});
 
@@ -26,7 +28,10 @@ class FormAddBook extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Container(width: 37, height: 37, child: const Stack()),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  ),
                   const Spacer(),
                   const Text(
                     'Thêm sách',
@@ -61,10 +66,10 @@ class FormAddBook extends StatelessWidget {
                           ),
                         ),
                         child: Center(
-                          child: Container(
-                            width: 41,
-                            height: 41,
-                            child: const Stack(),
+                          child: const Icon(
+                            Icons.add_photo_alternate_outlined,
+                            size: 34,
+                            color: kLibBrownTitle,
                           ),
                         ),
                       ),
@@ -262,27 +267,6 @@ class FormAddBook extends StatelessWidget {
                     const SizedBox(height: 24),
                   ],
                 ),
-              ),
-            ),
-            // Bottom nav
-            Container(
-              margin: const EdgeInsets.fromLTRB(26, 0, 26, 8),
-              height: 61,
-              decoration: ShapeDecoration(
-                color: const Color(0xFFEFE2D9),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                ],
               ),
             ),
           ],

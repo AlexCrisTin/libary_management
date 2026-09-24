@@ -27,7 +27,10 @@ class ReaderDetail extends StatelessWidget {
               child: Row(
                 children: [
                   // Back button
-                  Container(width: 37, height: 37, child: const Stack()),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  ),
                   const Spacer(),
                   const Text(
                     'Chi tiết',
@@ -40,7 +43,10 @@ class ReaderDetail extends StatelessWidget {
                   ),
                   const Spacer(),
                   // Edit button
-                  Container(width: 37, height: 37, child: const Stack()),
+                  IconButton(
+                    onPressed: () {},
+                    icon: const Icon(Icons.edit_outlined, color: Colors.white),
+                  ),
                 ],
               ),
             ),
@@ -162,29 +168,6 @@ class ReaderDetail extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-            // Bottom nav
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 26),
-                height: 67,
-                child: Stack(
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 67,
-                        height: 67,
-                        decoration: const ShapeDecoration(
-                          color: Color(0xFFEFE2D9),
-                          shape: OvalBorder(),
-                        ),
-                        child: const Stack(),
-                      ),
-                    ),
                   ],
                 ),
               ),

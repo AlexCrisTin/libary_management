@@ -26,7 +26,10 @@ class DetailBook extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Container(width: 37, height: 37, child: const Stack()),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  ),
                   const Spacer(),
                   const Text(
                     'Thông tin sách',
@@ -38,7 +41,10 @@ class DetailBook extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Container(width: 45, height: 45, child: const Stack()),
+                  IconButton(
+                    onPressed: () {},
+                    icon: const Icon(Icons.edit_outlined, color: Colors.white),
+                  ),
                 ],
               ),
             ),
@@ -186,27 +192,6 @@ class DetailBook extends StatelessWidget {
                     const SizedBox(height: 24),
                   ],
                 ),
-              ),
-            ),
-            // Bottom nav (single icon for detail page)
-            Container(
-              margin: const EdgeInsets.fromLTRB(26, 0, 26, 8),
-              height: 61,
-              decoration: ShapeDecoration(
-                color: const Color(0xFFEFE2D9),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                ],
               ),
             ),
           ],
