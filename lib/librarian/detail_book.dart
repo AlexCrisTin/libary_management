@@ -56,8 +56,7 @@ class DetailBook extends StatelessWidget {
                         height: 253,
                         decoration: BoxDecoration(
                           image: const DecorationImage(
-                            image: NetworkImage(
-                                "https://placehold.co/168x253"),
+                            image: NetworkImage("https://placehold.co/168x253"),
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -161,13 +160,13 @@ class DetailBook extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.center,
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Container(
-                                      width: 41,
-                                      height: 41,
-                                      child: const Stack()),
+                                    width: 41,
+                                    height: 41,
+                                    child: const Stack(),
+                                  ),
                                 ],
                               ),
                               const Text(

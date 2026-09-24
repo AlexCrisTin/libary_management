@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'librarian_nav.dart';
+import 'detail_book.dart';
+import 'form_addbook.dart';
 
 class BookManagement extends StatelessWidget {
   const BookManagement({super.key});
@@ -10,299 +13,272 @@ class BookManagement extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // AppBar header
-            Container(
-              width: double.infinity,
-              height: 70,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: const ShapeDecoration(
-                color: Color(0xFFDBB9A0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(10),
-                    bottomRight: Radius.circular(10),
-                  ),
-                ),
-              ),
-              child: const Center(
-                child: Text(
-                  'Quản lý sách',
-                  style: TextStyle(
-                    color: Color(0xFF8A6060),
-                    fontSize: 25,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.w700,
-                  ),
+            LibTitleHeader(
+              title: 'Quản lý sách',
+              trailing: IconButton(
+                icon: const Icon(Icons.add, color: Colors.white),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FormAddBook()),
                 ),
               ),
             ),
+            // Search + filter
             Padding(
-              padding: const EdgeInsets.fromLTRB(11, 12, 11, 0),
+              padding: const EdgeInsets.fromLTRB(11, 10, 11, 0),
               child: Row(
                 children: [
-                  // Search field
                   Expanded(
-                    child: Container(
-                      height: 45,
-                      decoration: ShapeDecoration(
-                        color: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          side: const BorderSide(
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Tìm kiếm...',
+                        hintStyle: TextStyle(
+                          color: Colors.black.withValues(alpha: 0.25),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Colors.grey,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: const BorderSide(
                             width: 3,
                             color: Color(0xFFDDDDDD),
                           ),
-                          borderRadius: BorderRadius.circular(20),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              'Tìm kiếm',
-                              style: TextStyle(
-                                color: Colors.black.withValues(alpha: 0.20),
-                                fontSize: 15,
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: const BorderSide(
+                            width: 3,
+                            color: Color(0xFFDDDDDD),
                           ),
-                          Container(
-                              width: 24, height: 24, child: const Stack()),
-                          const SizedBox(width: 8),
-                        ],
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Filter button
-                  Container(
-                    width: 40,
-                    height: 40,
-                    child: const Stack(),
+                  IconButton(
+                    icon: const Icon(Icons.filter_list, color: kLibBrownTitle),
+                    onPressed: () {},
                   ),
                 ],
               ),
             ),
             // Action buttons row
             Padding(
-              padding: const EdgeInsets.fromLTRB(7, 12, 7, 0),
+              padding: const EdgeInsets.fromLTRB(11, 8, 11, 0),
               child: Row(
                 children: [
-                  // Delete button
-                  Container(
-                    width: 48,
-                    height: 43,
-                    decoration: ShapeDecoration(
-                      color: const Color(0xFFFC5F5F),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Stack(),
+                  // Delete
+                  _actionBtn(
+                    icon: Icons.delete_outline,
+                    color: const Color(0xFFFC5F5F),
+                    onTap: () {},
                   ),
                   const Spacer(),
-                  // Add button
-                  Container(
-                    width: 48,
-                    height: 43,
-                    decoration: ShapeDecoration(
-                      color: const Color(0xFFE2C5B5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                  // Add
+                  _actionBtn(
+                    icon: Icons.add,
+                    color: kLibBeigeButton,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const FormAddBook()),
                     ),
-                    child: const Stack(),
                   ),
                 ],
               ),
             ),
             // Table header
             Container(
-              margin: const EdgeInsets.fromLTRB(7, 8, 7, 0),
-              height: 51,
+              margin: const EdgeInsets.fromLTRB(11, 8, 11, 0),
+              height: 44,
               decoration: ShapeDecoration(
-                color: const Color(0xFFE2C5B5),
+                color: kLibBeigeButton,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
               child: const Row(
                 children: [
-                  SizedBox(width: 16),
+                  SizedBox(width: 12),
+                  Expanded(flex: 3, child: Text('Sách', style: _headerStyle)),
                   Expanded(
-                    flex: 3,
-                    child: Text(
-                      'Sách',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    flex: 2,
+                    child: Text('Trạng thái', style: _headerStyle),
                   ),
                   Expanded(
                     flex: 2,
-                    child: Text(
-                      'Trạng thái',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    child: Text('Số lượng', style: _headerStyle),
                   ),
                   Expanded(
                     flex: 2,
-                    child: Text(
-                      'Số lượng',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    child: Text('Chi tiết', style: _headerStyle),
                   ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      'Chi tiết',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 8),
                 ],
               ),
             ),
-            // Book list item (sample)
+            // Book list
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(7, 4, 7, 0),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        // Book cover image
-                        Container(
-                          width: 53,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            image: const DecorationImage(
-                              image: NetworkImage("https://placehold.co/53x80"),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Expanded(flex: 2, child: SizedBox()),
-                        // Status badge
-                        Expanded(
-                          flex: 2,
-                          child: Container(
-                            height: 21,
-                            decoration: ShapeDecoration(
-                              color: const Color(0xFFC2E2B5),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'Còn',
-                                style: TextStyle(
-                                  color: Color(0xFF6F3636),
-                                  fontSize: 13,
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Quantity
-                        const Expanded(
-                          flex: 2,
-                          child: Center(
-                            child: Text(
-                              '1/10',
-                              style: TextStyle(
-                                color: Color(0xFF6F3636),
-                                fontSize: 13,
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Detail button
-                        Expanded(
-                          flex: 2,
-                          child: Container(
-                            height: 39,
-                            decoration: ShapeDecoration(
-                              color: const Color(0xFFE2C5B5),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            child: const Stack(),
-                          ),
-                        ),
-                      ],
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(11, 6, 11, 8),
+                itemCount: _sampleBooks.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, i) {
+                  final book = _sampleBooks[i];
+                  return _BookRow(
+                    book: book,
+                    onDetailTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DetailBook()),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            // FAB
-            Padding(
-              padding: const EdgeInsets.only(right: 16, bottom: 8),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Container(
-                  width: 67,
-                  height: 67,
-                  decoration: const ShapeDecoration(
-                    color: Color(0xFFEFE2D9),
-                    shape: OvalBorder(),
-                  ),
-                  child: const Stack(),
-                ),
-              ),
-            ),
-            // Bottom nav
-            Container(
-              margin: const EdgeInsets.fromLTRB(26, 0, 26, 8),
-              height: 61,
-              decoration: ShapeDecoration(
-                color: const Color(0xFFEFE2D9),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                ],
+                  );
+                },
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  static const TextStyle _headerStyle = TextStyle(
+    color: Colors.white,
+    fontSize: 13,
+    fontFamily: 'Inter',
+    fontWeight: FontWeight.w700,
+  );
+
+  Widget _actionBtn({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 48,
+        height: 43,
+        decoration: ShapeDecoration(
+          color: color,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        child: Icon(icon, color: Colors.white),
+      ),
+    );
+  }
+}
+
+// ─── Sample data ──────────────────────────────────────────────────────────────
+class _BookData {
+  const _BookData(this.title, this.available, this.total);
+  final String title;
+  final int available;
+  final int total;
+}
+
+const _sampleBooks = [
+  _BookData('Toán cao cấp', 9, 10),
+  _BookData('Vật lý đại cương', 5, 8),
+  _BookData('Lập trình Flutter', 3, 5),
+];
+
+// ─── Row widget ───────────────────────────────────────────────────────────────
+class _BookRow extends StatelessWidget {
+  const _BookRow({required this.book, this.onDetailTap});
+
+  final _BookData book;
+  final VoidCallback? onDetailTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isAvailable = book.available > 0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          const SizedBox(width: 4),
+          Expanded(
+            flex: 3,
+            child: Text(
+              book.title,
+              style: const TextStyle(
+                color: kLibBookTitle,
+                fontSize: 13,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isAvailable
+                      ? const Color(0xFFC2E2B5)
+                      : const Color(0xFFFFCDD2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  isAvailable ? 'Còn' : 'Hết',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: kLibBookTitle,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Center(
+              child: Text(
+                '${book.available}/${book.total}',
+                style: const TextStyle(
+                  color: kLibBookTitle,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Center(
+              child: GestureDetector(
+                onTap: onDetailTap,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: kLibBeigeButton,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.chevron_right,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

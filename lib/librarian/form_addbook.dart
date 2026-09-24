@@ -57,13 +57,15 @@ class FormAddBook extends StatelessWidget {
                         decoration: ShapeDecoration(
                           color: Colors.white,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(5)),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
                         ),
                         child: Center(
                           child: Container(
-                              width: 41,
-                              height: 41,
-                              child: const Stack()),
+                            width: 41,
+                            height: 41,
+                            child: const Stack(),
+                          ),
                         ),
                       ),
                     ),
@@ -109,7 +111,8 @@ class FormAddBook extends StatelessWidget {
                           decoration: ShapeDecoration(
                             color: const Color(0xFFE2C5B5),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                           child: const Stack(),
                         ),
@@ -166,7 +169,8 @@ class FormAddBook extends StatelessWidget {
                           decoration: ShapeDecoration(
                             color: const Color(0xFFE2C5B5),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                           child: const Stack(),
                         ),
@@ -306,7 +310,8 @@ class FormAddBook extends StatelessWidget {
             decoration: ShapeDecoration(
               color: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(5)),
+                borderRadius: BorderRadius.circular(5),
+              ),
             ),
           ),
         ),
@@ -320,8 +325,7 @@ class FormAddBook extends StatelessWidget {
       height: 29,
       decoration: ShapeDecoration(
         color: Colors.white,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
       ),
     );
   }

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/login/login.dart';
+
+import 'librarian_nav.dart';
+import 'profile_admin_detail.dart';
 
 class ProfileAdmin extends StatelessWidget {
   const ProfileAdmin({super.key});
@@ -7,226 +11,98 @@ class ProfileAdmin extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header with avatar and name
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-              decoration: const ShapeDecoration(
-                color: Color(0xFFDBB9A0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(10),
-                    bottomRight: Radius.circular(10),
-                  ),
+      body: Column(
+        children: [
+          LibBeigeHeader(
+            child: Row(
+              children: [
+                const CircleAvatar(
+                  radius: 48,
+                  backgroundColor: kLibBeigeSoft,
+                  child: Icon(Icons.person, size: 48, color: kLibBrownTitle),
                 ),
-              ),
-              child: Row(
-                children: [
-                  // Avatar
-                  Container(
-                    width: 118,
-                    height: 118,
-                    decoration: const ShapeDecoration(
-                      color: Color(0xFFEFE2D9),
-                      shape: OvalBorder(),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Column(
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
                         'Lê Văn Lê',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 25,
-                          fontFamily: 'Inter',
                           fontWeight: FontWeight.w700,
                         ),
                       ),
+                      SizedBox(height: 4),
                       Text(
-                        '@st.phenikaa-uni.edu.vn',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w700,
-                        ),
+                        'le.vanle@phenikaa-uni.edu.vn',
+                        style: TextStyle(color: Colors.white, fontSize: 11),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 12),
-                    // Tài khoản section
-                    _sectionHeader('Tài khoản'),
-                    Container(
-                      decoration: const ShapeDecoration(
-                        color: Color(0xFFF7F0EA),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.only(
-                            bottomLeft: Radius.circular(5),
-                            bottomRight: Radius.circular(5),
-                          ),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          _settingRow(
-                            icon: Container(
-                                width: 45,
-                                height: 45,
-                                child: const Stack()),
-                            title: 'Thông tin cá nhân',
-                          ),
-                        ],
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                LibSectionCard(
+                  title: 'Tài khoản',
+                  child: LibMenuRow(
+                    label: 'Thông tin cá nhân',
+                    icon: Icons.badge_outlined,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ProfileAdminDetail(),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    // Cài đặt khác section
-                    _sectionHeader('Cài đặt khác'),
-                    Container(
-                      decoration: const ShapeDecoration(
-                        color: Color(0xFFF7F0EA),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.only(
-                            bottomLeft: Radius.circular(5),
-                            bottomRight: Radius.circular(5),
-                          ),
-                        ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const LibSectionCard(
+                  title: 'Cài đặt khác',
+                  child: Column(
+                    children: [
+                      LibMenuRow(
+                        label: 'Cài đặt',
+                        icon: Icons.settings_outlined,
                       ),
-                      child: Column(
-                        children: [
-                          _settingRow(
-                            icon: Container(
-                                width: 45,
-                                height: 45,
-                                child: const Stack()),
-                            title: 'Cài đặt',
-                          ),
-                          const Divider(height: 1),
-                          _settingRow(
-                            icon: Container(
-                                width: 45,
-                                height: 45,
-                                child: const Stack()),
-                            title: 'Thông tin khác',
-                          ),
-                        ],
+                      Divider(height: 1),
+                      LibMenuRow(
+                        label: 'Thông tin khác',
+                        icon: Icons.info_outline,
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    // Logout button
-                    Container(
-                      width: 151,
-                      height: 46,
-                      decoration: ShapeDecoration(
-                        color: const Color(0xFFF16F6F),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+                Center(
+                  child: SizedBox(
+                    width: 151,
+                    height: 46,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const Login()),
+                        (route) => false,
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF16F6F),
+                        foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      child: const Center(
-                        child: Text(
-                          'Đăng xuất',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
+                      child: const Text('Đăng xuất'),
                     ),
-                    const SizedBox(height: 24),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-            // Bottom nav
-            Container(
-              margin: const EdgeInsets.fromLTRB(26, 0, 26, 8),
-              height: 61,
-              decoration: ShapeDecoration(
-                color: const Color(0xFFEFE2D9),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _sectionHeader(String title) {
-    return Container(
-      width: double.infinity,
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: ShapeDecoration(
-        color: const Color(0xFFE2C5B5),
-        shape: RoundedRectangleBorder(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(10),
-            topRight: Radius.circular(10),
-          ),
-        ),
-      ),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 15,
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _settingRow({required Widget icon, required String title}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        children: [
-          icon,
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xFF8A6060),
-                fontSize: 15,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.w700,
-              ),
+              ],
             ),
           ),
-          Container(width: 24, height: 24, child: const Stack()),
         ],
       ),
     );

@@ -66,7 +66,9 @@ class ReaderDetail extends StatelessWidget {
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       decoration: ShapeDecoration(
                         color: const Color(0xFFE2C5B5),
                         shape: RoundedRectangleBorder(
@@ -139,9 +141,10 @@ class ReaderDetail extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Container(
-                                    width: 40,
-                                    height: 40,
-                                    child: const Stack()),
+                                  width: 40,
+                                  height: 40,
+                                  child: const Stack(),
+                                ),
                                 const SizedBox(width: 4),
                                 const Text(
                                   'Báo cáo',

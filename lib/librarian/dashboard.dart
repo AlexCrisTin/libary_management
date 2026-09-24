@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
+import 'librarian_nav.dart';
 
 class Dashboard extends StatelessWidget {
-  const Dashboard({super.key});
+  const Dashboard({
+    super.key,
+    this.onOpenTab,
+    this.onOpenReaderManagement,
+    this.onOpenReport,
+  });
+
+  final ValueChanged<int>? onOpenTab;
+  final VoidCallback? onOpenReaderManagement;
+  final VoidCallback? onOpenReport;
 
   @override
   Widget build(BuildContext context) {
@@ -11,100 +21,136 @@ class Dashboard extends StatelessWidget {
         child: Column(
           children: [
             // AppBar header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: const ShapeDecoration(
-                color: Color(0xFFDBB9A0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(10),
-                    bottomRight: Radius.circular(10),
-                  ),
-                ),
-              ),
+            LibBeigeHeader(
               child: Row(
                 children: [
-                  // Avatar
+                  // Avatar circle
                   Container(
-                    width: 29,
-                    height: 29,
+                    width: 32,
+                    height: 32,
                     decoration: const ShapeDecoration(
-                      color: Color(0xFFEFE2D9),
+                      color: kLibBeigeSoft,
                       shape: OvalBorder(),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Name
                   const Text(
                     'Lê Văn Lê',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 13,
+                      fontSize: 15,
                       fontFamily: 'Inter',
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const Spacer(),
-                  // Notification icon placeholder
-                  Container(width: 49, height: 49, child: const Stack()),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.notifications_outlined,
+                      color: Colors.white,
+                    ),
+                    onPressed: () {},
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 8),
-            // Welcome text
+            const SizedBox(height: 12),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: const Text(
                   'Chào mừng',
                   style: TextStyle(
-                    color: Color(0xFF8A6060),
-                    fontSize: 18,
+                    color: kLibBrownTitle,
+                    fontSize: 20,
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ),
-            // Content area
-            const Spacer(),
-            // FAB area (add button)
-            Padding(
-              padding: const EdgeInsets.only(right: 16, bottom: 16),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Container(
-                  width: 67,
-                  height: 67,
-                  decoration: const ShapeDecoration(
-                    color: Color(0xFFEFE2D9),
-                    shape: OvalBorder(),
-                  ),
-                  child: const Stack(),
+            const SizedBox(height: 16),
+            // Quick-access cards
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: GridView.count(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.3,
+                  children: [
+                    _QuickCard(
+                      icon: Icons.menu_book_rounded,
+                      label: 'Quản lý sách',
+                      onTap: () => onOpenTab?.call(1),
+                    ),
+                    _QuickCard(
+                      icon: Icons.people_rounded,
+                      label: 'Quản lý độc giả',
+                      onTap: onOpenReaderManagement,
+                    ),
+                    _QuickCard(
+                      icon: Icons.swap_horiz_rounded,
+                      label: 'Mượn / Trả',
+                      onTap: () => onOpenTab?.call(2),
+                    ),
+                    _QuickCard(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      label: 'Tin nhắn',
+                      onTap: () => onOpenTab?.call(3),
+                    ),
+                    _QuickCard(
+                      icon: Icons.bar_chart_rounded,
+                      label: 'Báo cáo',
+                      onTap: onOpenReport,
+                    ),
+                    _QuickCard(
+                      icon: Icons.person_rounded,
+                      label: 'Hồ sơ',
+                      onTap: () => onOpenTab?.call(4),
+                    ),
+                  ],
                 ),
               ),
             ),
-            // Bottom navigation bar
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 26, vertical: 8),
-              height: 61,
-              decoration: ShapeDecoration(
-                color: const Color(0xFFEFE2D9),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickCard extends StatelessWidget {
+  const _QuickCard({required this.icon, required this.label, this.onTap});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7F0EA),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 36, color: kLibBrownTitle),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: kLibBrownTitle,
+                fontSize: 13,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],

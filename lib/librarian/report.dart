@@ -110,8 +110,9 @@ class Report extends StatelessWidget {
                                         decoration: ShapeDecoration(
                                           color: Colors.white,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(5),
+                                            borderRadius: BorderRadius.circular(
+                                              5,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -189,8 +190,7 @@ class Report extends StatelessWidget {
                     // Reason checkboxes
                     Row(
                       children: [
-                        Container(
-                            width: 24, height: 24, child: const Stack()),
+                        Container(width: 24, height: 24, child: const Stack()),
                         const SizedBox(width: 8),
                         const Text(
                           'Làm mất sách',
@@ -202,8 +202,7 @@ class Report extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
-                        Container(
-                            width: 24, height: 24, child: const Stack()),
+                        Container(width: 24, height: 24, child: const Stack()),
                         const SizedBox(width: 8),
                         const Text(
                           'Quá hạn',
@@ -219,8 +218,7 @@ class Report extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Container(
-                            width: 24, height: 24, child: const Stack()),
+                        Container(width: 24, height: 24, child: const Stack()),
                         const SizedBox(width: 8),
                         const Text(
                           'Làm hỏng sách',
@@ -232,8 +230,7 @@ class Report extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
-                        Container(
-                            width: 24, height: 24, child: const Stack()),
+                        Container(width: 24, height: 24, child: const Stack()),
                         const SizedBox(width: 8),
                         const Text(
                           'Lý do khác',
@@ -310,9 +307,10 @@ class Report extends StatelessWidget {
                             ),
                             child: Center(
                               child: Container(
-                                  width: 57,
-                                  height: 57,
-                                  child: const Stack()),
+                                width: 57,
+                                height: 57,
+                                child: const Stack(),
+                              ),
                             ),
                           ),
                         ),
@@ -339,8 +337,7 @@ class Report extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Container(
-                          width: 40, height: 40, child: const Stack()),
+                      Container(width: 40, height: 40, child: const Stack()),
                       const Text(
                         'Báo cáo',
                         style: TextStyle(

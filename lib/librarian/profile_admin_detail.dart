@@ -27,7 +27,11 @@ class ProfileAdminDetail extends StatelessWidget {
                 children: [
                   Align(
                     alignment: Alignment.topLeft,
-                    child: Container(width: 37, height: 37, child: const Stack()),
+                    child: Container(
+                      width: 37,
+                      height: 37,
+                      child: const Stack(),
+                    ),
                   ),
                   // Avatar
                   Center(

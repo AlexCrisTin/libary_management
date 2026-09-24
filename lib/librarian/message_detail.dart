@@ -1,164 +1,130 @@
 import 'package:flutter/material.dart';
 
-class MessageDetail extends StatelessWidget {
+import 'librarian_nav.dart';
+
+class MessageDetail extends StatefulWidget {
   const MessageDetail({super.key});
+
+  @override
+  State<MessageDetail> createState() => _MessageDetailState();
+}
+
+class _MessageDetailState extends State<MessageDetail> {
+  final _messageController = TextEditingController();
+  final List<String> _messages = ['Em cần hỗ trợ gia hạn sách Toán cao cấp.'];
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  void _sendMessage() {
+    final message = _messageController.text.trim();
+    if (message.isEmpty) return;
+    setState(() => _messages.add(message));
+    _messageController.clear();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // AppBar header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              decoration: const ShapeDecoration(
-                color: Color(0xFFDBB9A0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(10),
-                    bottomRight: Radius.circular(10),
-                  ),
+      body: Column(
+        children: [
+          LibBeigeHeader(
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Center(
-                    child: Text(
-                      'Tin nhắn',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 25,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Contact info row
-                  Row(
+                const CircleAvatar(
+                  backgroundColor: kLibBeigeSoft,
+                  child: Icon(Icons.person, color: kLibBrownTitle),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 53,
-                        height: 53,
-                        decoration: const ShapeDecoration(
-                          color: Color(0xFFEFE2D9),
-                          shape: OvalBorder(),
+                      Text(
+                        'Trần Ngọc An',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Trần Ngọc An',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              Container(
-                                width: 7,
-                                height: 7,
-                                decoration: const ShapeDecoration(
-                                  color: Color(0xFF94F090),
-                                  shape: OvalBorder(),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Text(
-                                'Đang hoạt động',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                      Text(
+                        'Đang hoạt động',
+                        style: TextStyle(color: Colors.white, fontSize: 11),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            // Chat area
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.all(16),
-                decoration: ShapeDecoration(
-                  color: const Color(0xFFF7F0EA),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _messages.length,
+              itemBuilder: (_, index) => Align(
+                alignment: index.isEven
+                    ? Alignment.centerLeft
+                    : Alignment.centerRight,
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(12),
+                  constraints: const BoxConstraints(maxWidth: 280),
+                  decoration: BoxDecoration(
+                    color: index.isEven ? kLibCardFill : kLibBeigeButton,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    _messages[index],
+                    style: TextStyle(
+                      color: index.isEven ? kLibBrownTitle : Colors.white,
+                    ),
                   ),
                 ),
               ),
             ),
-            // Input area
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Container(
-                height: 51,
-                decoration: ShapeDecoration(
-                  color: const Color(0xFFE2C5B5),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Container(
-                        height: 37,
-                        decoration: ShapeDecoration(
-                          color: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      onSubmitted: (_) => _sendMessage(),
+                      decoration: InputDecoration(
+                        hintText: 'Nhập tin nhắn',
+                        filled: true,
+                        fillColor: kLibCardFill,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                        width: 37, height: 37, child: const Stack()),
-                    const SizedBox(width: 8),
-                  ],
-                ),
-              ),
-            ),
-            // Bottom nav
-            Container(
-              margin: const EdgeInsets.fromLTRB(26, 0, 26, 8),
-              height: 61,
-              decoration: ShapeDecoration(
-                color: const Color(0xFFEFE2D9),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
-                  Container(width: 45, height: 45, child: const Stack()),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    onPressed: _sendMessage,
+                    style: IconButton.styleFrom(
+                      backgroundColor: kLibBeigeButton,
+                    ),
+                    icon: const Icon(Icons.send_rounded),
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -60,9 +60,10 @@ class FormAddReader extends StatelessWidget {
                         ),
                         child: Center(
                           child: Container(
-                              width: 41,
-                              height: 41,
-                              child: const Stack()),
+                            width: 41,
+                            height: 41,
+                            child: const Stack(),
+                          ),
                         ),
                       ),
                     ),
@@ -241,7 +242,8 @@ class FormAddReader extends StatelessWidget {
             decoration: ShapeDecoration(
               color: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(5)),
+                borderRadius: BorderRadius.circular(5),
+              ),
             ),
           ),
         ),
@@ -255,8 +257,7 @@ class FormAddReader extends StatelessWidget {
       height: 29,
       decoration: ShapeDecoration(
         color: Colors.white,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
       ),
     );
   }
