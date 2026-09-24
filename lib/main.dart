@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:libary_management/login/begin.dart';
-
+import 'librarian/dashboard.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
     return const MaterialApp(
       title: 'Library Management',
       debugShowCheckedModeBanner: false,
-      home: Begin(),
+      home: Dashboard(),
     );
   }
 }

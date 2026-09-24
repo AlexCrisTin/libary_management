@@ -5,131 +5,111 @@ class Dashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-    width: 402,
-    height: 874,
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(color: Colors.white),
-    child: Stack(
-        children: [
-            Positioned(
-                left: 0,
-                top: 0,
-                child: Container(
-                    width: 402,
-                    height: 70,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFDBB9A0),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(10),
-                                bottomRight: Radius.circular(10),
-                            ),
-                        ),
-                    ),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // AppBar header
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: const ShapeDecoration(
+                color: Color(0xFFDBB9A0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(10),
+                    bottomRight: Radius.circular(10),
+                  ),
                 ),
-            ),
-            Positioned(
-                left: 26,
-                top: 798,
-                child: Container(
-                    width: 349,
-                    height: 61,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFEFE2D9),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 315,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 113,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 180,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 247,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 308,
-                top: 710,
-                child: Container(
-                    width: 67,
-                    height: 67,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFEFE2D9),
-                        shape: OvalBorder(),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 318,
-                top: 721,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 46,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 9,
-                top: 6,
-                child: Text(
-                    'Chào mừng',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 18,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 339,
-                top: 10,
-                child: Container(width: 49, height: 49, child: Stack()),
-            ),
-            Positioned(
-                left: 9,
-                top: 33,
-                child: Container(
+              ),
+              child: Row(
+                children: [
+                  // Avatar
+                  Container(
                     width: 29,
                     height: 29,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFEFE2D9),
-                        shape: OvalBorder(),
+                    decoration: const ShapeDecoration(
+                      color: Color(0xFFEFE2D9),
+                      shape: OvalBorder(),
                     ),
-                ),
-            ),
-            Positioned(
-                left: 44,
-                top: 40,
-                child: Text(
+                  ),
+                  const SizedBox(width: 8),
+                  // Name
+                  const Text(
                     'Lê Văn Lê',
                     style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w700,
                     ),
-                ),
+                  ),
+                  const Spacer(),
+                  // Notification icon placeholder
+                  Container(width: 49, height: 49, child: const Stack()),
+                ],
+              ),
             ),
-        ],
-    ),
-);
+            const SizedBox(height: 8),
+            // Welcome text
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: const Text(
+                  'Chào mừng',
+                  style: TextStyle(
+                    color: Color(0xFF8A6060),
+                    fontSize: 18,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            // Content area
+            const Spacer(),
+            // FAB area (add button)
+            Padding(
+              padding: const EdgeInsets.only(right: 16, bottom: 16),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Container(
+                  width: 67,
+                  height: 67,
+                  decoration: const ShapeDecoration(
+                    color: Color(0xFFEFE2D9),
+                    shape: OvalBorder(),
+                  ),
+                  child: const Stack(),
+                ),
+              ),
+            ),
+            // Bottom navigation bar
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 26, vertical: 8),
+              height: 61,
+              decoration: ShapeDecoration(
+                color: const Color(0xFFEFE2D9),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Container(width: 45, height: 45, child: const Stack()),
+                  Container(width: 45, height: 45, child: const Stack()),
+                  Container(width: 45, height: 45, child: const Stack()),
+                  Container(width: 45, height: 45, child: const Stack()),
+                  Container(width: 45, height: 45, child: const Stack()),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

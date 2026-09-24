@@ -5,275 +5,206 @@ class BorrowReturnDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-    width: 402,
-    height: 874,
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(color: Colors.white),
-    child: Stack(
-        children: [
-            Positioned(
-                left: 0,
-                top: 0,
-                child: Container(
-                    width: 402,
-                    height: 70,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFDBB9A0),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(10),
-                                bottomRight: Radius.circular(10),
-                            ),
-                        ),
-                    ),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // AppBar header
+            Container(
+              width: double.infinity,
+              height: 70,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: const ShapeDecoration(
+                color: Color(0xFFDBB9A0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(10),
+                    bottomRight: Radius.circular(10),
+                  ),
                 ),
-            ),
-            Positioned(
-                left: 167,
-                top: 794,
-                child: Container(
-                    width: 67,
-                    height: 67,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFEFE2D9),
-                        shape: OvalBorder(),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 177,
-                top: 805,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 12,
-                top: 338,
-                child: Container(
-                    width: 379,
-                    height: 51,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFE2C5B5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 24,
-                top: 414,
-                child: Text(
-                    'Sách:',
-                    style: TextStyle(
-                        color: const Color(0xFFC16767),
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 26,
-                top: 514,
-                child: Text(
-                    'Ngày mượn',
-                    style: TextStyle(
-                        color: const Color(0xFFC16767),
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 26,
-                top: 547,
-                child: Text(
-                    'Ngày trả',
-                    style: TextStyle(
-                        color: const Color(0xFFC16767),
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 26,
-                top: 478,
-                child: Text(
-                    'Người mượn',
-                    style: TextStyle(
-                        color: const Color(0xFFC16767),
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 26,
-                top: 446,
-                child: Text(
-                    'Mã',
-                    style: TextStyle(
-                        color: const Color(0xFFC16767),
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 153,
-                top: 20,
-                child: Text(
+              ),
+              child: Row(
+                children: [
+                  Container(width: 37, height: 37, child: const Stack()),
+                  const Spacer(),
+                  const Text(
                     'Chi tiết',
                     style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 25,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
+                      color: Color(0xFF8A6060),
+                      fontSize: 25,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w700,
                     ),
-                ),
+                  ),
+                  const Spacer(),
+                  const SizedBox(width: 37),
+                ],
+              ),
             ),
-            Positioned(
-                left: 121,
-                top: 92,
-                child: Container(
-                    width: 147,
-                    height: 221,
-                    decoration: BoxDecoration(
-                        image: DecorationImage(
-                            image: NetworkImage("https://placehold.co/147x221"),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    // Book cover
+                    Center(
+                      child: Container(
+                        width: 147,
+                        height: 221,
+                        decoration: BoxDecoration(
+                          image: const DecorationImage(
+                            image: NetworkImage(
+                                "https://placehold.co/147x221"),
                             fit: BoxFit.cover,
+                          ),
                         ),
+                      ),
                     ),
-                ),
-            ),
-            Positioned(
-                left: 234,
-                top: 697,
-                child: Container(
-                    width: 113,
-                    height: 67,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFD18282),
+                    const SizedBox(height: 16),
+                    // Section header
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: ShapeDecoration(
+                        color: const Color(0xFFE2C5B5),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 50,
-                top: 697,
-                child: Container(
-                    width: 113,
-                    height: 67,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFF82D1A8),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: -4,
-                top: 579,
-                child: SizedBox(
-                    width: 108,
-                    child: Text(
-                        'Ghi chú',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: const Color(0xFFC16767),
-                            fontSize: 13,
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w700,
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 5,
-                top: 612,
-                child: SizedBox(
-                    width: 108,
-                    child: Text(
-                        'Tình trạng',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: const Color(0xFFC16767),
-                            fontSize: 13,
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w700,
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 88,
-                top: 354,
-                child: SizedBox(
-                    width: 225,
-                    child: Text(
-                        'Thông tin sách và người mượn',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: const Color(0xFF444A58),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Thông tin sách và người mượn',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0xFF444A58),
                             fontSize: 15,
                             fontFamily: 'Inter',
                             fontWeight: FontWeight.w700,
+                          ),
                         ),
+                      ),
                     ),
-                ),
-            ),
-            Positioned(
-                left: 271,
-                top: 697,
-                child: Container(width: 40, height: 40, child: Stack()),
-            ),
-            Positioned(
-                left: 265,
-                top: 737,
-                child: Text(
-                    'Báo cáo',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
+                    const SizedBox(height: 12),
+                    // Info rows
+                    _infoRow('Sách:'),
+                    const SizedBox(height: 12),
+                    _infoRow('Mã'),
+                    const SizedBox(height: 12),
+                    _infoRow('Người mượn'),
+                    const SizedBox(height: 12),
+                    _infoRow('Ngày mượn'),
+                    const SizedBox(height: 12),
+                    _infoRow('Ngày trả'),
+                    const SizedBox(height: 12),
+                    _infoRow('Ghi chú'),
+                    const SizedBox(height: 12),
+                    _infoRow('Tình trạng'),
+                    const SizedBox(height: 24),
+                    // Action buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 67,
+                            decoration: ShapeDecoration(
+                              color: const Color(0xFF82D1A8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                    width: 41,
+                                    height: 41,
+                                    child: const Stack()),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'Gia hạn',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Container(
+                            height: 67,
+                            decoration: ShapeDecoration(
+                              color: const Color(0xFFD18282),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                    width: 40,
+                                    height: 40,
+                                    child: const Stack()),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'Báo cáo',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 24),
+                  ],
                 ),
+              ),
             ),
-            Positioned(
-                left: 82,
-                top: 737,
-                child: Text(
-                    'Gia hạn',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
+            // Bottom back/home button
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Center(
+                child: Container(
+                  width: 67,
+                  height: 67,
+                  decoration: const ShapeDecoration(
+                    color: Color(0xFFEFE2D9),
+                    shape: OvalBorder(),
+                  ),
+                  child: const Stack(),
                 ),
+              ),
             ),
-            Positioned(
-                left: 83,
-                top: 697,
-                child: Container(width: 41, height: 41, child: Stack()),
-            ),
-            Positioned(
-                left: 12,
-                top: 17,
-                child: Container(width: 37, height: 37, child: Stack()),
-            ),
-        ],
-    ),
-);
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Color(0xFFC16767),
+        fontSize: 13,
+        fontFamily: 'Inter',
+        fontWeight: FontWeight.w700,
+      ),
+    );
   }
 }

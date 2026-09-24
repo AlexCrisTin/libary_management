@@ -5,299 +5,230 @@ class ProfileAdmin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-    width: 402,
-    height: 874,
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(color: Colors.white),
-    child: Stack(
-        children: [
-            Positioned(
-                left: 0,
-                top: 0,
-                child: Container(
-                    width: 402,
-                    height: 226,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFDBB9A0),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(10),
-                                bottomRight: Radius.circular(10),
-                            ),
-                        ),
-                    ),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header with avatar and name
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              decoration: const ShapeDecoration(
+                color: Color(0xFFDBB9A0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(10),
+                    bottomRight: Radius.circular(10),
+                  ),
                 ),
-            ),
-            Positioned(
-                left: 26,
-                top: 798,
-                child: Container(
-                    width: 349,
-                    height: 61,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFEFE2D9),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 47,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 315,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 113,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 180,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 247,
-                top: 806,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 27,
-                top: 54,
-                child: Container(
+              ),
+              child: Row(
+                children: [
+                  // Avatar
+                  Container(
                     width: 118,
                     height: 118,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFEFE2D9),
-                        shape: OvalBorder(),
+                    decoration: const ShapeDecoration(
+                      color: Color(0xFFEFE2D9),
+                      shape: OvalBorder(),
                     ),
-                ),
-            ),
-            Positioned(
-                left: 150,
-                top: 54,
-                child: Text(
-                    'Lê Văn Lê',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 25,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 155,
-                top: 89,
-                child: Text(
-                    '@st.phenikaa-uni.edu.vn',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 27,
-                top: 256,
-                child: Container(
-                    width: 346,
-                    height: 40,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFE2C5B5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(10),
-                                topRight: Radius.circular(10),
-                            ),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        'Lê Văn Lê',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 25,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w700,
                         ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 27,
-                top: 296,
-                child: Container(
-                    width: 346,
-                    height: 197,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFF7F0EA),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(5),
-                                bottomRight: Radius.circular(5),
-                            ),
+                      ),
+                      Text(
+                        '@st.phenikaa-uni.edu.vn',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w700,
                         ),
-                    ),
-                ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            Positioned(
-                left: 33,
-                top: 300,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 27,
-                top: 527,
-                child: Container(
-                    width: 346,
-                    height: 40,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFE2C5B5),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 12),
+                    // Tài khoản section
+                    _sectionHeader('Tài khoản'),
+                    Container(
+                      decoration: const ShapeDecoration(
+                        color: Color(0xFFF7F0EA),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(10),
-                                topRight: Radius.circular(10),
-                            ),
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(5),
+                            bottomRight: Radius.circular(5),
+                          ),
                         ),
+                      ),
+                      child: Column(
+                        children: [
+                          _settingRow(
+                            icon: Container(
+                                width: 45,
+                                height: 45,
+                                child: const Stack()),
+                            title: 'Thông tin cá nhân',
+                          ),
+                        ],
+                      ),
                     ),
-                ),
-            ),
-            Positioned(
-                left: 27,
-                top: 567,
-                child: Container(
-                    width: 346,
-                    height: 204,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFF7F0EA),
+                    const SizedBox(height: 12),
+                    // Cài đặt khác section
+                    _sectionHeader('Cài đặt khác'),
+                    Container(
+                      decoration: const ShapeDecoration(
+                        color: Color(0xFFF7F0EA),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(5),
-                                bottomRight: Radius.circular(5),
-                            ),
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(5),
+                            bottomRight: Radius.circular(5),
+                          ),
                         ),
+                      ),
+                      child: Column(
+                        children: [
+                          _settingRow(
+                            icon: Container(
+                                width: 45,
+                                height: 45,
+                                child: const Stack()),
+                            title: 'Cài đặt',
+                          ),
+                          const Divider(height: 1),
+                          _settingRow(
+                            icon: Container(
+                                width: 45,
+                                height: 45,
+                                child: const Stack()),
+                            title: 'Thông tin khác',
+                          ),
+                        ],
+                      ),
                     ),
-                ),
-            ),
-            Positioned(
-                left: 38,
-                top: 267,
-                child: Text(
-                    'Tài khoản',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 89,
-                top: 314,
-                child: Text(
-                    'Thông tin cá nhân',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 125,
-                top: 748,
-                child: Container(
-                    width: 151,
-                    height: 46,
-                    decoration: ShapeDecoration(
+                    const SizedBox(height: 24),
+                    // Logout button
+                    Container(
+                      width: 151,
+                      height: 46,
+                      decoration: ShapeDecoration(
                         color: const Color(0xFFF16F6F),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(10),
                         ),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Đăng xuất',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 24),
+                  ],
                 ),
+              ),
             ),
-            Positioned(
-                left: 89,
-                top: 585,
-                child: Text(
-                    'Cài đặt',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
+            // Bottom nav
+            Container(
+              margin: const EdgeInsets.fromLTRB(26, 0, 26, 8),
+              height: 61,
+              decoration: ShapeDecoration(
+                color: const Color(0xFFEFE2D9),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
                 ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Container(width: 45, height: 45, child: const Stack()),
+                  Container(width: 45, height: 45, child: const Stack()),
+                  Container(width: 45, height: 45, child: const Stack()),
+                  Container(width: 45, height: 45, child: const Stack()),
+                  Container(width: 45, height: 45, child: const Stack()),
+                ],
+              ),
             ),
-            Positioned(
-                left: 165,
-                top: 762,
-                child: Text(
-                    'Đăng xuất',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionHeader(String title) {
+    return Container(
+      width: double.infinity,
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: ShapeDecoration(
+        color: const Color(0xFFE2C5B5),
+        shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(10),
+            topRight: Radius.circular(10),
+          ),
+        ),
+      ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 15,
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _settingRow({required Widget icon, required String title}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        children: [
+          icon,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFF8A6060),
+                fontSize: 15,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            Positioned(
-                left: 89,
-                top: 632,
-                child: Text(
-                    'Thông tin khác',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 38,
-                top: 538,
-                child: Text(
-                    'Cài đặt khác',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 337,
-                top: 311,
-                child: Container(width: 24, height: 24, child: Stack()),
-            ),
-            Positioned(
-                left: 336,
-                top: 582,
-                child: Container(width: 24, height: 24, child: Stack()),
-            ),
-            Positioned(
-                left: 336,
-                top: 629,
-                child: Container(width: 24, height: 24, child: Stack()),
-            ),
-            Positioned(
-                left: 32,
-                top: 571,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
-            Positioned(
-                left: 32,
-                top: 617,
-                child: Container(width: 45, height: 45, child: Stack()),
-            ),
+          ),
+          Container(width: 24, height: 24, child: const Stack()),
         ],
-    ),
-);
+      ),
+    );
   }
 }

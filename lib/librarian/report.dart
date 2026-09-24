@@ -5,372 +5,359 @@ class Report extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-    width: 402,
-    height: 874,
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(color: Colors.white),
-    child: Stack(
-        children: [
-            Positioned(
-                left: 0,
-                top: 0,
-                child: Container(
-                    width: 402,
-                    height: 70,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFDBB9A0),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(10),
-                                bottomRight: Radius.circular(10),
-                            ),
-                        ),
-                    ),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // AppBar header
+            Container(
+              width: double.infinity,
+              height: 70,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: const ShapeDecoration(
+                color: Color(0xFFDBB9A0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(10),
+                    bottomRight: Radius.circular(10),
+                  ),
                 ),
+              ),
+              child: Row(
+                children: [
+                  Container(width: 37, height: 37, child: const Stack()),
+                  const Spacer(),
+                  const Text(
+                    'Báo cáo',
+                    style: TextStyle(
+                      color: Color(0xFF8A6060),
+                      fontSize: 25,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  const SizedBox(width: 37),
+                ],
+              ),
             ),
-            Positioned(
-                left: 123,
-                top: 84,
-                child: Container(
-                    width: 266,
-                    height: 51,
-                    decoration: ShapeDecoration(
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 12),
+                    // Reader info card
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: ShapeDecoration(
                         color: const Color(0xFFE2C5B5),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(10),
                         ),
+                      ),
+                      child: Row(
+                        children: [
+                          // Avatar
+                          Container(
+                            width: 99,
+                            height: 99,
+                            decoration: const ShapeDecoration(
+                              color: Color(0xFFEFE2D9),
+                              shape: OvalBorder(),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Trần Ngọc An',
+                                  style: TextStyle(
+                                    color: Color(0xFF8A6060),
+                                    fontSize: 15,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const Text(
+                                  'Mã độc giả: M1',
+                                  style: TextStyle(
+                                    color: Color(0xFF8A6060),
+                                    fontSize: 15,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    const Text(
+                                      'Sách',
+                                      style: TextStyle(
+                                        color: Color(0xFF8A6060),
+                                        fontSize: 15,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Container(
+                                        height: 24,
+                                        decoration: ShapeDecoration(
+                                          color: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(5),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    const Text(
+                                      'Ngày mượn',
+                                      style: TextStyle(
+                                        color: Color(0xFF8A6060),
+                                        fontSize: 13,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      '27/7/2727',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Color(0xFF8A6060),
+                                        fontSize: 13,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    const Text(
+                                      'Ngày trả',
+                                      style: TextStyle(
+                                        color: Color(0xFF8A6060),
+                                        fontSize: 13,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      '27/7/2727',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Color(0xFF8A6060),
+                                        fontSize: 13,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                ),
-            ),
-            Positioned(
-                left: 153,
-                top: 20,
-                child: Text(
-                    'Báo cáo',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 25,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 144,
-                top: 787,
-                child: Container(
-                    width: 113,
-                    height: 67,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFD18282),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                        ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 181,
-                top: 787,
-                child: Container(width: 40, height: 40, child: Stack()),
-            ),
-            Positioned(
-                left: 175,
-                top: 827,
-                child: Text(
-                    'Báo cáo',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 12,
-                top: 17,
-                child: Container(width: 37, height: 37, child: Stack()),
-            ),
-            Positioned(
-                left: 16,
-                top: 84,
-                child: Container(
-                    width: 99,
-                    height: 99,
-                    decoration: ShapeDecoration(
-                        color: const Color(0xFFEFE2D9),
-                        shape: OvalBorder(),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 140,
-                top: 100,
-                child: Text(
-                    'Trần Ngọc An',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 135,
-                top: 148,
-                child: Text(
-                    'Mã độc giả: M1',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 135,
-                top: 179,
-                child: Text(
-                    'Sách',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 134,
-                top: 303,
-                child: Text(
-                    'Lý do báo cáo',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 20,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 61,
-                top: 359,
-                child: Text(
-                    'Làm mất sách',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 29,
-                top: 356,
-                child: Container(width: 24, height: 24, child: Stack()),
-            ),
-            Positioned(
-                left: 61,
-                top: 394,
-                child: Text(
-                    'Làm hỏng sách',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 29,
-                top: 391,
-                child: Container(width: 24, height: 24, child: Stack()),
-            ),
-            Positioned(
-                left: 252,
-                top: 359,
-                child: Text(
-                    'Quá hạn',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 218,
-                top: 356,
-                child: Container(width: 24, height: 24, child: Stack()),
-            ),
-            Positioned(
-                left: 252,
-                top: 394,
-                child: Text(
-                    'Lý do khác',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 218,
-                top: 391,
-                child: Container(width: 24, height: 24, child: Stack()),
-            ),
-            Positioned(
-                left: 31,
-                top: 429,
-                child: Text(
-                    'Ghi chú',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 35,
-                top: 593,
-                child: Text(
-                    'Tiền phạt',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 35,
-                top: 640,
-                child: Text(
-                    'Minh chứng',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 15,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 189,
-                top: 176,
-                child: Container(
-                    width: 181,
-                    height: 24,
-                    decoration: ShapeDecoration(
-                        color: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 123,
-                top: 590,
-                child: Container(
-                    width: 234,
-                    height: 29,
-                    decoration: ShapeDecoration(
-                        color: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 161,
-                top: 640,
-                child: Container(
-                    width: 196,
-                    height: 107,
-                    decoration: ShapeDecoration(
-                        color: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 135,
-                top: 207,
-                child: Text(
-                    'Ngày mượn',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 135,
-                top: 233,
-                child: Text(
-                    'Ngày trả',
-                    style: TextStyle(
-                        color: const Color(0xFF8A6060),
-                        fontSize: 13,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w700,
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 210,
-                top: 233,
-                child: SizedBox(
-                    width: 87,
-                    child: Text(
-                        '27/7/2727',
-                        textAlign: TextAlign.center,
+                    const SizedBox(height: 16),
+                    // Lý do báo cáo
+                    const Center(
+                      child: Text(
+                        'Lý do báo cáo',
                         style: TextStyle(
-                            color: const Color(0xFF8A6060),
-                            fontSize: 13,
+                          color: Color(0xFF8A6060),
+                          fontSize: 20,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Reason checkboxes
+                    Row(
+                      children: [
+                        Container(
+                            width: 24, height: 24, child: const Stack()),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Làm mất sách',
+                          style: TextStyle(
+                            color: Color(0xFF8A6060),
+                            fontSize: 15,
                             fontFamily: 'Inter',
                             fontWeight: FontWeight.w700,
+                          ),
                         ),
-                    ),
-                ),
-            ),
-            Positioned(
-                left: 210,
-                top: 207,
-                child: SizedBox(
-                    width: 87,
-                    child: Text(
-                        '27/7/2727',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: const Color(0xFF8A6060),
-                            fontSize: 13,
+                        const Spacer(),
+                        Container(
+                            width: 24, height: 24, child: const Stack()),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Quá hạn',
+                          style: TextStyle(
+                            color: Color(0xFF8A6060),
+                            fontSize: 15,
                             fontFamily: 'Inter',
                             fontWeight: FontWeight.w700,
+                          ),
                         ),
+                      ],
                     ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(
+                            width: 24, height: 24, child: const Stack()),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Làm hỏng sách',
+                          style: TextStyle(
+                            color: Color(0xFF8A6060),
+                            fontSize: 15,
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                            width: 24, height: 24, child: const Stack()),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Lý do khác',
+                          style: TextStyle(
+                            color: Color(0xFF8A6060),
+                            fontSize: 15,
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Ghi chú
+                    const Text(
+                      'Ghi chú',
+                      style: TextStyle(
+                        color: Color(0xFF8A6060),
+                        fontSize: 15,
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Tiền phạt
+                    Row(
+                      children: [
+                        const Text(
+                          'Tiền phạt',
+                          style: TextStyle(
+                            color: Color(0xFF8A6060),
+                            fontSize: 15,
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            height: 29,
+                            decoration: ShapeDecoration(
+                              color: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Minh chứng
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Minh chứng',
+                          style: TextStyle(
+                            color: Color(0xFF8A6060),
+                            fontSize: 15,
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            height: 107,
+                            decoration: ShapeDecoration(
+                              color: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                            ),
+                            child: Center(
+                              child: Container(
+                                  width: 57,
+                                  height: 57,
+                                  child: const Stack()),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                 ),
+              ),
             ),
-            Positioned(
-                left: 228,
-                top: 662,
-                child: Container(width: 57, height: 57, child: Stack()),
+            // Report button
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Center(
+                child: Container(
+                  width: 113,
+                  height: 67,
+                  decoration: ShapeDecoration(
+                    color: const Color(0xFFD18282),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                          width: 40, height: 40, child: const Stack()),
+                      const Text(
+                        'Báo cáo',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-        ],
-    ),
-);
+          ],
+        ),
+      ),
+    );
   }
 }
