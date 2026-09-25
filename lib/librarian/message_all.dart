@@ -12,7 +12,11 @@ class MessageAll extends StatelessWidget {
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          const LibTitleHeader(title: 'Tin nhắn', color: Colors.white),
+          const LibTitleHeader(
+            title: 'Tin nhắn',
+            color: Colors.white,
+            showBack: true,
+          ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
