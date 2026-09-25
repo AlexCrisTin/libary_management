@@ -106,23 +106,37 @@ class BookManagement extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: const Row(
-                children: [
-                  SizedBox(width: 12),
-                  Expanded(flex: 3, child: Text('Sách', style: _headerStyle)),
-                  Expanded(
-                    flex: 2,
-                    child: Text('Trạng thái', style: _headerStyle),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text('Số lượng', style: _headerStyle),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text('Chi tiết', style: _headerStyle),
-                  ),
-                ],
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('Sách', style: _headerStyle),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Center(
+                        child: Text('Trạng thái', style: _headerStyle),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Center(
+                        child: Text('Số lượng', style: _headerStyle),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Center(
+                        child: Text('Chi tiết', style: _headerStyle),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             // Book list
@@ -203,10 +217,9 @@ class _BookRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final isAvailable = book.available > 0;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       child: Row(
         children: [
-          const SizedBox(width: 4),
           Expanded(
             flex: 3,
             child: Text(

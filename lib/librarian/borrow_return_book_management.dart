@@ -72,15 +72,32 @@ class BorrowReturnBookManagement extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: const Row(
-                children: [
-                  SizedBox(width: 8),
-                  Expanded(flex: 2, child: Text('Độc giả', style: _hStyle)),
-                  Expanded(flex: 2, child: Text('Sách', style: _hStyle)),
-                  Expanded(flex: 2, child: Text('Ngày mượn', style: _hStyle)),
-                  Expanded(flex: 2, child: Text('Ngày trả', style: _hStyle)),
-                  Expanded(flex: 2, child: Text('Chi tiết', style: _hStyle)),
-                ],
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Center(child: Text('Độc giả', style: _hStyle)),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Center(child: Text('Sách', style: _hStyle)),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Center(child: Text('Ngày mượn', style: _hStyle)),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Center(child: Text('Ngày trả', style: _hStyle)),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Center(child: Text('Chi tiết', style: _hStyle)),
+                    ),
+                  ],
+                ),
               ),
             ),
             // Borrow list
@@ -140,13 +157,33 @@ class _BorrowRow extends StatelessWidget {
       fontWeight: FontWeight.w700,
     );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       child: Row(
         children: [
-          Expanded(flex: 2, child: Text(borrow.reader, style: ts)),
-          Expanded(flex: 2, child: Text(borrow.book, style: ts)),
-          Expanded(flex: 2, child: Text(borrow.borrowDate, style: ts)),
-          Expanded(flex: 2, child: Text(borrow.returnDate, style: ts)),
+          Expanded(
+            flex: 2,
+            child: Text(borrow.reader, textAlign: TextAlign.center, style: ts),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(borrow.book, textAlign: TextAlign.center, style: ts),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              borrow.borrowDate,
+              textAlign: TextAlign.center,
+              style: ts,
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              borrow.returnDate,
+              textAlign: TextAlign.center,
+              style: ts,
+            ),
+          ),
           Expanded(
             flex: 2,
             child: Center(

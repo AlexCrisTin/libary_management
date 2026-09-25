@@ -104,17 +104,22 @@ class ReaderManagement extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: const Row(
-                children: [
-                  SizedBox(width: 12),
-                  Expanded(flex: 1, child: Text('Mã', style: _hStyle)),
-                  Expanded(flex: 2, child: Text('Họ tên', style: _hStyle)),
-                  Expanded(
-                    flex: 3,
-                    child: Text('Số điện thoại', style: _hStyle),
-                  ),
-                  Expanded(flex: 2, child: Text('Chi tiết', style: _hStyle)),
-                ],
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  children: [
+                    Expanded(flex: 1, child: Text('Mã', style: _hStyle)),
+                    Expanded(flex: 2, child: Text('Họ tên', style: _hStyle)),
+                    Expanded(
+                      flex: 3,
+                      child: Text('Số điện thoại', style: _hStyle),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Center(child: Text('Chi tiết', style: _hStyle)),
+                    ),
+                  ],
+                ),
               ),
             ),
             // Reader list
@@ -188,7 +193,7 @@ class _ReaderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       child: Row(
         children: [
           Expanded(
