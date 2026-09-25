@@ -4,6 +4,7 @@ import 'dashboard.dart';
 import 'book_management.dart';
 import 'borrow_return_book_management.dart';
 import 'message_all.dart';
+import 'notice.dart';
 import 'profile_admin.dart';
 import 'librarian_scanner.dart';
 import 'reader_management.dart';
@@ -56,6 +57,10 @@ class _LibrarianShellState extends State<LibrarianShell> {
         onOpenProfile: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const ProfileAdmin()),
+        ),
+        onOpenNotice: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const Notice()),
         ),
       ),
       const _BookManagementPage(),
@@ -110,6 +115,7 @@ class _DashboardPage extends StatelessWidget {
     required this.onOpenReport,
     required this.onOpenMessages,
     required this.onOpenProfile,
+    required this.onOpenNotice,
   });
 
   final ValueChanged<int> onOpenTab;
@@ -117,6 +123,7 @@ class _DashboardPage extends StatelessWidget {
   final VoidCallback onOpenReport;
   final VoidCallback onOpenMessages;
   final VoidCallback onOpenProfile;
+  final VoidCallback onOpenNotice;
 
   @override
   Widget build(BuildContext context) => Dashboard(
@@ -125,6 +132,7 @@ class _DashboardPage extends StatelessWidget {
     onOpenReport: onOpenReport,
     onOpenMessages: onOpenMessages,
     onOpenProfile: onOpenProfile,
+    onOpenNotice: onOpenNotice,
   );
 }
 

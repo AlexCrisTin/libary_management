@@ -9,6 +9,7 @@ class Dashboard extends StatelessWidget {
     this.onOpenReport,
     this.onOpenMessages,
     this.onOpenProfile,
+    this.onOpenNotice,
   });
 
   final ValueChanged<int>? onOpenTab;
@@ -16,6 +17,7 @@ class Dashboard extends StatelessWidget {
   final VoidCallback? onOpenReport;
   final VoidCallback? onOpenMessages;
   final VoidCallback? onOpenProfile;
+  final VoidCallback? onOpenNotice;
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +70,7 @@ class Dashboard extends StatelessWidget {
                       Icons.notifications_outlined,
                       color: Colors.white,
                     ),
-                    onPressed: () {},
+                    onPressed: onOpenNotice,
                   ),
                 ],
               ),
