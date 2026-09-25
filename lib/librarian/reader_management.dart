@@ -14,14 +14,7 @@ class ReaderManagement extends StatelessWidget {
         child: Column(
           children: [
             LibTitleHeader(
-              title: 'Quản lý độc giả',
-              trailing: IconButton(
-                icon: const Icon(Icons.add, color: Colors.white),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const FormAddReader()),
-                ),
-              ),
+              title: 'Quản lý độc giả'
             ),
             // Search + filter
             Padding(

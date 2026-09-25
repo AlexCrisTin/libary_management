@@ -14,14 +14,7 @@ class BookManagement extends StatelessWidget {
         child: Column(
           children: [
             LibTitleHeader(
-              title: 'Quản lý sách',
-              trailing: IconButton(
-                icon: const Icon(Icons.add, color: Colors.white),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const FormAddBook()),
-                ),
-              ),
+              title: 'Quản lý sách'
             ),
             // Search + filter
             Padding(
