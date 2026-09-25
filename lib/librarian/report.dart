@@ -26,7 +26,11 @@ class Report extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Container(width: 37, height: 37, child: const Stack()),
+                  IconButton(
+                    tooltip: 'Quay lại',
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  ),
                   const Spacer(),
                   const Text(
                     'Báo cáo',
