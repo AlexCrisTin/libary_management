@@ -28,23 +28,38 @@ class Dashboard extends StatelessWidget {
             LibBeigeHeader(
               child: Row(
                 children: [
-                  // Avatar circle
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: const ShapeDecoration(
-                      color: kLibBeigeSoft,
-                      shape: OvalBorder(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Lê Văn Lê',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w700,
+                  InkWell(
+                    onTap: onOpenProfile,
+                    borderRadius: BorderRadius.circular(24),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 4,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircleAvatar(
+                            radius: 16,
+                            backgroundColor: kLibBeigeSoft,
+                            child: Icon(
+                              Icons.person,
+                              size: 20,
+                              color: kLibBrownTitle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Lê Văn Lê',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const Spacer(),

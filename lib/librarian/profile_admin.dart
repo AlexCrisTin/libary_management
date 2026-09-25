@@ -14,33 +14,49 @@ class ProfileAdmin extends StatelessWidget {
       body: Column(
         children: [
           LibBeigeHeader(
-            child: Row(
+            child: Column(
               children: [
-                const CircleAvatar(
-                  radius: 48,
-                  backgroundColor: kLibBeigeSoft,
-                  child: Icon(Icons.person, size: 48, color: kLibBrownTitle),
-                ),
-                const SizedBox(width: 16),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Lê Văn Lê',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 25,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'le.vanle@phenikaa-uni.edu.vn',
-                        style: TextStyle(color: Colors.white, fontSize: 11),
-                      ),
-                    ],
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    tooltip: 'Quay lại',
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
+                ),
+                Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 48,
+                      backgroundColor: kLibBeigeSoft,
+                      child: Icon(
+                        Icons.person,
+                        size: 48,
+                        color: kLibBrownTitle,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Lê Văn Lê',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 25,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'le.vanle@phenikaa-uni.edu.vn',
+                            style: TextStyle(color: Colors.white, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
