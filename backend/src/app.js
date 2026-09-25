@@ -9,6 +9,8 @@ const shelvesRoutes = require('./modules/shelves/shelves.routes');
 const readersRoutes = require('./modules/readers/readers.routes');
 const circulationRoutes = require('./modules/circulation/circulation.routes');
 const holdsRoutes = require('./modules/holds/holds.routes');
+const notificationsRoutes = require('./modules/notifications/notifications.routes');
+const chatRoutes = require('./modules/chat/chat.routes');
 
 const app = express();
 
@@ -25,6 +27,8 @@ app.use('/api/shelves', shelvesRoutes);
 app.use('/api/readers', readersRoutes);
 app.use('/api/circulation', circulationRoutes);
 app.use('/api/holds', holdsRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Route kiem tra suc khoe server
 app.get('/health', (req, res) => {

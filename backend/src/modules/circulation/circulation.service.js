@@ -262,6 +262,20 @@ exports.returnBook = async ({ barcode, copy_id, tx_id, returned_to, condition, f
                 reader_id: nextHold.reader_id,
                 message: 'Cuốn sách được chuyển sang trạng thái giữ chỗ cho độc giả đặt trước.'
             };
+
+            // Tự động tạo thông báo trong bảng notifications cho độc giả này
+            const notifId = uuidv4();
+            await conn.query(
+                `INSERT INTO notifications (notification_id, reader_id, title, content, type, reference_id, is_read, created_at)
+                 VALUES (?, ?, ?, ?, 'hold_available', ?, 0, NOW())`,
+                [
+                    notifId,
+                    nextHold.reader_id,
+                    'Sách bạn đặt trước đã có sẵn tại thư viện',
+                    `Cuốn sách "${tx.book_title}" mà bạn đặt trước đã có sẵn tại quầy. Vui lòng đến nhận sách trong vòng 3 ngày tới.`,
+                    nextHold.hold_id
+                ]
+            );
         }
 
         // Cập nhật lại bản sao sách
