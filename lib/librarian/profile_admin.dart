@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:libary_management/login/login.dart';
+import 'package:libary_management/core/api_client.dart';
 
 import 'librarian_nav.dart';
 import 'profile_admin_detail.dart';
@@ -36,22 +37,25 @@ class ProfileAdmin extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Lê Văn Lê',
-                            style: TextStyle(
+                            AppSession.displayName,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 25,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 4),
                           Text(
-                            'le.vanle@phenikaa-uni.edu.vn',
-                            style: TextStyle(color: Colors.white, fontSize: 11),
+                            apiText(AppSession.user?['role'], fallback: ''),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                            ),
                           ),
                         ],
                       ),
@@ -101,10 +105,13 @@ class ProfileAdmin extends StatelessWidget {
                     width: 151,
                     height: 46,
                     child: ElevatedButton(
-                      onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const Login()),
-                        (route) => false,
-                      ),
+                      onPressed: () {
+                        AppSession.clear();
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (_) => const Login()),
+                          (route) => false,
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFF16F6F),
                         foregroundColor: Colors.white,

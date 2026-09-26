@@ -108,7 +108,9 @@ class _MessageState extends State<Message> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? Colors.white.withValues(alpha: 0.25) : Colors.transparent,
+          color: selected
+              ? Colors.white.withValues(alpha: 0.25)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         alignment: Alignment.center,

@@ -1,362 +1,178 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/core/api_client.dart';
 
 import 'librarian_nav.dart';
-import 'librarian_scanner.dart';
-import 'librarian_shell.dart';
 
-class FormAddBook extends StatelessWidget {
+class FormAddBook extends StatefulWidget {
   const FormAddBook({super.key});
+  @override
+  State<FormAddBook> createState() => _FormAddBookState();
+}
 
-  static const _labelStyle = TextStyle(
-    color: kLibBrownTitle,
-    fontSize: 15,
-    fontWeight: FontWeight.w700,
-  );
-
-  void _openTab(BuildContext context, int index) {
-    if (index == 1) {
-      Navigator.pop(context);
-      return;
-    }
-
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => LibrarianShell(initialIndex: index)),
-      (route) => false,
-    );
-  }
-
-  void _createBook(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Đã lưu thông tin sách mẫu'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
+class _FormAddBookState extends State<FormAddBook> {
+  final _title = TextEditingController();
+  final _subtitle = TextEditingController();
+  final _isbn = TextEditingController();
+  final _authors = TextEditingController();
+  final _publisher = TextEditingController();
+  final _year = TextEditingController();
+  final _subjects = TextEditingController();
+  final _language = TextEditingController(text: 'vi');
+  final _pages = TextEditingController();
+  final _callNumber = TextEditingController();
+  final _copies = TextEditingController(text: '1');
+  bool _loading = false;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Column(
-        children: [
-          LibBeigeHeader(
-            child: SizedBox(
-              height: 72,
-              child: Row(
-                children: [
-                  IconButton(
-                    tooltip: 'Quay lại',
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'Thêm sách',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: kLibBrownTitle,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
+  void dispose() {
+    for (final c in [
+      _title,
+      _subtitle,
+      _isbn,
+      _authors,
+      _publisher,
+      _year,
+      _subjects,
+      _language,
+      _pages,
+      _callNumber,
+      _copies,
+    ]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_title.text.trim().isEmpty) {
+      _show('Tên sách không được để trống.');
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      await ApiClient.post(
+        '/books',
+        body: {
+          'title': _title.text.trim(),
+          'subtitle': _nullable(_subtitle),
+          'isbn': _nullable(_isbn),
+          'authors': _split(_authors.text),
+          'publisher_id': _nullable(_publisher),
+          'publish_year': int.tryParse(_year.text),
+          'subject_headings': _split(_subjects.text),
+          'language': _language.text.trim().isEmpty
+              ? 'vi'
+              : _language.text.trim(),
+          'page_count': int.tryParse(_pages.text),
+          'call_number': _nullable(_callNumber),
+          'initial_copies': int.tryParse(_copies.text) ?? 0,
+        },
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (error) {
+      _show(error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String? _nullable(TextEditingController c) =>
+      c.text.trim().isEmpty ? null : c.text.trim();
+  List<String> _split(String text) =>
+      text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+  void _show(String value) => ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(value)));
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.white,
+    body: Column(
+      children: [
+        const LibTitleHeader(title: 'Thêm sách', showBack: true),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(18),
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: kLibCardFill,
+                borderRadius: BorderRadius.circular(12),
               ),
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(18, 24, 18, 28),
               child: Column(
                 children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 80),
-                    decoration: BoxDecoration(
-                      color: kLibCardFill,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Thông tin sách',
-                          style: TextStyle(
-                            color: kLibBookTitle,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Container(
-                          width: 124,
-                          height: 1,
-                          margin: const EdgeInsets.only(top: 8),
-                          color: kLibBrownTitle.withValues(alpha: 0.35),
-                        ),
-                        const SizedBox(height: 26),
-                        InkWell(
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Chọn ảnh bìa sách'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            width: 142,
-                            height: 94,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.image_rounded,
-                              color: Color(0xFF405170),
-                              size: 36,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 26),
-                        const _FullField(label: 'Tên sách'),
-                        const SizedBox(height: 8),
-                        const _FullField(label: 'Phụ đề'),
-                        const SizedBox(height: 8),
-                        const _FullField(label: 'ISBN'),
-                        const SizedBox(height: 10),
-                        const _AuthorField(),
-                        const SizedBox(height: 10),
-                        const _TwoFields(
-                          leftLabel: 'Nhà xuất bản',
-                          rightLabel: 'Năm xuất bản',
-                          leftFlex: 6,
-                          rightFlex: 5,
-                          rightKeyboard: TextInputType.number,
-                        ),
-                        const SizedBox(height: 10),
-                        const _CategoryField(),
-                        const SizedBox(height: 10),
-                        const _TwoFields(
-                          leftLabel: 'Ngôn ngữ',
-                          rightLabel: 'Số trang',
-                          leftFlex: 5,
-                          rightFlex: 4,
-                          rightKeyboard: TextInputType.number,
-                        ),
-                        const SizedBox(height: 10),
-                        const _TwoFields(
-                          leftLabel: 'Vị trí kệ',
-                          rightLabel: 'Bản sao',
-                          leftFlex: 5,
-                          rightFlex: 5,
-                          rightKeyboard: TextInputType.number,
-                        ),
-                      ],
+                  const Text(
+                    'Thông tin sách',
+                    style: TextStyle(
+                      color: kLibBookTitle,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 20),
+                  _field(_title, 'Tên sách *'),
+                  _field(_subtitle, 'Phụ đề'),
+                  _field(_isbn, 'ISBN'),
+                  _field(_authors, 'Tác giả', hint: 'Ngăn cách bằng dấu phẩy'),
+                  _field(_publisher, 'Mã nhà xuất bản'),
+                  _field(_year, 'Năm xuất bản', number: true),
+                  _field(
+                    _subjects,
+                    'Thể loại',
+                    hint: 'Ngăn cách bằng dấu phẩy',
+                  ),
+                  _field(_language, 'Ngôn ngữ'),
+                  _field(_pages, 'Số trang', number: true),
+                  _field(_callNumber, 'Mã xếp giá'),
+                  _field(_copies, 'Số bản sao', number: true),
+                  const SizedBox(height: 16),
                   SizedBox(
-                    width: 114,
-                    height: 52,
+                    width: 140,
+                    height: 50,
                     child: ElevatedButton(
-                      onPressed: () => _createBook(context),
+                      onPressed: _loading ? null : _submit,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kLibGreen,
                         foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
                       ),
-                      child: const Text(
-                        'Tạo',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      child: _loading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              'Tạo',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-        ],
-      ),
-      bottomNavigationBar: LibrarianBottomBar(
-        currentIndex: 1,
-        onSelect: (index) => _openTab(context, index),
-        onScan: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const LibrarianScanner()),
-        ),
-      ),
-    );
-  }
-}
-
-class _FullField extends StatelessWidget {
-  const _FullField({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(width: 72, child: Text(label, style: FormAddBook._labelStyle)),
-        const SizedBox(width: 8),
-        const Expanded(child: _InputBox()),
-      ],
-    );
-  }
-}
-
-class _AuthorField extends StatelessWidget {
-  const _AuthorField();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const SizedBox(
-          width: 72,
-          child: Text('Tác giả', style: FormAddBook._labelStyle),
-        ),
-        const SizedBox(width: 8),
-        const SizedBox(width: 75, child: _InputBox()),
-        const SizedBox(width: 6),
-        _AddButton(onPressed: () {}),
-      ],
-    );
-  }
-}
-
-class _CategoryField extends StatelessWidget {
-  const _CategoryField();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const SizedBox(
-          width: 72,
-          child: Text('Thể loại', style: FormAddBook._labelStyle),
-        ),
-        const SizedBox(width: 8),
-        const SizedBox(width: 75, child: _InputBox()),
-        const SizedBox(width: 6),
-        _AddButton(onPressed: () {}),
-      ],
-    );
-  }
-}
-
-class _TwoFields extends StatelessWidget {
-  const _TwoFields({
-    required this.leftLabel,
-    required this.rightLabel,
-    this.leftFlex = 1,
-    this.rightFlex = 1,
-    this.rightKeyboard,
-  });
-
-  final String leftLabel;
-  final String rightLabel;
-  final int leftFlex;
-  final int rightFlex;
-  final TextInputType? rightKeyboard;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          flex: leftFlex,
-          child: Row(
-            children: [
-              Flexible(
-                child: Text(
-                  leftLabel,
-                  maxLines: 1,
-                  style: FormAddBook._labelStyle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              const SizedBox(width: 67, child: _InputBox()),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          flex: rightFlex,
-          child: Row(
-            children: [
-              Flexible(
-                child: Text(
-                  rightLabel,
-                  maxLines: 1,
-                  style: FormAddBook._labelStyle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(child: _InputBox(keyboardType: rightKeyboard)),
-            ],
-          ),
         ),
       ],
-    );
-  }
-}
+    ),
+  );
 
-class _InputBox extends StatelessWidget {
-  const _InputBox({this.keyboardType});
-
-  final TextInputType? keyboardType;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 36,
-      child: TextField(
-        keyboardType: keyboardType,
-        style: const TextStyle(fontSize: 14),
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(7),
-            borderSide: BorderSide.none,
-          ),
+  Widget _field(
+    TextEditingController c,
+    String label, {
+    bool number = false,
+    String? hint,
+  }) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: TextField(
+      controller: c,
+      keyboardType: number ? TextInputType.number : null,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide.none,
         ),
       ),
-    );
-  }
-}
-
-class _AddButton extends StatelessWidget {
-  const _AddButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 34,
-      height: 34,
-      child: IconButton(
-        onPressed: onPressed,
-        padding: EdgeInsets.zero,
-        style: IconButton.styleFrom(backgroundColor: kLibBeigeButton),
-        icon: const Icon(Icons.add, color: Colors.white, size: 25),
-      ),
-    );
-  }
+    ),
+  );
 }

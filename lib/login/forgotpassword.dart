@@ -55,27 +55,7 @@ class ForgotPassword extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               const Text(
-                'Liên hệ thủ thư:',
-                style: TextStyle(
-                  color: Color(0xFFDDD9D9),
-                  fontSize: 15,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'SDT: 03333333333',
-                style: TextStyle(
-                  color: Color(0xFFDDD9D9),
-                  fontSize: 15,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Email: sdfndsfdjn@gmail.com',
+                'Backend hiện chưa hỗ trợ chức năng đặt lại mật khẩu qua email. Vui lòng liên hệ thủ thư.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFFDDD9D9),

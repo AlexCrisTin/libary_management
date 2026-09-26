@@ -1,214 +1,122 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/core/api_client.dart';
+import 'package:libary_management/core/api_state.dart';
 
-class DetailBook extends StatelessWidget {
-  const DetailBook({super.key});
+import 'librarian_nav.dart';
+
+class DetailBook extends StatefulWidget {
+  const DetailBook({super.key, required this.bookId});
+  final String bookId;
+  @override
+  State<DetailBook> createState() => _DetailBookState();
+}
+
+class _DetailBookState extends State<DetailBook> {
+  Map<String, dynamic> _book = const {};
+  bool _loading = true;
+  String? _error;
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = apiMap(await ApiClient.get('/books/${widget.bookId}'));
+      if (mounted) setState(() => _book = data);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // AppBar header
-            Container(
-              width: double.infinity,
-              height: 70,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: const ShapeDecoration(
-                color: Color(0xFFDBB9A0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(10),
-                    bottomRight: Radius.circular(10),
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.white,
+    body: Column(
+      children: [
+        const LibTitleHeader(title: 'Thông tin sách', showBack: true),
+        Expanded(
+          child: ApiStateView(
+            loading: _loading,
+            error: _error,
+            isEmpty: _book.isEmpty,
+            onRetry: _load,
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                Center(child: _cover()),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: kLibCardFill,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _row('Tên sách', _book['title']),
+                      _row('Phụ đề', _book['subtitle']),
+                      _row('ISBN', _book['isbn']),
+                      _row(
+                        'Tác giả',
+                        (_book['authors'] is List)
+                            ? (_book['authors'] as List).join(', ')
+                            : _book['authors'],
+                      ),
+                      _row('Nhà xuất bản', _book['publisher_name']),
+                      _row('Năm xuất bản', _book['publish_year']),
+                      _row('Ngôn ngữ', _book['language']),
+                      _row('Số trang', _book['page_count']),
+                      _row('Mã xếp giá', _book['call_number']),
+                      _row('Mô tả', _book['description']),
+                      _row(
+                        'Số bản còn',
+                        '${_book['available_copies'] ?? 0}/${_book['total_copies'] ?? 0}',
+                        last: true,
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  ),
-                  const Spacer(),
-                  const Text(
-                    'Thông tin sách',
-                    style: TextStyle(
-                      color: Color(0xFF8A6060),
-                      fontSize: 25,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.edit_outlined, color: Colors.white),
-                  ),
-                ],
-              ),
+              ],
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 16),
-                    // Book cover
-                    Center(
-                      child: Container(
-                        width: 168,
-                        height: 253,
-                        decoration: BoxDecoration(
-                          image: const DecorationImage(
-                            image: NetworkImage("https://placehold.co/168x253"),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Borrow button
-                    Center(
-                      child: Container(
-                        width: 151,
-                        height: 46,
-                        decoration: ShapeDecoration(
-                          color: const Color(0xFFE2C5B5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'Cho mượn',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 17,
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Book info section label
-                    const Center(
-                      child: Text(
-                        'Thông tin sách',
-                        style: TextStyle(
-                          color: Color(0xFF6F3636),
-                          fontSize: 13,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    // Info rows
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _infoText('Tên sách: Toán cao cấp'),
-                              const SizedBox(height: 8),
-                              _infoText('Tác giả: Lê Trọng Lang'),
-                              const SizedBox(height: 8),
-                              _infoText('Năm xuất bản: 2023'),
-                              const SizedBox(height: 8),
-                              _infoText('Nhà xuất bản: Long Tuất '),
-                              const SizedBox(height: 8),
-                              _infoText('Thể loại: Sách giáo khoa'),
-                              const SizedBox(height: 8),
-                              _infoText('Tình trạng: Tốt'),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: 223,
-                                child: Text(
-                                  'Mô tả:Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut...',
-                                  style: const TextStyle(
-                                    color: Color(0xFF6F3636),
-                                    fontSize: 13,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Borrowing count box
-                        Container(
-                          width: 113,
-                          padding: const EdgeInsets.all(8),
-                          decoration: ShapeDecoration(
-                            color: const Color(0xFFD18282),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              const Text(
-                                'Số người đang mượn',
-                                style: TextStyle(
-                                  color: Color(0xFF6F3636),
-                                  fontSize: 13,
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 41,
-                                    height: 41,
-                                    child: const Stack(),
-                                  ),
-                                ],
-                              ),
-                              const Text(
-                                '0/10',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 17,
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
+    ),
+  );
+  Widget _cover() {
+    final url = _book['cover_url']?.toString() ?? '';
+    return Container(
+      width: 168,
+      height: 253,
+      color: kLibBeigeSoft,
+      child: url.isEmpty
+          ? const Icon(Icons.menu_book, size: 72, color: kLibBrownTitle)
+          : Image.network(
+              url,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+            ),
     );
   }
 
-  Widget _infoText(String text) {
-    return Text(
-      text,
+  Widget _row(String label, dynamic value, {bool last = false}) => Padding(
+    padding: EdgeInsets.only(bottom: last ? 0 : 12),
+    child: Text(
+      '$label: ${apiText(value)}',
       style: const TextStyle(
-        color: Color(0xFF6F3636),
-        fontSize: 13,
-        fontFamily: 'Inter',
+        color: kLibBrownTitle,
+        fontSize: 15,
         fontWeight: FontWeight.w700,
       ),
-    );
-  }
+    ),
+  );
 }

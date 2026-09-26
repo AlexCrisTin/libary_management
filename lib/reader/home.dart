@@ -1,25 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/core/api_client.dart';
+import 'package:libary_management/core/api_state.dart';
 import 'package:libary_management/reader/allbook.dart';
 import 'package:libary_management/reader/detailbook.dart';
 import 'package:libary_management/reader/message.dart';
+import 'package:libary_management/reader/notice.dart';
 import 'package:libary_management/reader/profile.dart';
 import 'package:libary_management/reader/qr_scanner.dart';
 import 'package:libary_management/reader/reader_nav.dart';
-import 'package:libary_management/reader/notice.dart';
 import 'package:libary_management/reader/seeborrowbook.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key, this.initialIndex = 0});
-
   final int initialIndex;
-
   @override
   State<Home> createState() => _HomeState();
 }
 
 class _HomeState extends State<Home> {
   late int _index;
-
   @override
   void initState() {
     super.initState();
@@ -31,19 +30,16 @@ class _HomeState extends State<Home> {
     final pages = [
       HomeContent(
         onOpenSearch: () => setState(() => _index = 1),
-        onOpenNotice: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const Notice()),
-          );
-        },
+        onOpenNotice: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const Notice()),
+        ),
       ),
       const AllBook(),
       const SizedBox.shrink(),
       SeeBorrowBook(onOpenSearch: () => setState(() => _index = 1)),
       const Profile(),
     ];
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: pages[_index],
@@ -67,183 +63,124 @@ class _HomeState extends State<Home> {
   }
 }
 
-class HomeContent extends StatelessWidget {
+class HomeContent extends StatefulWidget {
   const HomeContent({super.key, this.onOpenSearch, this.onOpenNotice});
-
   final VoidCallback? onOpenSearch;
   final VoidCallback? onOpenNotice;
-
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SearchHeaderBar(
-          readOnly: true,
-          onTap: onOpenSearch,
-          trailing: IconButton(
-            onPressed: onOpenNotice,
-            icon: const Icon(Icons.notifications_none, color: Colors.white),
-          ),
-        ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            children: [
-              const Text(
-                'Sách đang hot',
-                style: TextStyle(
-                  color: kBrownTitle,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 210,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: 3,
-                  separatorBuilder: (_, __) => const SizedBox(width: 16),
-                  itemBuilder: (context, index) {
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const DetailBook()),
-                        );
-                      },
-                      child: const Column(
-                        children: [
-                          BookCover(width: 113, height: 169),
-                          SizedBox(height: 8),
-                          Text(
-                            'Toán cao cấp',
-                            style: TextStyle(
-                              color: kBookTitle,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Khám phá chủ đề',
-                style: TextStyle(
-                  color: kBrownTitle,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Sách giáo khoa',
-                style: TextStyle(
-                  color: Color(0xFFBC5F5F),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const _TopicBookCard(),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  State<HomeContent> createState() => _HomeContentState();
 }
 
-class _TopicBookCard extends StatelessWidget {
-  const _TopicBookCard();
+class _HomeContentState extends State<HomeContent> {
+  List<Map<String, dynamic>> _books = const [];
+  bool _loading = true;
+  String? _error;
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final result = apiMap(
+        await ApiClient.get('/books', query: {'limit': 10}),
+      );
+      if (mounted) setState(() => _books = apiList(result['items']));
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const BookCover(width: 83, height: 125),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Toán Cao Cấp',
-                style: TextStyle(
-                  color: kBookTitle,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  height: 1.5,
-                ),
-              ),
-              const Text(
-                'Tác giả: Lê Trọng Lang',
-                style: TextStyle(
-                  color: kMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const Text(
-                'Thể loại: Sách giáo khoa',
-                style: TextStyle(
-                  color: kMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  height: 1.5,
-                ),
-              ),
-              const Text(
-                'Năm xuất bản: 2023',
-                style: TextStyle(
-                  color: kMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const Text(
-                'Mô tả: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed ...',
-                style: TextStyle(
-                  color: Color(0xB2939393),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DetailBook()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kBeigeButton,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(81, 33),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text(
-                    'Xem sách',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SearchHeaderBar(
+        readOnly: true,
+        onTap: widget.onOpenSearch,
+        trailing: IconButton(
+          onPressed: widget.onOpenNotice,
+          icon: const Icon(Icons.notifications_none, color: Colors.white),
+        ),
+      ),
+      Expanded(
+        child: ApiStateView(
+          loading: _loading,
+          error: _error,
+          isEmpty: _books.isEmpty,
+          onRetry: _load,
+          emptyMessage: 'Thư viện chưa có sách',
+          child: RefreshIndicator(
+            onRefresh: _load,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const Text(
+                  'Sách mới',
+                  style: TextStyle(
+                    color: kBrownTitle,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 14),
+                SizedBox(
+                  height: 220,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _books.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 16),
+                    itemBuilder: (_, i) {
+                      final book = _books[i];
+                      return InkWell(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => DetailBook(
+                              bookId: apiText(book['bib_id'], fallback: ''),
+                            ),
+                          ),
+                        ),
+                        child: SizedBox(
+                          width: 118,
+                          child: Column(
+                            children: [
+                              BookCover(
+                                width: 113,
+                                height: 169,
+                                url: book['cover_url']?.toString(),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                apiText(book['title']),
+                                maxLines: 2,
+                                textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: kBookTitle,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
 }

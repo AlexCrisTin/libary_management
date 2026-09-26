@@ -13,7 +13,7 @@ class Begin extends StatelessWidget {
         decoration: const BoxDecoration(
           color: Colors.white,
           image: DecorationImage(
-            image: NetworkImage('https://i.pinimg.com/736x/f4/bf/d9/f4bfd9e1649e82dcfdbe.jpg'),
+            image: AssetImage('assets/img/F4bfd9e1649e82dcfdbe.jpg'),
             fit: BoxFit.cover,
           ),
         ),
@@ -53,7 +53,9 @@ class Begin extends StatelessWidget {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const Login()),
+                          MaterialPageRoute(
+                            builder: (context) => const Login(),
+                          ),
                         );
                       },
                       style: ElevatedButton.styleFrom(

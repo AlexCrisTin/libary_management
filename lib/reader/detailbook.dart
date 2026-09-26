@@ -1,183 +1,134 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/core/api_client.dart';
+import 'package:libary_management/core/api_state.dart';
 import 'package:libary_management/reader/reader_nav.dart';
-import 'package:libary_management/reader/reader_routes.dart';
-import 'package:libary_management/reader/message.dart';
-import 'package:libary_management/reader/qr_scanner.dart';
 
-class DetailBook extends StatelessWidget {
-  const DetailBook({super.key});
+class DetailBook extends StatefulWidget {
+  const DetailBook({super.key, required this.bookId});
+  final String bookId;
+  @override
+  State<DetailBook> createState() => _DetailBookState();
+}
+
+class _DetailBookState extends State<DetailBook> {
+  Map<String, dynamic> _book = const {};
+  bool _loading = true;
+  String? _error;
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = apiMap(await ApiClient.get('/books/${widget.bookId}'));
+      if (mounted) setState(() => _book = data);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _hold() async {
+    try {
+      await ApiClient.post('/holds', body: {'bib_id': widget.bookId});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đặt trước sách thành công')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      floatingActionButton: ChatFab(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const Message()),
-        ),
-      ),
-      bottomNavigationBar: ReaderBottomBar(
-        currentIndex: 0,
-        onSelect: (i) => openReaderTab(context, i),
-        onScan: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const QrScanner()),
-        ),
-      ),
-      body: Column(
-        children: [
-          TitleHeader(
-            title: 'Thông tin sách',
-            showBack: true,
-            trailing: IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.bookmark_border, color: Colors.white),
-            ),
-          ),
-          Expanded(
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.white,
+    body: Column(
+      children: [
+        const TitleHeader(title: 'Thông tin sách', showBack: true),
+        Expanded(
+          child: ApiStateView(
+            loading: _loading,
+            error: _error,
+            isEmpty: _book.isEmpty,
+            onRetry: _load,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+              padding: const EdgeInsets.all(20),
               children: [
-                const Center(child: BookCover(width: 168, height: 253)),
-                const SizedBox(height: 16),
                 Center(
-                  child: SizedBox(
-                    width: 151,
-                    height: 46,
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kBeigeButton,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        'Mượn',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Thông tin sách',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: kBookTitle,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                  child: BookCover(
+                    width: 168,
+                    height: 253,
+                    url: _book['cover_url']?.toString(),
                   ),
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Tên sách: Toán cao cấp',
-                            style: TextStyle(
-                              color: kBookTitle,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Tác giả: Lê Trọng Lang',
-                            style: TextStyle(
-                              color: kBookTitle,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Năm xuất bản: 2023',
-                            style: TextStyle(
-                              color: kBookTitle,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Nhà xuất bản: Long Tuất',
-                            style: TextStyle(
-                              color: kBookTitle,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Thể loại: Sách giáo khoa',
-                            style: TextStyle(
-                              color: kBookTitle,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Mô tả: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut...',
-                            style: TextStyle(
-                              color: kBookTitle,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
+                if ((_book['available_copies'] as num?)?.toInt() == 0)
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: _hold,
+                      child: const Text('Đặt trước'),
                     ),
-                    const SizedBox(width: 12),
-                    Container(
-                      width: 113,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD18282),
-                        borderRadius: BorderRadius.circular(10),
+                  ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: kCardFill,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _row('Tên sách', _book['title']),
+                      _row('Phụ đề', _book['subtitle']),
+                      _row('ISBN', _book['isbn']),
+                      _row(
+                        'Tác giả',
+                        _book['authors'] is List
+                            ? (_book['authors'] as List).join(', ')
+                            : _book['authors'],
                       ),
-                      child: const Column(
-                        children: [
-                          Text(
-                            'Số người đang mượn',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: kBookTitle,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Icon(Icons.groups, color: Colors.white, size: 36),
-                          SizedBox(height: 8),
-                          Text(
-                            '0/10',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
+                      _row('Nhà xuất bản', _book['publisher_name']),
+                      _row('Năm xuất bản', _book['publish_year']),
+                      _row('Ngôn ngữ', _book['language']),
+                      _row('Số trang', _book['page_count']),
+                      _row('Mô tả', _book['description']),
+                      _row(
+                        'Số bản còn',
+                        '${_book['available_copies'] ?? 0}/${_book['total_copies'] ?? 0}',
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
+      ],
+    ),
+  );
+  Widget _row(String label, dynamic value) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Text(
+      '$label: ${apiText(value)}',
+      style: const TextStyle(
+        color: kBookTitle,
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
       ),
-    );
-  }
+    ),
+  );
 }

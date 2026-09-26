@@ -1,132 +1,108 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/core/api_client.dart';
+import 'package:libary_management/core/api_state.dart';
 import 'package:libary_management/reader/reader_nav.dart';
 
-class SeeBorrowBook extends StatelessWidget {
+class SeeBorrowBook extends StatefulWidget {
   const SeeBorrowBook({super.key, this.onOpenSearch});
-
   final VoidCallback? onOpenSearch;
-
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SearchHeaderBar(
-          readOnly: true,
-          onTap: onOpenSearch,
-        ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            children: [
-              Card(
-                elevation: 0,
-                color: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: CalendarDatePicker(
-                  initialDate: DateTime(2025, 10, 15),
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2030),
-                  onDateChanged: (_) {},
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Sách đang mượn',
-                style: TextStyle(
-                  color: kBrownTitle,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const _BorrowedBookCard(),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  State<SeeBorrowBook> createState() => _SeeBorrowBookState();
 }
 
-class _BorrowedBookCard extends StatelessWidget {
-  const _BorrowedBookCard();
+class _SeeBorrowBookState extends State<SeeBorrowBook> {
+  List<Map<String, dynamic>> _loans = const [];
+  bool _loading = true;
+  String? _error;
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final result = apiMap(
+        await ApiClient.get('/circulation/active', query: {'limit': 100}),
+      );
+      if (mounted) setState(() => _loans = apiList(result['data']));
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _renew(String id) async {
+    try {
+      await ApiClient.post('/circulation/renew/$id');
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const BookCover(),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Toán cao cấp',
-                style: TextStyle(
-                  color: kBookTitle,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Ngày mượn: 27/7/2727',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-              ),
-              const Text(
-                'Ngày trả: 27/7/2727',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kBeigeButton,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+  Widget build(BuildContext context) => Column(
+    children: [
+      SearchHeaderBar(readOnly: true, onTap: widget.onOpenSearch),
+      Expanded(
+        child: ApiStateView(
+          loading: _loading,
+          error: _error,
+          isEmpty: _loans.isEmpty,
+          onRetry: _load,
+          emptyMessage: 'Bạn chưa mượn sách nào',
+          child: RefreshIndicator(
+            onRefresh: _load,
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: _loans.length,
+              separatorBuilder: (_, __) => const Divider(height: 28),
+              itemBuilder: (_, i) {
+                final loan = _loans[i];
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    BookCover(url: loan['cover_url']?.toString()),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            apiText(loan['book_title']),
+                            style: const TextStyle(
+                              color: kBookTitle,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text('Ngày mượn: ${apiDate(loan['borrow_date'])}'),
+                          Text('Hạn trả: ${apiDate(loan['due_date'])}'),
+                          const SizedBox(height: 8),
+                          ElevatedButton(
+                            onPressed: () =>
+                                _renew(apiText(loan['tx_id'], fallback: '')),
+                            child: const Text('Gia hạn'),
+                          ),
+                        ],
                       ),
                     ),
-                    child: const Text(
-                      'Trả sách',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kBeigeButton,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text(
-                      'Gia hạn',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                );
+              },
+            ),
           ),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
 }

@@ -26,6 +26,11 @@ SET time_zone = "+00:00";
 --
 -- Table structure for table `bibliographic_records`
 --
+CREATE DATABASE library_db
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
+USE library_db;
 
 CREATE TABLE `bibliographic_records` (
   `bib_id` varchar(36) NOT NULL,

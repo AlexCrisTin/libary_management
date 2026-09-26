@@ -1,247 +1,205 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/core/api_client.dart';
+import 'package:libary_management/core/api_state.dart';
+
+import 'form_addreader.dart';
 import 'librarian_nav.dart';
 import 'reader_detail.dart';
-import 'form_addreader.dart';
 
-class ReaderManagement extends StatelessWidget {
+class ReaderManagement extends StatefulWidget {
   const ReaderManagement({super.key});
+  @override
+  State<ReaderManagement> createState() => _ReaderManagementState();
+}
+
+class _ReaderManagementState extends State<ReaderManagement> {
+  final _search = TextEditingController();
+  List<Map<String, dynamic>> _readers = const [];
+  bool _loading = true;
+  String? _error;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            LibTitleHeader(
-              title: 'Quản lý độc giả'
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final result = apiMap(
+        await ApiClient.get(
+          '/readers',
+          query: {'keyword': _search.text.trim(), 'limit': 100},
+        ),
+      );
+      if (mounted) setState(() => _readers = apiList(result['items']));
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.white,
+    body: SafeArea(
+      child: Column(
+        children: [
+          const LibTitleHeader(title: 'Quản lý độc giả'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(11, 10, 11, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _search,
+                    onSubmitted: (_) => _load(),
+                    decoration: InputDecoration(
+                      hintText: 'Tìm kiếm độc giả...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh, color: kLibBrownTitle),
+                ),
+              ],
             ),
-            // Search + filter
-            Padding(
-              padding: const EdgeInsets.fromLTRB(11, 10, 11, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Tìm kiếm độc giả...',
-                        hintStyle: TextStyle(
-                          color: Colors.black.withValues(alpha: 0.25),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.grey,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: const BorderSide(
-                            width: 3,
-                            color: Color(0xFFDDDDDD),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: const BorderSide(
-                            width: 3,
-                            color: Color(0xFFDDDDDD),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 11, bottom: 8),
+              child: IconButton.filled(
+                style: IconButton.styleFrom(backgroundColor: kLibBeigeButton),
+                icon: const Icon(Icons.add),
+                onPressed: () async {
+                  final changed = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const FormAddReader()),
+                  );
+                  if (changed == true) _load();
+                },
+              ),
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 11),
+            height: 44,
+            decoration: BoxDecoration(
+              color: kLibBeigeButton,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: Text('Mã', style: _header),
+                  ),
+                ),
+                Expanded(flex: 3, child: Text('Họ tên', style: _header)),
+                Expanded(flex: 3, child: Text('Số điện thoại', style: _header)),
+                Expanded(
+                  flex: 2,
+                  child: Center(child: Text('Chi tiết', style: _header)),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ApiStateView(
+              loading: _loading,
+              error: _error,
+              isEmpty: _readers.isEmpty,
+              onRetry: _load,
+              emptyMessage: 'Chưa có độc giả trong hệ thống',
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(11, 6, 11, 8),
+                  itemCount: _readers.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) => _ReaderRow(
+                    reader: _readers[i],
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ReaderDetail(
+                          readerId: apiText(
+                            _readers[i]['reader_id'],
+                            fallback: '',
                           ),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.filter_list, color: kLibBrownTitle),
-                    onPressed: () {},
-                  ),
-                ],
-              ),
-            ),
-            // Action buttons
-            Padding(
-              padding: const EdgeInsets.fromLTRB(11, 8, 11, 0),
-              child: Row(
-                children: [
-                  _actionBtn(
-                    icon: Icons.delete_outline,
-                    color: const Color(0xFFFC5F5F),
-                    onTap: () {},
-                  ),
-                  const Spacer(),
-                  _actionBtn(
-                    icon: Icons.add,
-                    color: kLibBeigeButton,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const FormAddReader()),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Table header
-            Container(
-              margin: const EdgeInsets.fromLTRB(11, 8, 11, 0),
-              height: 44,
-              decoration: ShapeDecoration(
-                color: kLibBeigeButton,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Row(
-                  children: [
-                    Expanded(flex: 1, child: Text('Mã', style: _hStyle)),
-                    Expanded(flex: 2, child: Text('Họ tên', style: _hStyle)),
-                    Expanded(
-                      flex: 3,
-                      child: Text('Số điện thoại', style: _hStyle),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Center(child: Text('Chi tiết', style: _hStyle)),
-                    ),
-                  ],
                 ),
               ),
             ),
-            // Reader list
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(11, 6, 11, 8),
-                itemCount: _sampleReaders.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, i) {
-                  final r = _sampleReaders[i];
-                  return _ReaderRow(
-                    reader: r,
-                    onDetailTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ReaderDetail()),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static const TextStyle _hStyle = TextStyle(
-    color: Colors.white,
-    fontSize: 13,
-    fontFamily: 'Inter',
-    fontWeight: FontWeight.w700,
-  );
-
-  Widget _actionBtn({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 48,
-        height: 43,
-        decoration: ShapeDecoration(
-          color: color,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
           ),
-        ),
-        child: Icon(icon, color: Colors.white),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }
 
-class _ReaderData {
-  const _ReaderData(this.id, this.name, this.phone);
-  final String id, name, phone;
-}
-
-const _sampleReaders = [
-  _ReaderData('M1', 'Trần Ngọc An', '02727272727'),
-  _ReaderData('M2', 'Nguyễn Văn Bình', '0901234567'),
-];
+const _header = TextStyle(
+  color: Colors.white,
+  fontSize: 13,
+  fontWeight: FontWeight.w700,
+);
 
 class _ReaderRow extends StatelessWidget {
-  const _ReaderRow({required this.reader, this.onDetailTap});
-  final _ReaderData reader;
-  final VoidCallback? onDetailTap;
-
+  const _ReaderRow({required this.reader, required this.onTap});
+  final Map<String, dynamic> reader;
+  final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
+    const style = TextStyle(
+      color: kLibBrownTitle,
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       child: Row(
         children: [
           Expanded(
-            flex: 1,
-            child: Text(
-              reader.id,
-              style: const TextStyle(
-                color: kLibBrownTitle,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          Expanded(
             flex: 2,
-            child: Text(
-              reader.name,
-              style: const TextStyle(
-                color: kLibBrownTitle,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            child: Text(apiText(reader['reader_code']), style: style),
           ),
           Expanded(
             flex: 3,
-            child: Text(
-              reader.phone,
-              style: const TextStyle(
-                color: kLibBrownTitle,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            child: Text(apiText(reader['full_name']), style: style),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(apiText(reader['phone']), style: style),
           ),
           Expanded(
             flex: 2,
             child: Center(
-              child: GestureDetector(
-                onTap: onDetailTap,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: kLibBeigeButton,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.chevron_right,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
+              child: IconButton.filled(
+                style: IconButton.styleFrom(backgroundColor: kLibBeigeButton),
+                onPressed: onTap,
+                icon: const Icon(Icons.chevron_right, color: Colors.white),
               ),
             ),
           ),

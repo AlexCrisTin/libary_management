@@ -1,209 +1,195 @@
 import 'package:flutter/material.dart';
-import 'librarian_nav.dart';
+import 'package:libary_management/core/api_client.dart';
+import 'package:libary_management/core/api_state.dart';
+
 import 'borrow_return_detail.dart';
+import 'librarian_nav.dart';
 
-class BorrowReturnBookManagement extends StatelessWidget {
+class BorrowReturnBookManagement extends StatefulWidget {
   const BorrowReturnBookManagement({super.key});
-
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            LibTitleHeader(title: 'Quản lý mượn / trả'),
-            // Search
-            Padding(
-              padding: const EdgeInsets.fromLTRB(11, 10, 11, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Tìm kiếm...',
-                        hintStyle: TextStyle(
-                          color: Colors.black.withValues(alpha: 0.25),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.grey,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: const BorderSide(
-                            width: 3,
-                            color: Color(0xFFDDDDDD),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: const BorderSide(
-                            width: 3,
-                            color: Color(0xFFDDDDDD),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.filter_list, color: kLibBrownTitle),
-                    onPressed: () {},
-                  ),
-                ],
-              ),
-            ),
-            // Table header
-            Container(
-              margin: const EdgeInsets.fromLTRB(11, 8, 11, 0),
-              height: 44,
-              decoration: ShapeDecoration(
-                color: kLibBeigeButton,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 6),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: Center(child: Text('Độc giả', style: _hStyle)),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Center(child: Text('Sách', style: _hStyle)),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Center(child: Text('Ngày mượn', style: _hStyle)),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Center(child: Text('Ngày trả', style: _hStyle)),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Center(child: Text('Chi tiết', style: _hStyle)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // Borrow list
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(11, 6, 11, 8),
-                itemCount: _sampleBorrows.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, i) {
-                  final b = _sampleBorrows[i];
-                  return _BorrowRow(
-                    borrow: b,
-                    onDetailTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const BorrowReturnDetail(),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  State<BorrowReturnBookManagement> createState() =>
+      _BorrowReturnBookManagementState();
+}
+
+class _BorrowReturnBookManagementState
+    extends State<BorrowReturnBookManagement> {
+  final _search = TextEditingController();
+  List<Map<String, dynamic>> _loans = const [];
+  bool _loading = true;
+  String? _error;
+  @override
+  void initState() {
+    super.initState();
+    _load();
   }
 
-  static const TextStyle _hStyle = TextStyle(
-    color: Colors.white,
-    fontSize: 12,
-    fontFamily: 'Inter',
-    fontWeight: FontWeight.w700,
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final result = apiMap(
+        await ApiClient.get(
+          '/circulation/active',
+          query: {'keyword': _search.text.trim(), 'limit': 100},
+        ),
+      );
+      if (mounted) setState(() => _loans = apiList(result['data']));
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.white,
+    body: SafeArea(
+      child: Column(
+        children: [
+          const LibTitleHeader(title: 'Quản lý mượn / trả'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(11, 10, 11, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _search,
+                    onSubmitted: (_) => _load(),
+                    decoration: InputDecoration(
+                      hintText: 'Tìm kiếm...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh, color: kLibBrownTitle),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 11),
+            height: 44,
+            decoration: BoxDecoration(
+              color: kLibBeigeButton,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Center(child: Text('Độc giả', style: _header)),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Center(child: Text('Sách', style: _header)),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Center(child: Text('Ngày mượn', style: _header)),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Center(child: Text('Ngày trả', style: _header)),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Center(child: Text('Chi tiết', style: _header)),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ApiStateView(
+              loading: _loading,
+              error: _error,
+              isEmpty: _loans.isEmpty,
+              onRetry: _load,
+              emptyMessage: 'Không có lượt mượn đang hoạt động',
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(11, 6, 11, 8),
+                  itemCount: _loans.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) => _LoanRow(
+                    loan: _loans[i],
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BorrowReturnDetail(loan: _loans[i]),
+                        ),
+                      );
+                      _load();
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
   );
 }
 
-class _BorrowData {
-  const _BorrowData(this.reader, this.book, this.borrowDate, this.returnDate);
-  final String reader, book, borrowDate, returnDate;
-}
+const _header = TextStyle(
+  color: Colors.white,
+  fontSize: 11,
+  fontWeight: FontWeight.w700,
+);
 
-const _sampleBorrows = [
-  _BorrowData('Trần Ngọc An', 'Toán CC', '01/01/2727', '27/7/2727'),
-  _BorrowData('Nguyễn Văn B', 'Vật lý', '05/01/2727', '20/7/2727'),
-];
-
-class _BorrowRow extends StatelessWidget {
-  const _BorrowRow({required this.borrow, this.onDetailTap});
-  final _BorrowData borrow;
-  final VoidCallback? onDetailTap;
-
+class _LoanRow extends StatelessWidget {
+  const _LoanRow({required this.loan, required this.onTap});
+  final Map<String, dynamic> loan;
+  final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
-    const ts = TextStyle(
+    const style = TextStyle(
       color: kLibBrownTitle,
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: FontWeight.w700,
     );
+    Widget cell(String text, int flex) => Expanded(
+      flex: flex,
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      ),
+    );
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Expanded(
-            flex: 2,
-            child: Text(borrow.reader, textAlign: TextAlign.center, style: ts),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(borrow.book, textAlign: TextAlign.center, style: ts),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              borrow.borrowDate,
-              textAlign: TextAlign.center,
-              style: ts,
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              borrow.returnDate,
-              textAlign: TextAlign.center,
-              style: ts,
-            ),
-          ),
+          cell(apiText(loan['reader_name']), 2),
+          cell(apiText(loan['book_title']), 2),
+          cell(apiDate(loan['borrow_date']), 2),
+          cell(apiDate(loan['due_date']), 2),
           Expanded(
             flex: 2,
             child: Center(
-              child: GestureDetector(
-                onTap: onDetailTap,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: kLibBeigeButton,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.chevron_right,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ),
+              child: IconButton.filled(
+                style: IconButton.styleFrom(backgroundColor: kLibBeigeButton),
+                onPressed: onTap,
+                icon: const Icon(Icons.chevron_right, color: Colors.white),
               ),
             ),
           ),

@@ -223,23 +223,35 @@ class TitleHeader extends StatelessWidget {
 }
 
 class BookCover extends StatelessWidget {
-  const BookCover({super.key, this.width = 89, this.height = 134});
+  const BookCover({super.key, this.width = 89, this.height = 134, this.url});
 
   final double width;
   final double height;
+  final String? url;
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
-      child: Image.asset(
-        kCoverAsset,
-        width: width,
-        height: height,
-        fit: BoxFit.cover,
-      ),
+      child: url != null && url!.isNotEmpty
+          ? Image.network(
+              url!,
+              width: width,
+              height: height,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _placeholder(),
+            )
+          : _placeholder(),
     );
   }
+
+  Widget _placeholder() => Container(
+    width: width,
+    height: height,
+    color: kBeigeSoft,
+    alignment: Alignment.center,
+    child: const Icon(Icons.menu_book_rounded, color: kBrownTitle, size: 38),
+  );
 }
 
 class SectionCard extends StatelessWidget {

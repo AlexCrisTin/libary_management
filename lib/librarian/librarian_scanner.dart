@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:libary_management/core/api_client.dart';
 
 import 'detail_book.dart';
 
@@ -20,16 +21,39 @@ class _LibrarianScannerState extends State<LibrarianScanner> {
     super.dispose();
   }
 
-  void _onDetect(BarcodeCapture capture) {
+  Future<void> _onDetect(BarcodeCapture capture) async {
     if (_openingBook || capture.barcodes.isEmpty) return;
     final value = capture.barcodes.first.rawValue;
     if (value == null || value.isEmpty) return;
 
     _openingBook = true;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const DetailBook()),
-    );
+    try {
+      String bookId = value;
+      try {
+        await ApiClient.get('/books/$value');
+      } catch (_) {
+        final result = apiMap(
+          await ApiClient.get('/books', query: {'keyword': value, 'limit': 1}),
+        );
+        final books = apiList(result['items']);
+        if (books.isEmpty) {
+          throw const ApiException('Không tìm thấy sách từ mã đã quét.');
+        }
+        bookId = apiText(books.first['bib_id'], fallback: '');
+      }
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => DetailBook(bookId: bookId)),
+      );
+    } catch (error) {
+      _openingBook = false;
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
   }
 
   @override

@@ -1,102 +1,128 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/core/api_client.dart';
+import 'package:libary_management/reader/home.dart';
 
-class Signup extends StatelessWidget {
+class Signup extends StatefulWidget {
   const Signup({super.key});
+
+  @override
+  State<Signup> createState() => _SignupState();
+}
+
+class _SignupState extends State<Signup> {
+  final _name = TextEditingController();
+  final _username = TextEditingController();
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  final _confirm = TextEditingController();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    for (final controller in [_name, _username, _email, _password, _confirm]) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _register() async {
+    if (_name.text.trim().isEmpty ||
+        _username.text.trim().isEmpty ||
+        _password.text.isEmpty) {
+      _show('Vui lòng nhập họ tên, tên đăng nhập và mật khẩu.');
+      return;
+    }
+    if (_password.text != _confirm.text) {
+      _show('Mật khẩu xác nhận không khớp.');
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final data = apiMap(
+        await ApiClient.post(
+          '/auth/register',
+          body: {
+            'full_name': _name.text.trim(),
+            'username': _username.text.trim(),
+            'email': _email.text.trim().isEmpty ? null : _email.text.trim(),
+            'password': _password.text,
+          },
+        ),
+      );
+      AppSession.setAuth(data);
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const Home()),
+        (_) => false,
+      );
+    } catch (error) {
+      _show(error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _show(String message) => ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(message)));
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40),
-          child: Column(
-            children: [
-              const SizedBox(height: 80),
-              const Text(
-                'Đăng kí',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 36,
-                  fontFamily: 'Arial',
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 48),
-              const TextField(
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Email',
-                ),
-              ),
-              const SizedBox(height: 20),
-              const TextField(
-                obscureText: true,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Nhập mật khẩu',
-                ),
-              ),
-              const SizedBox(height: 20),
-              const TextField(
-                obscureText: true,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Xác nhận mật khẩu',
-                ),
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: 70,
-                height: 70,
-                child: ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFDBB9A0),
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: const Icon(Icons.arrow_forward, color: Colors.white),
-                ),
-              ),
-              const Spacer(),
-              const Text(
-                'Đăng kí bằng phương thức khác',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFFBDBDBD),
-                  fontSize: 15,
-                  fontFamily: 'Arial',
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 16),
-              CircleAvatar(
-                radius: 25,
-                backgroundColor: const Color(0xFFD9D9D9),
-                backgroundImage: const NetworkImage(
-                  'https://placehold.co/34x34',
-                ),
-              ),
-              const SizedBox(height: 32),
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: const Text(
-                  'Đăng nhập',
-                  style: TextStyle(
-                    color: Color(0xFFE9BCB9),
-                    fontSize: 15,
-                    fontFamily: 'Arial',
-                    fontWeight: FontWeight.w700,
+      appBar: AppBar(backgroundColor: Colors.white, elevation: 0),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(40, 12, 40, 32),
+        child: Column(
+          children: [
+            const Text(
+              'Đăng kí',
+              style: TextStyle(fontSize: 36, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 32),
+            _field(_name, 'Họ và tên'),
+            _field(_username, 'Tên đăng nhập'),
+            _field(_email, 'Email', keyboard: TextInputType.emailAddress),
+            _field(_password, 'Mật khẩu', obscure: true),
+            _field(_confirm, 'Xác nhận mật khẩu', obscure: true),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: 70,
+              height: 70,
+              child: ElevatedButton(
+                onPressed: _loading ? null : _register,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFDBB9A0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
                   ),
                 ),
+                child: _loading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Icon(Icons.arrow_forward, color: Colors.white),
               ),
-              const SizedBox(height: 24),
-            ],
-          ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _field(
+    TextEditingController controller,
+    String label, {
+    bool obscure = false,
+    TextInputType? keyboard,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextField(
+        controller: controller,
+        obscureText: obscure,
+        keyboardType: keyboard,
+        decoration: InputDecoration(
+          border: const OutlineInputBorder(),
+          labelText: label,
         ),
       ),
     );

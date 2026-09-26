@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/core/api_client.dart';
 import 'librarian_nav.dart';
 
 class Dashboard extends StatelessWidget {
@@ -51,9 +52,9 @@ class Dashboard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Text(
-                            'Lê Văn Lê',
-                            style: TextStyle(
+                          Text(
+                            AppSession.displayName,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 15,
                               fontFamily: 'Inter',
