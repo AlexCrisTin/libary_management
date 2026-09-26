@@ -217,7 +217,15 @@ class _ReaderDetailState extends State<ReaderDetail> {
                       shape: const CircleBorder(),
                       child: IconButton(
                         tooltip: 'Nhắn tin',
-                        onPressed: () => _open(const MessageDetail()),
+                        onPressed: () => _open(
+                          MessageDetail(
+                            readerId: widget.readerId,
+                            readerName: apiText(
+                              _reader['full_name'],
+                              fallback: 'Độc giả',
+                            ),
+                          ),
+                        ),
                         padding: const EdgeInsets.all(20),
                         icon: const Icon(
                           Icons.chat_bubble_rounded,
