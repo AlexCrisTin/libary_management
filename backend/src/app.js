@@ -13,6 +13,8 @@ const holdsRoutes = require('./modules/holds/holds.routes');
 const notificationsRoutes = require('./modules/notifications/notifications.routes');
 const chatRoutes = require('./modules/chat/chat.routes');
 const uploadsRoutes = require('./modules/uploads/uploads.routes');
+const categoriesRoutes = require('./modules/categories/categories.routes');
+const publishersRoutes = require('./modules/publishers/publishers.routes');
 
 const app = express();
 
@@ -33,6 +35,8 @@ app.use('/api/holds', holdsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/uploads', uploadsRoutes);
+app.use('/api/categories', categoriesRoutes);
+app.use('/api/publishers', publishersRoutes);
 
 // Route kiem tra suc khoe server
 app.get('/health', (req, res) => {
