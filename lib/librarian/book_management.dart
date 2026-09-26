@@ -16,6 +16,7 @@ class BookManagement extends StatefulWidget {
 class _BookManagementState extends State<BookManagement> {
   final _search = TextEditingController();
   List<Map<String, dynamic>> _books = const [];
+  final Set<String> _deletingIds = <String>{};
   bool _loading = true;
   String? _error;
 
@@ -49,6 +50,113 @@ class _BookManagementState extends State<BookManagement> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _deleteBook(Map<String, dynamic> book) async {
+    final id = apiText(book['bib_id'], fallback: '');
+    if (id.isEmpty || _deletingIds.contains(id)) return;
+    final title = apiText(book['title']);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa sách?'),
+        content: Text(
+          'Bạn có chắc muốn xóa “$title”?\n\n'
+          'Các bản sao của đầu sách này cũng sẽ bị xóa. Sách đang được mượn sẽ không thể xóa.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: kLibRed),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deletingIds.add(id));
+    try {
+      await ApiClient.delete('/books/$id');
+      if (!mounted) return;
+      setState(
+        () => _books = _books.where((item) => item['bib_id'] != id).toList(),
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Đã xóa sách “$title”.')));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _deletingIds.remove(id));
+    }
+  }
+
+  Future<void> _chooseBookToDelete() async {
+    if (_books.isEmpty || _deletingIds.isNotEmpty) return;
+    final selected = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: kLibCardFill,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: SizedBox(
+          height: 430,
+          child: Column(
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 4, 20, 14),
+                child: Text(
+                  'Chọn sách cần xóa',
+                  style: TextStyle(
+                    color: kLibBrownTitle,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: _books.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, index) {
+                    final book = _books[index];
+                    return ListTile(
+                      leading: const Icon(
+                        Icons.menu_book_rounded,
+                        color: kLibBrownTitle,
+                      ),
+                      title: Text(
+                        apiText(book['title']),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text('ISBN: ${apiText(book['isbn'])}'),
+                      trailing: const Icon(
+                        Icons.delete_outline,
+                        color: kLibRed,
+                      ),
+                      onTap: () => Navigator.pop(sheetContext, book),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selected != null && mounted) await _deleteBook(selected);
   }
 
   @override
@@ -100,16 +208,44 @@ class _BookManagementState extends State<BookManagement> {
               alignment: Alignment.centerRight,
               child: Padding(
                 padding: const EdgeInsets.only(right: 11, bottom: 8),
-                child: IconButton.filled(
-                  style: IconButton.styleFrom(backgroundColor: kLibBeigeButton),
-                  onPressed: () async {
-                    final changed = await Navigator.push<bool>(
-                      context,
-                      MaterialPageRoute(builder: (_) => const FormAddBook()),
-                    );
-                    if (changed == true) _load();
-                  },
-                  icon: const Icon(Icons.add),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton.filled(
+                      tooltip: 'Xóa sách',
+                      style: IconButton.styleFrom(backgroundColor: kLibRed),
+                      onPressed: _books.isEmpty || _deletingIds.isNotEmpty
+                          ? null
+                          : _chooseBookToDelete,
+                      icon: _deletingIds.isNotEmpty
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.delete_outline),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      tooltip: 'Thêm sách',
+                      style: IconButton.styleFrom(
+                        backgroundColor: kLibBeigeButton,
+                      ),
+                      onPressed: () async {
+                        final changed = await Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const FormAddBook(),
+                          ),
+                        );
+                        if (changed == true) _load();
+                      },
+                      icon: const Icon(Icons.add),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -129,14 +265,20 @@ class _BookManagementState extends State<BookManagement> {
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (_, i) => _BookRow(
                       book: _books[i],
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => DetailBook(
-                            bookId: apiText(_books[i]['bib_id'], fallback: ''),
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => DetailBook(
+                              bookId: apiText(
+                                _books[i]['bib_id'],
+                                fallback: '',
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                        _load();
+                      },
                     ),
                   ),
                 ),
