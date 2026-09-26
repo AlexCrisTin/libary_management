@@ -124,13 +124,36 @@ exports.borrowBook = async ({ reader_id, reader_code, copy_id, barcode, due_days
             [copy.copy_id]
         );
 
-        // Nếu độc giả từng đặt trước đầu sách này -> Chuyển hold thành 'fulfilled'
-        await conn.query(
-            `UPDATE holds 
-             SET status = 'fulfilled' 
-             WHERE bib_id = ? AND reader_id = ? AND status IN ('waiting', 'notified')`,
+        // Nếu độc giả từng đặt trước đầu sách này -> Chuyển hold thành 'fulfilled' và đôn hàng đợi
+        const [activeHolds] = await conn.query(
+            `SELECT hold_id, queue_position, status 
+             FROM holds 
+             WHERE bib_id = ? AND reader_id = ? AND status IN ('waiting', 'notified') 
+             LIMIT 1`,
             [copy.bib_id, reader.reader_id]
         );
+
+        if (activeHolds.length > 0) {
+            const userHold = activeHolds[0];
+
+            // Cập nhật lượt hold thành 'fulfilled' và gán queue_position = NULL (rời khỏi hàng chờ)
+            await conn.query(
+                `UPDATE holds 
+                 SET status = 'fulfilled', queue_position = NULL 
+                 WHERE hold_id = ?`,
+                [userHold.hold_id]
+            );
+
+            // Nếu người này vẫn còn giữ queue_position > 0, đôn các người xếp sau lên 1 bậc
+            if (userHold.queue_position && userHold.queue_position > 0) {
+                await conn.query(
+                    `UPDATE holds 
+                     SET queue_position = queue_position - 1 
+                     WHERE bib_id = ? AND status = 'waiting' AND queue_position > ?`,
+                    [copy.bib_id, userHold.queue_position]
+                );
+            }
+        }
 
         await conn.commit();
 
@@ -252,9 +275,17 @@ exports.returnBook = async ({ barcode, copy_id, tx_id, returned_to, condition, f
 
             await conn.query(
                 `UPDATE holds 
-                 SET status = 'notified', notified_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL 3 DAY) 
+                 SET status = 'notified', notified_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL 3 DAY), queue_position = NULL 
                  WHERE hold_id = ?`,
                 [nextHold.hold_id]
+            );
+
+            // Đôn các người xếp sau trong hàng chờ (waiting) lên 1 bậc
+            await conn.query(
+                `UPDATE holds 
+                 SET queue_position = queue_position - 1 
+                 WHERE bib_id = ? AND status = 'waiting' AND queue_position > ?`,
+                [tx.bib_id, nextHold.queue_position]
             );
 
             holdNotified = {

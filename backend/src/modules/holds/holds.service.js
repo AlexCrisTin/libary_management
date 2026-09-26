@@ -161,9 +161,16 @@ exports.getAllHolds = async ({ bib_id = '', reader_id = '', status = '', page = 
         params.push(reader_id);
     }
 
-    if (status) {
-        where.push('h.status = ?');
-        params.push(status);
+    if (status && status !== 'all') {
+        if (status === 'active') {
+            where.push("h.status IN ('waiting', 'notified')");
+        } else {
+            where.push('h.status = ?');
+            params.push(status);
+        }
+    } else if (!status) {
+        // Mặc định: Chỉ hiển thị những người đang trong hàng chờ hoặc đang được giữ sách (loại bỏ người đã mượn hoặc hủy)
+        where.push("h.status IN ('waiting', 'notified')");
     }
 
     const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
@@ -191,7 +198,7 @@ exports.getAllHolds = async ({ bib_id = '', reader_id = '', status = '', page = 
         JOIN readers r ON h.reader_id = r.reader_id
         JOIN bibliographic_records br ON h.bib_id = br.bib_id
         ${whereClause}
-        ORDER BY h.bib_id, h.queue_position ASC, h.requested_at ASC
+        ORDER BY h.bib_id, CASE WHEN h.queue_position IS NULL THEN 1 ELSE 0 END, h.queue_position ASC, h.requested_at ASC
         LIMIT ? OFFSET ?
     `;
 
