@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 class ApiException implements Exception {
   const ApiException(this.message, {this.statusCode});
@@ -82,6 +83,28 @@ class ApiClient {
     return _decode(await http.delete(_uri(path), headers: _headers));
   }
 
+  static Future<dynamic> uploadImage(
+    String path, {
+    required List<int> bytes,
+    String filename = 'book-cover.jpg',
+  }) async {
+    final request = http.MultipartRequest('POST', _uri(path));
+    request.headers['Accept'] = 'application/json';
+    if (AppSession.token != null) {
+      request.headers['Authorization'] = 'Bearer ${AppSession.token}';
+    }
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: filename,
+        contentType: MediaType('image', 'jpeg'),
+      ),
+    );
+    final streamed = await request.send();
+    return _decode(await http.Response.fromStream(streamed));
+  }
+
   static Uri _uri(String path, [Map<String, dynamic>? query]) {
     final normalized = path.startsWith('/') ? path : '/$path';
     final values = <String, String>{};
@@ -106,10 +129,12 @@ class ApiClient {
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
+      final message = payload is Map ? payload['message']?.toString() : null;
+      final detail = payload is Map ? payload['error']?.toString() : null;
       throw ApiException(
-        payload is Map && payload['message'] != null
-            ? payload['message'].toString()
-            : 'Không thể kết nối máy chủ (${response.statusCode}).',
+        detail != null && detail.isNotEmpty && response.statusCode >= 500
+            ? '${message ?? 'Lỗi máy chủ'} ($detail)'
+            : message ?? 'Không thể kết nối máy chủ (${response.statusCode}).',
         statusCode: response.statusCode,
       );
     }
@@ -118,6 +143,15 @@ class ApiClient {
     }
     return payload is Map ? payload['data'] : payload;
   }
+}
+
+String apiAssetUrl(String? value) {
+  final path = value?.trim() ?? '';
+  if (path.isEmpty || path.startsWith('data:')) return path;
+  final uri = Uri.tryParse(path);
+  if (uri != null && uri.hasScheme) return path;
+  final normalized = path.startsWith('/') ? path : '/$path';
+  return '${Uri.parse(ApiClient.baseUrl).origin}$normalized';
 }
 
 Map<String, dynamic> apiMap(dynamic value) => _map(value);

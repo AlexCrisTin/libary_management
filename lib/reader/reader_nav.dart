@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/core/api_client.dart';
+import 'package:libary_management/core/local_image.dart';
 
 const kBeige = Color(0xFFDBB9A0);
 const kBeigeSoft = Color(0xFFEFE2D9);
@@ -231,11 +233,19 @@ class BookCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localBytes = decodeDataImage(url);
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
-      child: url != null && url!.isNotEmpty
+      child: localBytes != null
+          ? Image.memory(
+              localBytes,
+              width: width,
+              height: height,
+              fit: BoxFit.cover,
+            )
+          : url != null && url!.isNotEmpty
           ? Image.network(
-              url!,
+              apiAssetUrl(url),
               width: width,
               height: height,
               fit: BoxFit.cover,

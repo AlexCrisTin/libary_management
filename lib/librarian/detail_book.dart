@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:libary_management/core/api_client.dart';
 import 'package:libary_management/core/api_state.dart';
+import 'package:libary_management/core/local_image.dart';
 
 import 'librarian_nav.dart';
 import 'librarian_scanner.dart';
@@ -430,6 +431,7 @@ class _CoverCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final url = book['cover_url']?.toString().trim() ?? '';
+    final localBytes = decodeDataImage(url);
     return Center(
       child: Container(
         width: 252,
@@ -441,7 +443,9 @@ class _CoverCard extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(3),
-          child: url.isEmpty
+          child: localBytes != null
+              ? Image.memory(localBytes, fit: BoxFit.cover)
+              : url.isEmpty
               ? Container(
                   color: kLibBeigeSoft,
                   alignment: Alignment.center,
@@ -465,7 +469,7 @@ class _CoverCard extends StatelessWidget {
                   ),
                 )
               : Image.network(
-                  url,
+                  apiAssetUrl(url),
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => Container(
                     color: kLibBeigeSoft,
@@ -502,13 +506,17 @@ class _InformationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final metadata = apiMap(book['metadata']);
     final rows = <Widget?>[
       _info('Tên sách', book['title']),
       _info('Phụ đề', book['subtitle']),
       _info('ISBN', book['isbn']),
       _info('Tác giả', authors),
       _info('Năm xuất bản', book['publish_year']),
-      _info('Nhà xuất bản', book['publisher_name']),
+      _info(
+        'Nhà xuất bản',
+        book['publisher_name'] ?? metadata['publisher_name'],
+      ),
       _info('Ấn bản', book['edition']),
       _info('Thể loại', subjects),
       _info('Phân loại DDC', book['ddc_class']),

@@ -101,7 +101,11 @@ class _DetailBookState extends State<DetailBook> {
                             ? (_book['authors'] as List).join(', ')
                             : _book['authors'],
                       ),
-                      _row('Nhà xuất bản', _book['publisher_name']),
+                      _row(
+                        'Nhà xuất bản',
+                        _book['publisher_name'] ??
+                            apiMap(_book['metadata'])['publisher_name'],
+                      ),
                       _row('Năm xuất bản', _book['publish_year']),
                       _row('Ngôn ngữ', _book['language']),
                       _row('Số trang', _book['page_count']),

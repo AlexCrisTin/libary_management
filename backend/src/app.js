@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 // Import routes
 const authRoutes = require('./modules/auth/auth.routes');
@@ -11,6 +12,7 @@ const circulationRoutes = require('./modules/circulation/circulation.routes');
 const holdsRoutes = require('./modules/holds/holds.routes');
 const notificationsRoutes = require('./modules/notifications/notifications.routes');
 const chatRoutes = require('./modules/chat/chat.routes');
+const uploadsRoutes = require('./modules/uploads/uploads.routes');
 
 const app = express();
 
@@ -18,6 +20,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Dang ky cac API Routes
 app.use('/api/auth', authRoutes);
@@ -29,6 +32,7 @@ app.use('/api/circulation', circulationRoutes);
 app.use('/api/holds', holdsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/uploads', uploadsRoutes);
 
 // Route kiem tra suc khoe server
 app.get('/health', (req, res) => {

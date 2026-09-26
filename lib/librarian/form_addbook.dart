@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:libary_management/core/api_client.dart';
+import 'package:libary_management/core/local_image.dart';
 
 import 'librarian_nav.dart';
 import 'librarian_scanner.dart';
@@ -17,7 +18,7 @@ class _FormAddBookState extends State<FormAddBook> {
   final _subtitle = TextEditingController();
   final _isbn = TextEditingController();
   final _authorInput = TextEditingController();
-  final _publisherId = TextEditingController();
+  final _publisherName = TextEditingController();
   final _year = TextEditingController();
   final _subjectInput = TextEditingController();
   final _language = TextEditingController(text: 'vi');
@@ -27,7 +28,6 @@ class _FormAddBookState extends State<FormAddBook> {
   final _edition = TextEditingController();
   final _ddcClass = TextEditingController();
   final _description = TextEditingController();
-  final _coverUrl = TextEditingController();
 
   final List<String> _authors = [];
   final List<String> _subjects = [];
@@ -35,6 +35,7 @@ class _FormAddBookState extends State<FormAddBook> {
   String? _locationId;
   bool _loading = false;
   bool _loadingShelves = true;
+  String _coverData = '';
 
   @override
   void initState() {
@@ -49,7 +50,7 @@ class _FormAddBookState extends State<FormAddBook> {
       _subtitle,
       _isbn,
       _authorInput,
-      _publisherId,
+      _publisherName,
       _year,
       _subjectInput,
       _language,
@@ -59,7 +60,6 @@ class _FormAddBookState extends State<FormAddBook> {
       _edition,
       _ddcClass,
       _description,
-      _coverUrl,
     ]) {
       controller.dispose();
     }
@@ -86,42 +86,26 @@ class _FormAddBookState extends State<FormAddBook> {
     });
   }
 
-  Future<void> _selectCoverUrl() async {
-    final controller = TextEditingController(text: _coverUrl.text);
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Ảnh bìa sách'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.url,
-          decoration: const InputDecoration(
-            labelText: 'Đường dẫn ảnh',
-            hintText: 'https://...',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Lưu'),
-          ),
-        ],
-      ),
-    );
-    if (saved == true && mounted) {
-      setState(() => _coverUrl.text = controller.text.trim());
+  Future<void> _selectCoverImage() async {
+    try {
+      final data = await pickLocalImageAsDataUri();
+      if (data != null && mounted) setState(() => _coverData = data);
+    } catch (error) {
+      if (mounted) _show(error.toString());
     }
-    controller.dispose();
   }
 
   Future<void> _submit() async {
     if (_title.text.trim().isEmpty) {
       _show('Tên sách không được để trống.');
+      return;
+    }
+    if (_title.text.trim().length > 500) {
+      _show('Tên sách không được vượt quá 500 ký tự.');
+      return;
+    }
+    if (_isbn.text.trim().length > 20) {
+      _show('ISBN không được vượt quá 20 ký tự.');
       return;
     }
     if (_authorInput.text.trim().isNotEmpty) {
@@ -131,8 +115,27 @@ class _FormAddBookState extends State<FormAddBook> {
       _addValue(_subjectInput, _subjects);
     }
 
+    final publishYear = _optionalPositiveInt(_year, 'Năm xuất bản');
+    if (_year.text.trim().isNotEmpty && publishYear == null) return;
+    final pageCount = _optionalPositiveInt(_pages, 'Số trang');
+    if (_pages.text.trim().isNotEmpty && pageCount == null) return;
+    final initialCopies = _optionalPositiveInt(_copies, 'Số bản sao');
+    if (initialCopies == null) return;
+
     setState(() => _loading = true);
     try {
+      await _ensureIsbnIsUnique();
+      String? uploadedCoverUrl;
+      if (_coverData.isNotEmpty) {
+        final bytes = decodeDataImage(_coverData);
+        if (bytes == null) {
+          throw const FormatException('Không đọc được ảnh bìa đã chọn.');
+        }
+        final uploadResult = apiMap(
+          await ApiClient.uploadImage('/uploads/book-cover', bytes: bytes),
+        );
+        uploadedCoverUrl = apiText(uploadResult['url'], fallback: '');
+      }
       await ApiClient.post(
         '/books',
         body: {
@@ -140,20 +143,26 @@ class _FormAddBookState extends State<FormAddBook> {
           'subtitle': _nullable(_subtitle.text),
           'isbn': _nullable(_isbn.text),
           'authors': _authors,
-          'publisher_id': _nullable(_publisherId.text),
-          'publish_year': int.tryParse(_year.text),
+          // Chưa có API danh mục nhà xuất bản: lưu tên vào metadata thay vì
+          // gửi nó vào khóa ngoại publisher_id và làm MySQL từ chối bản ghi.
+          'publisher_id': null,
+          'publish_year': publishYear,
           'edition': _nullable(_edition.text),
           'language': _language.text.trim().isEmpty
               ? 'vi'
               : _language.text.trim(),
           'description': _nullable(_description.text),
-          'page_count': int.tryParse(_pages.text),
+          'page_count': pageCount,
           'call_number': _nullable(_callNumber.text),
           'ddc_class': _nullable(_ddcClass.text),
           'subject_headings': _subjects,
-          'cover_url': _nullable(_coverUrl.text),
-          'initial_copies': int.tryParse(_copies.text) ?? 0,
+          'cover_url': uploadedCoverUrl,
+          'initial_copies': initialCopies,
           'location_id': _locationId,
+          'metadata': {
+            if (_publisherName.text.trim().isNotEmpty)
+              'publisher_name': _publisherName.text.trim(),
+          },
         },
       );
       if (!mounted) return;
@@ -168,6 +177,31 @@ class _FormAddBookState extends State<FormAddBook> {
   String? _nullable(String value) {
     final text = value.trim();
     return text.isEmpty ? null : text;
+  }
+
+  int? _optionalPositiveInt(TextEditingController controller, String label) {
+    final text = controller.text.trim();
+    if (text.isEmpty) return null;
+    final value = int.tryParse(text);
+    if (value == null || value < 0) {
+      _show('$label phải là số nguyên không âm.');
+      return null;
+    }
+    return value;
+  }
+
+  Future<void> _ensureIsbnIsUnique() async {
+    final isbn = _isbn.text.trim();
+    if (isbn.isEmpty) return;
+    final result = apiMap(
+      await ApiClient.get('/books', query: {'keyword': isbn, 'limit': 20}),
+    );
+    final duplicate = apiList(
+      result['items'],
+    ).any((book) => book['isbn']?.toString().trim() == isbn);
+    if (duplicate) {
+      throw const ApiException('ISBN này đã tồn tại trong thư viện.');
+    }
   }
 
   void _openTab(int index) {
@@ -223,8 +257,11 @@ class _FormAddBookState extends State<FormAddBook> {
                           color: kLibBrownTitle.withValues(alpha: .4),
                         ),
                         _CoverPicker(
-                          url: _coverUrl.text,
-                          onTap: _selectCoverUrl,
+                          data: _coverData,
+                          onTap: _selectCoverImage,
+                          onRemove: _coverData.isEmpty
+                              ? null
+                              : () => setState(() => _coverData = ''),
                         ),
                         const SizedBox(height: 26),
                         _FullField(
@@ -243,8 +280,8 @@ class _FormAddBookState extends State<FormAddBook> {
                               setState(() => _authors.remove(value)),
                         ),
                         _TwoFields(
-                          leftLabel: 'Mã NXB',
-                          leftController: _publisherId,
+                          leftLabel: 'Nhà xuất bản',
+                          leftController: _publisherName,
                           rightLabel: 'Năm xuất bản',
                           rightController: _year,
                           rightKeyboard: TextInputType.number,
@@ -349,40 +386,51 @@ const _labelStyle = TextStyle(
 );
 
 class _CoverPicker extends StatelessWidget {
-  const _CoverPicker({required this.url, required this.onTap});
+  const _CoverPicker({
+    required this.data,
+    required this.onTap,
+    required this.onRemove,
+  });
 
-  final String url;
+  final String data;
   final VoidCallback onTap;
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: 142,
-        height: 94,
-        decoration: BoxDecoration(
-          color: Colors.white,
+    final bytes = decodeDataImage(data);
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: 142,
+            height: 94,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: bytes == null
+                ? const Icon(
+                    Icons.image_rounded,
+                    color: Color(0xFF405170),
+                    size: 38,
+                  )
+                : Image.memory(bytes, fit: BoxFit.cover),
+          ),
         ),
-        clipBehavior: Clip.antiAlias,
-        child: url.isEmpty
-            ? const Icon(
-                Icons.image_rounded,
-                color: Color(0xFF405170),
-                size: 38,
-              )
-            : Image.network(
-                url,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const Icon(
-                  Icons.broken_image_outlined,
-                  color: Color(0xFF405170),
-                  size: 38,
-                ),
-              ),
-      ),
+        const SizedBox(height: 4),
+        TextButton.icon(
+          onPressed: onRemove ?? onTap,
+          icon: Icon(
+            onRemove == null ? Icons.folder_open_rounded : Icons.delete_outline,
+            size: 19,
+          ),
+          label: Text(onRemove == null ? 'Chọn ảnh từ máy' : 'Xóa ảnh'),
+        ),
+      ],
     );
   }
 }
