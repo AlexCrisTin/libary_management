@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:libary_management/core/api_client.dart';
 import 'package:libary_management/core/api_state.dart';
+import 'package:libary_management/core/local_image.dart';
 
 import 'librarian_nav.dart';
 
@@ -51,11 +52,7 @@ class _ReaderDetailState extends State<ReaderDetail> {
             child: ListView(
               padding: const EdgeInsets.all(22),
               children: [
-                const CircleAvatar(
-                  radius: 72,
-                  backgroundColor: kLibBeigeSoft,
-                  child: Icon(Icons.person, size: 72, color: kLibBrownTitle),
-                ),
+                _ReaderAvatar(url: _reader['avatar_url']?.toString()),
                 const SizedBox(height: 24),
                 Container(
                   padding: const EdgeInsets.all(20),
@@ -117,4 +114,36 @@ class _ReaderDetailState extends State<ReaderDetail> {
       ),
     ),
   );
+}
+
+class _ReaderAvatar extends StatelessWidget {
+  const _ReaderAvatar({required this.url});
+
+  final String? url;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = url?.trim() ?? '';
+    final bytes = decodeDataImage(value);
+    final fallback = Container(
+      color: kLibBeigeSoft,
+      alignment: Alignment.center,
+      child: const Icon(Icons.person, size: 72, color: kLibBrownTitle),
+    );
+    return ClipOval(
+      child: SizedBox(
+        width: 144,
+        height: 144,
+        child: bytes != null
+            ? Image.memory(bytes, fit: BoxFit.cover)
+            : value.isEmpty
+            ? fallback
+            : Image.network(
+                apiAssetUrl(value),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => fallback,
+              ),
+      ),
+    );
+  }
 }

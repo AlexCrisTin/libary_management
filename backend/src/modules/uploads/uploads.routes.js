@@ -11,4 +11,11 @@ router.post(
     uploadsController.uploadBookCover
 );
 
+router.post(
+    '/reader-avatar',
+    authMiddleware,
+    roleMiddleware('librarian', 'admin'),
+    uploadsController.uploadReaderAvatar
+);
+
 module.exports = router;

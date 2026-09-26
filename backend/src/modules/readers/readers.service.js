@@ -121,26 +121,38 @@ exports.createReader = async (data) => {
         faculty = null,
         max_books = 5,
         avatar_url = null,
+        card_expired = null,
+        status = 'active',
         user_id = null
     } = data;
 
+    if (!['student', 'lecturer', 'staff', 'public'].includes(reader_type)) {
+        throw new Error('Loại độc giả không hợp lệ!');
+    }
+    if (!['active', 'suspended', 'expired'].includes(status)) {
+        throw new Error('Trạng thái thẻ không hợp lệ!');
+    }
+
     // Ngày cấp là hôm nay, hạn thẻ mặc định 1 năm
     const cardIssued = new Date();
-    const cardExpired = new Date();
-    cardExpired.setFullYear(cardExpired.getFullYear() + 1);
+    const cardExpired = card_expired ? new Date(card_expired) : new Date();
+    if (!card_expired) cardExpired.setFullYear(cardExpired.getFullYear() + 1);
+    if (Number.isNaN(cardExpired.getTime())) {
+        throw new Error('Ngày hết hạn thẻ không hợp lệ!');
+    }
 
     const sql = `
         INSERT INTO readers (
             reader_id, user_id, reader_code, full_name, birth_date, 
             phone, email, reader_type, faculty, card_issued, card_expired, 
             status, max_books, avatar_url
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     await db.query(sql, [
         readerId, user_id, readerCode, full_name, birth_date,
         phone, email, reader_type, faculty, cardIssued, cardExpired,
-        Number(max_books), avatar_url
+        status, Number(max_books), avatar_url
     ]);
 
     return {
@@ -150,7 +162,7 @@ exports.createReader = async (data) => {
         reader_type,
         card_issued: cardIssued,
         card_expired: cardExpired,
-        status: 'active',
+        status,
         max_books: Number(max_books)
     };
 };
@@ -348,4 +360,3 @@ exports.updateReaderPreferences = async (readerId, data) => {
         notification_pref
     };
 };
-
