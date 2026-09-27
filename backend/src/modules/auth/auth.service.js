@@ -288,6 +288,34 @@ exports.resetPassword = async ({ email, otp, new_password }) => {
     };
 };
 
+/**
+ * 6. Đăng xuất (Đưa token hiện tại vào blacklist để vô hiệu hóa ngay lập tức)
+ */
+exports.logout = async ({ token, user }) => {
+    if (!token) {
+        throw new Error('Không tìm thấy token để đăng xuất!');
+    }
+
+    // Lấy thời điểm hết hạn từ token (hoặc mặc định 7 ngày)
+    let expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    if (user && user.exp) {
+        expiresAt = new Date(user.exp * 1000);
+    }
+
+    const userId = user?.userId || null;
+
+    // Lưu vào bảng token_blacklist
+    await db.query(
+        `INSERT INTO token_blacklist (token, user_id, expires_at, created_at)
+         VALUES (?, ?, ?, NOW())`,
+        [token, userId, expiresAt]
+    );
+
+    return {
+        message: 'Đăng xuất thành công! Phiên đăng nhập đã được hủy bỏ.'
+    };
+};
+
 // Tự động dọn dẹp các mã OTP đã quá hạn mỗi 10 phút
 setInterval(async () => {
     try {
@@ -296,4 +324,13 @@ setInterval(async () => {
         // Bỏ qua lỗi nếu database chưa sẵn sàng
     }
 }, 10 * 60 * 1000);
+
+// Tự động dọn dẹp các token đã hết hạn trong blacklist mỗi 12 giờ
+setInterval(async () => {
+    try {
+        await db.query('DELETE FROM token_blacklist WHERE expires_at < NOW()');
+    } catch {
+        // Bỏ qua lỗi nếu database chưa sẵn sàng
+    }
+}, 12 * 60 * 60 * 1000);
 

@@ -100,3 +100,16 @@ exports.resetPassword = async (req, res, next) => {
     }
 };
 
+/**
+ * 7. POST /api/auth/logout - Đăng xuất (Vô hiệu hóa Token)
+ */
+exports.logout = async (req, res, next) => {
+    try {
+        const token = req.token || req.headers.authorization?.split(' ')[1];
+        const result = await authService.logout({ token, user: req.user });
+        return sendSuccess(res, result.message, null);
+    } catch (error) {
+        next(error);
+    }
+};
+

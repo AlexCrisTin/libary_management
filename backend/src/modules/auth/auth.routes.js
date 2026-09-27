@@ -19,4 +19,7 @@ router.put('/change-password', authMiddleware, authController.changePassword);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 
+// 6. Đăng xuất (Yêu cầu có Token để thu hồi)
+router.post('/logout', authMiddleware, authController.logout);
+
 module.exports = router;
