@@ -14,6 +14,7 @@ class ProfileDetail extends StatefulWidget {
 class _ProfileDetailState extends State<ProfileDetail> {
   Map<String, dynamic> _reader = const {};
   bool _loading = true;
+  bool _uploadingAvatar = false;
   String? _error;
 
   @override
@@ -200,8 +201,43 @@ class _ProfileDetailState extends State<ProfileDetail> {
     confirmPassword.dispose();
   }
 
-  void _showAvatarNotice() {
-    _showMessage('Ảnh đại diện hiện do thủ thư quản lý.');
+  Future<void> _changeAvatar() async {
+    if (_uploadingAvatar) return;
+    final id = AppSession.readerId;
+    if (id == null) {
+      _showMessage('Tài khoản chưa liên kết hồ sơ độc giả.');
+      return;
+    }
+
+    try {
+      final data = await pickLocalImageAsDataUri();
+      if (data == null) return;
+      final bytes = decodeDataImage(data);
+      if (bytes == null) {
+        throw const FormatException('Không đọc được ảnh đại diện đã chọn.');
+      }
+
+      if (mounted) setState(() => _uploadingAvatar = true);
+      final uploaded = apiMap(
+        await ApiClient.uploadImage(
+          '/uploads/reader-avatar',
+          bytes: bytes,
+          filename: 'reader-avatar.jpg',
+        ),
+      );
+      final avatarUrl = apiText(uploaded['url'], fallback: '');
+      if (avatarUrl.isEmpty) {
+        throw const FormatException('Máy chủ không trả về đường dẫn ảnh.');
+      }
+
+      await ApiClient.put('/readers/$id', body: {'avatar_url': avatarUrl});
+      await _load();
+      _showMessage('Đổi ảnh đại diện thành công.');
+    } catch (error) {
+      _showMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
   }
 
   void _showMessage(String message) {
@@ -219,7 +255,8 @@ class _ProfileDetailState extends State<ProfileDetail> {
         children: [
           _ProfileHeader(
             avatarUrl: _reader['avatar_url']?.toString(),
-            onChangeAvatar: _showAvatarNotice,
+            uploading: _uploadingAvatar,
+            onChangeAvatar: _changeAvatar,
           ),
           Expanded(
             child: ApiStateView(
@@ -301,9 +338,14 @@ class _ProfileDetailState extends State<ProfileDetail> {
 }
 
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.avatarUrl, required this.onChangeAvatar});
+  const _ProfileHeader({
+    required this.avatarUrl,
+    required this.uploading,
+    required this.onChangeAvatar,
+  });
 
   final String? avatarUrl;
+  final bool uploading;
   final VoidCallback onChangeAvatar;
 
   @override
@@ -360,11 +402,20 @@ class _ProfileHeader extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   TextButton.icon(
-                    onPressed: onChangeAvatar,
-                    icon: const Icon(Icons.image_rounded, color: Colors.white),
-                    label: const Text(
-                      'Đổi ảnh',
-                      style: TextStyle(
+                    onPressed: uploading ? null : onChangeAvatar,
+                    icon: uploading
+                        ? const SizedBox(
+                            width: 21,
+                            height: 21,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : const Icon(Icons.image_rounded, color: Colors.white),
+                    label: Text(
+                      uploading ? 'Đang tải ảnh...' : 'Đổi ảnh',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 17,
                         fontWeight: FontWeight.w700,

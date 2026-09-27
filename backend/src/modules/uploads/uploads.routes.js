@@ -14,7 +14,7 @@ router.post(
 router.post(
     '/reader-avatar',
     authMiddleware,
-    roleMiddleware('librarian', 'admin'),
+    roleMiddleware('reader', 'librarian', 'admin'),
     uploadsController.uploadReaderAvatar
 );
 
