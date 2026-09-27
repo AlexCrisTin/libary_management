@@ -17,7 +17,16 @@ const parseJSONField = (data, defaultValue = []) => {
 /**
  * 1. Tìm kiếm và lọc danh sách sách (Phân trang)
  */
-exports.searchBooks = async ({ keyword = '', ddc_class = '', page = 1, limit = 10 }) => {
+exports.searchBooks = async ({
+    keyword = '',
+    ddc_class = '',
+    author = '',
+    subject = '',
+    language = '',
+    publish_year = '',
+    page = 1,
+    limit = 10
+}) => {
     const offset = (page - 1) * limit;
     const params = [];
     let whereConditions = [];
@@ -33,6 +42,30 @@ exports.searchBooks = async ({ keyword = '', ddc_class = '', page = 1, limit = 1
     if (ddc_class.trim()) {
         whereConditions.push('b.ddc_class LIKE ?');
         params.push(`${ddc_class.trim()}%`);
+    }
+
+    if (author.trim()) {
+        whereConditions.push('b.authors LIKE ?');
+        params.push(`%${author.trim()}%`);
+    }
+
+    if (subject.trim()) {
+        whereConditions.push('b.subject_headings LIKE ?');
+        params.push(`%${subject.trim()}%`);
+    }
+
+    if (language.trim()) {
+        whereConditions.push('b.language = ?');
+        params.push(language.trim());
+    }
+
+    if (String(publish_year).trim()) {
+        const normalizedYear = Number(publish_year);
+        if (!Number.isInteger(normalizedYear) || normalizedYear < 1000 || normalizedYear > 9999) {
+            throw new Error('Năm xuất bản không hợp lệ!');
+        }
+        whereConditions.push('b.publish_year = ?');
+        params.push(normalizedYear);
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';

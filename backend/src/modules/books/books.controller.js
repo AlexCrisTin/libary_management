@@ -6,10 +6,23 @@ const { sendSuccess, sendError } = require('../../utils/response');
  */
 exports.searchBooks = async (req, res, next) => {
     try {
-        const { keyword, ddc_class, page = 1, limit = 10 } = req.query;
+        const {
+            keyword,
+            ddc_class,
+            author,
+            subject,
+            language,
+            publish_year,
+            page = 1,
+            limit = 10
+        } = req.query;
         const result = await booksService.searchBooks({
             keyword,
             ddc_class,
+            author,
+            subject,
+            language,
+            publish_year,
             page: parseInt(page, 10),
             limit: parseInt(limit, 10)
         });

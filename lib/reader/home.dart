@@ -49,7 +49,11 @@ class _HomeState extends State<Home> {
           ? ChatFab(
               onPressed: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const Message()),
+                MaterialPageRoute(
+                  builder: (_) => Message(
+                    onSelectTab: (index) => setState(() => _index = index),
+                  ),
+                ),
               ),
             )
           : null,
