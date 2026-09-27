@@ -105,6 +105,30 @@ exports.createPublisher = async ({ name, address = null, contact_email = null })
 };
 
 /**
+ * 3.1. Tìm hoặc tạo mới nhà xuất bản nếu chưa tồn tại (Find or Create)
+ */
+exports.findOrCreatePublisher = async (name) => {
+    if (!name || !name.trim()) return null;
+    const cleanName = name.trim();
+
+    const [rows] = await db.query(
+        'SELECT publisher_id, name, address, contact_email FROM publishers WHERE LOWER(name) = LOWER(?) LIMIT 1',
+        [cleanName]
+    );
+    if (rows.length > 0) {
+        return { publisher_id: rows[0].publisher_id, name: rows[0].name, is_new: false };
+    }
+
+    const publisherId = uuidv4();
+    await db.query(
+        'INSERT INTO publishers (publisher_id, name, created_at) VALUES (?, ?, NOW())',
+        [publisherId, cleanName]
+    );
+
+    return { publisher_id: publisherId, name: cleanName, is_new: true };
+};
+
+/**
  * 4. Chỉnh sửa thông tin nhà xuất bản (Thủ thư/Admin)
  */
 exports.updatePublisher = async (publisherId, updateData) => {

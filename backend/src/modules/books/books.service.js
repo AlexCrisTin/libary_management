@@ -1,5 +1,7 @@
 const db = require('../../config/db');
 const { v4: uuidv4 } = require('uuid');
+const publishersService = require('../publishers/publishers.service');
+const categoriesService = require('../categories/categories.service');
 
 /**
  * Hàm hỗ trợ parse trường JSON an toàn
@@ -190,6 +192,7 @@ exports.createBook = async (bookData) => {
         subtitle = null,
         authors = [],
         publisher_id = null,
+        publisher_name = null,
         publish_year = null,
         edition = null,
         language = 'vi',
@@ -205,6 +208,23 @@ exports.createBook = async (bookData) => {
         location_id = null
     } = bookData;
 
+    // 1. Tự động tìm hoặc tạo Nhà xuất bản nếu chưa có
+    let resolvedPublisherId = publisher_id;
+    if (!resolvedPublisherId && publisher_name && publisher_name.trim()) {
+        const pub = await publishersService.findOrCreatePublisher(publisher_name);
+        if (pub) resolvedPublisherId = pub.publisher_id;
+    }
+
+    // 2. Tự động tìm hoặc tạo Thể loại nếu có truyền subject_headings
+    const parsedSubjects = typeof subject_headings === 'string' ? parseJSONField(subject_headings, []) : subject_headings;
+    if (Array.isArray(parsedSubjects) && parsedSubjects.length > 0) {
+        for (const catName of parsedSubjects) {
+            if (typeof catName === 'string' && catName.trim()) {
+                await categoriesService.findOrCreateCategory(catName, ddc_class);
+            }
+        }
+    }
+
     const authorsJSON = typeof authors === 'string' ? authors : JSON.stringify(authors);
     const subjectsJSON = typeof subject_headings === 'string' ? subject_headings : JSON.stringify(subject_headings);
     const keywordsJSON = typeof keywords === 'string' ? keywords : JSON.stringify(keywords);
@@ -219,7 +239,7 @@ exports.createBook = async (bookData) => {
     `;
 
     await db.query(insertSql, [
-        bibId, isbn, title, subtitle, authorsJSON, publisher_id,
+        bibId, isbn, title, subtitle, authorsJSON, resolvedPublisherId,
         publish_year, edition, language, description, page_count,
         call_number, ddc_class, subjectsJSON, keywordsJSON, cover_url, metadataJSON
     ]);
@@ -530,4 +550,172 @@ exports.scanBookByCode = async (rawCode) => {
 
     // 3. Không tìm thấy
     return null;
+};
+
+/**
+ * 10. Tra cứu thông tin sách thật trên Internet qua mã ISBN (Google Books & Open Library)
+ * Kiểm tra trạng thái NXB và Thể loại trong cơ sở dữ liệu nội bộ
+ */
+exports.lookupBookByIsbn = async (rawIsbn) => {
+    if (!rawIsbn || !rawIsbn.trim()) {
+        throw new Error('Vui lòng cung cấp mã ISBN cần tra cứu!');
+    }
+    const cleanIsbn = rawIsbn.trim().replace(/[-\s]/g, '');
+
+    // 1. Kiểm tra xem sách này đã có trong thư viện chưa
+    const [existingRows] = await db.query(
+        `SELECT b.*, p.name AS publisher_name 
+         FROM bibliographic_records b 
+         LEFT JOIN publishers p ON b.publisher_id = p.publisher_id 
+         WHERE b.isbn = ? OR REPLACE(b.isbn, '-', '') = ?
+         LIMIT 1`,
+        [rawIsbn.trim(), cleanIsbn]
+    );
+
+    let alreadyInLibrary = false;
+    let existingBook = null;
+    if (existingRows.length > 0) {
+        alreadyInLibrary = true;
+        const b = existingRows[0];
+        existingBook = {
+            bib_id: b.bib_id,
+            isbn: b.isbn,
+            title: b.title,
+            publisher_name: b.publisher_name,
+            publish_year: b.publish_year,
+            cover_url: b.cover_url
+        };
+    }
+
+    // 2. Tra cứu Internet từ Google Books và Open Library
+    let bookData = null;
+
+    // A. Thử Google Books API (hỗ trợ API Key nếu có cấu hình)
+    try {
+        const apiKey = process.env.GOOGLE_BOOKS_API_KEY ? `&key=${process.env.GOOGLE_BOOKS_API_KEY}` : '';
+        const gRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanIsbn}${apiKey}`);
+        if (gRes.ok) {
+            const gData = await gRes.json();
+            if (gData.items && gData.items.length > 0) {
+                const info = gData.items[0].volumeInfo;
+                bookData = {
+                    source: 'google_books',
+                    isbn: cleanIsbn,
+                    title: info.title || null,
+                    subtitle: info.subtitle || null,
+                    authors: (info.authors || []).map((a) => ({ name: a, role: 'author' })),
+                    publisher_name: info.publisher || null,
+                    publish_year: info.publishedDate ? parseInt(info.publishedDate.slice(0, 4), 10) : null,
+                    edition: null,
+                    language: info.language || 'vi',
+                    page_count: info.pageCount || null,
+                    description: info.description || null,
+                    cover_url: info.imageLinks ? (info.imageLinks.thumbnail || info.imageLinks.smallThumbnail || '').replace('http://', 'https://') : null,
+                    categories: info.categories || []
+                };
+            }
+        }
+    } catch (_) {}
+
+    // B. Dự phòng sang Open Library API nếu Google Books không có kết quả hoặc gặp lỗi
+    if (!bookData) {
+        try {
+            const olRes = await fetch(`https://openlibrary.org/search.json?isbn=${cleanIsbn}`, {
+                headers: { 'User-Agent': 'LibraryManagementApp/1.0 (contact@library.local)' }
+            });
+            if (olRes.ok) {
+                const olData = await olRes.json();
+                if (olData.docs && olData.docs.length > 0) {
+                    const doc = olData.docs[0];
+                    let description = null;
+                    let publisher = doc.publisher && doc.publisher.length > 0 ? doc.publisher[0] : null;
+                    let pageCount = doc.number_of_pages_median || null;
+
+                    // Lấy thêm chi tiết từ endpoint /isbn/{cleanIsbn}.json
+                    try {
+                        const detailRes = await fetch(`https://openlibrary.org/isbn/${cleanIsbn}.json`, {
+                            headers: { 'User-Agent': 'LibraryManagementApp/1.0' }
+                        });
+                        if (detailRes.ok) {
+                            const detail = await detailRes.json();
+                            if (detail.description) {
+                                description = typeof detail.description === 'string' ? detail.description : detail.description.value;
+                            }
+                            if (!publisher && detail.publishers && detail.publishers.length > 0) {
+                                publisher = detail.publishers[0];
+                            }
+                            if (!pageCount && detail.number_of_pages) {
+                                pageCount = detail.number_of_pages;
+                            }
+                        }
+                    } catch (_) {}
+
+                    bookData = {
+                        source: 'open_library',
+                        isbn: cleanIsbn,
+                        title: doc.title,
+                        subtitle: doc.subtitle || null,
+                        authors: (doc.author_name || []).map((a) => ({ name: a, role: 'author' })),
+                        publisher_name: publisher,
+                        publish_year: doc.first_publish_year || null,
+                        edition: null,
+                        language: doc.language && doc.language.length > 0 ? doc.language[0] : 'en',
+                        page_count: pageCount,
+                        description,
+                        cover_url: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg` : `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-L.jpg`,
+                        categories: doc.subject ? doc.subject.slice(0, 5) : []
+                    };
+                }
+            }
+        } catch (_) {}
+    }
+
+    if (!bookData) {
+        throw new Error('Không tìm thấy thông tin cuốn sách này trên cơ sở dữ liệu quốc tế! Bạn có thể nhập thông tin thủ công.');
+    }
+
+    // 3. Kiểm tra xem Nhà xuất bản đã có trong bảng publishers chưa
+    let publisherInfo = {
+        name: bookData.publisher_name,
+        in_db: false,
+        publisher_id: null
+    };
+    if (bookData.publisher_name) {
+        const [pubRows] = await db.query(
+            'SELECT publisher_id, name FROM publishers WHERE LOWER(name) = LOWER(?) LIMIT 1',
+            [bookData.publisher_name.trim()]
+        );
+        if (pubRows.length > 0) {
+            publisherInfo.in_db = true;
+            publisherInfo.publisher_id = pubRows[0].publisher_id;
+            publisherInfo.name = pubRows[0].name;
+        }
+    }
+
+    // 4. Kiểm tra xem các Thể loại đã có trong bảng categories chưa
+    const categoriesInfo = [];
+    if (bookData.categories && bookData.categories.length > 0) {
+        for (const cat of bookData.categories) {
+            const [catRows] = await db.query(
+                'SELECT category_id, category_name FROM categories WHERE LOWER(category_name) = LOWER(?) LIMIT 1',
+                [cat.trim()]
+            );
+            categoriesInfo.push({
+                name: cat,
+                in_db: catRows.length > 0,
+                category_id: catRows.length > 0 ? catRows[0].category_id : null
+            });
+        }
+    }
+
+    return {
+        source: bookData.source,
+        already_in_library: alreadyInLibrary,
+        existing_book: existingBook,
+        book_info: {
+            ...bookData,
+            publisher_status: publisherInfo,
+            categories_status: categoriesInfo
+        }
+    };
 };

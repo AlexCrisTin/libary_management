@@ -86,6 +86,30 @@ exports.createCategory = async ({ category_name, ddc_code = null, description = 
 };
 
 /**
+ * 3.1. Tìm hoặc tạo mới thể loại sách nếu chưa tồn tại (Find or Create)
+ */
+exports.findOrCreateCategory = async (categoryName, ddcCode = null) => {
+    if (!categoryName || !categoryName.trim()) return null;
+    const cleanName = categoryName.trim();
+
+    const [rows] = await db.query(
+        'SELECT category_id, category_name, ddc_code FROM categories WHERE LOWER(category_name) = LOWER(?) LIMIT 1',
+        [cleanName]
+    );
+    if (rows.length > 0) {
+        return { category_id: rows[0].category_id, category_name: rows[0].category_name, ddc_code: rows[0].ddc_code, is_new: false };
+    }
+
+    const categoryId = uuidv4();
+    await db.query(
+        'INSERT INTO categories (category_id, category_name, ddc_code, description, created_at) VALUES (?, ?, ?, ?, NOW())',
+        [categoryId, cleanName, ddcCode ? ddcCode.trim() : null, 'Thể loại tạo tự động từ thông tin sách']
+    );
+
+    return { category_id: categoryId, category_name: cleanName, ddc_code: ddcCode ? ddcCode.trim() : null, is_new: true };
+};
+
+/**
  * 4. Chỉnh sửa thông tin thể loại (Thủ thư/Admin)
  */
 exports.updateCategory = async (categoryId, updateData) => {

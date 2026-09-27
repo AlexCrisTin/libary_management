@@ -11,22 +11,25 @@ router.put('/copies/:copyId', booksController.updateCopyCondition);
 // 3. Quét trực tiếp Barcode/ISBN để tìm sách & vị trí kệ (Mobile & Web)
 router.get('/scan/:code', booksController.scanBook);
 
-// 4. Xem chi tiết một cuốn sách (Độc giả & Thủ thư)
+// 4. Tra cứu thông tin sách thật trên Internet qua ISBN (Google Books & Open Library)
+router.get('/lookup-isbn/:isbn', booksController.lookupIsbn);
+
+// 5. Xem chi tiết một cuốn sách (Độc giả & Thủ thư)
 router.get('/:id', booksController.getBookDetail);
 
-// 5. Thêm đầu sách mới (Thủ thư)
+// 6. Thêm đầu sách mới (Thủ thư)
 router.post('/', booksController.createBook);
 
-// 6. Cập nhật thông tin đầu sách (Thủ thư)
+// 7. Cập nhật thông tin đầu sách (Thủ thư)
 router.put('/:id', booksController.updateBook);
 
-// 7. Xóa đầu sách (Thủ thư)
+// 8. Xóa đầu sách (Thủ thư)
 router.delete('/:id', booksController.deleteBook);
 
-// 8. Lấy danh sách bản sao vật lý của 1 cuốn sách (Thủ thư)
+// 9. Lấy danh sách bản sao vật lý của 1 cuốn sách (Thủ thư)
 router.get('/:id/copies', booksController.getBookCopies);
 
-// 9. Thêm bản sao vật lý mới cho đầu sách đã có (Thủ thư)
+// 10. Thêm bản sao vật lý mới cho đầu sách đã có (Thủ thư)
 router.post('/:id/copies', booksController.addBookCopy);
 
 module.exports = router;

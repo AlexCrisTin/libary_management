@@ -167,3 +167,20 @@ exports.scanBook = async (req, res, next) => {
         next(error);
     }
 };
+
+/**
+ * 10. GET /api/books/lookup-isbn/:isbn - Tra cứu thông tin sách thật trên Internet qua ISBN
+ */
+exports.lookupIsbn = async (req, res, next) => {
+    try {
+        const { isbn } = req.params;
+        if (!isbn || !isbn.trim()) {
+            return sendError(res, 'Vui lòng cung cấp mã ISBN cần tra cứu!', 400);
+        }
+
+        const result = await booksService.lookupBookByIsbn(isbn.trim());
+        return sendSuccess(res, 'Tra cứu thông tin sách thành công', result);
+    } catch (error) {
+        return sendError(res, error.message, 404);
+    }
+};
