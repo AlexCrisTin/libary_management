@@ -1,4 +1,4 @@
-﻿const booksService = require('./books.service');
+const booksService = require('./books.service');
 const { sendSuccess, sendError } = require('../../utils/response');
 
 /**
@@ -142,6 +142,27 @@ exports.addBookCopy = async (req, res, next) => {
         const { id } = req.params;
         const newCopy = await booksService.addCopy(id, req.body);
         return sendSuccess(res, 'Thêm bản sao sách thành công', newCopy, 201);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * 9. GET /api/books/scan/:code - Quét trực tiếp Barcode/ISBN để tìm sách & vị trí kệ
+ */
+exports.scanBook = async (req, res, next) => {
+    try {
+        const { code } = req.params;
+        if (!code || !code.trim()) {
+            return sendError(res, 'Vui lòng cung cấp mã barcode hoặc ISBN cần quét!', 400);
+        }
+
+        const result = await booksService.scanBookByCode(code.trim());
+        if (!result) {
+            return sendError(res, 'Không tìm thấy sách hoặc bản sao nào trong thư viện khớp với mã vừa quét!', 404);
+        }
+
+        return sendSuccess(res, 'Quét mã thành công', result);
     } catch (error) {
         next(error);
     }

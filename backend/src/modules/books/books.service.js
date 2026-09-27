@@ -1,4 +1,4 @@
-﻿const db = require('../../config/db');
+const db = require('../../config/db');
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -381,4 +381,153 @@ exports.addCopy = async (bibId, { barcode, condition = 'good', location_id = nul
         condition,
         status: 'available'
     };
+};
+
+/**
+ * 9. Quét trực tiếp Barcode hoặc ISBN để định danh sách (Scan trực tiếp)
+ * - Nếu là Barcode bản sao: Trả về thông tin sách + chi tiết bản sao và vị trí kệ sách
+ * - Nếu là ISBN đầu sách: Trả về thông tin đầu sách + toàn bộ danh sách bản sao
+ */
+exports.scanBookByCode = async (rawCode) => {
+    if (!rawCode || !rawCode.trim()) return null;
+    const code = rawCode.trim();
+
+    // 1. Ưu tiên tìm theo barcode của bản sao sách (book_copies)
+    const copySql = `
+        SELECT 
+            c.copy_id,
+            c.bib_id,
+            c.barcode,
+            c.condition,
+            c.status,
+            c.acquired_date,
+            c.acquired_price,
+            b.isbn,
+            b.title,
+            b.subtitle,
+            b.authors,
+            b.publisher_id,
+            p.name AS publisher_name,
+            b.publish_year,
+            b.edition,
+            b.language,
+            b.description,
+            b.page_count,
+            b.call_number,
+            b.ddc_class,
+            b.subject_headings,
+            b.keywords,
+            b.cover_url,
+            s.location_id,
+            s.floor,
+            s.section,
+            s.shelf,
+            s.position,
+            s.ddc_range
+        FROM book_copies c
+        JOIN bibliographic_records b ON c.bib_id = b.bib_id
+        LEFT JOIN publishers p ON b.publisher_id = p.publisher_id
+        LEFT JOIN shelf_locations s ON c.location_id = s.location_id
+        WHERE c.barcode = ?
+        LIMIT 1
+    `;
+    const [copyRows] = await db.query(copySql, [code]);
+
+    if (copyRows.length > 0) {
+        const row = copyRows[0];
+        return {
+            scan_type: 'copy',
+            scanned_code: code,
+            copy: {
+                copy_id: row.copy_id,
+                barcode: row.barcode,
+                condition: row.condition,
+                status: row.status,
+                acquired_date: row.acquired_date,
+                acquired_price: row.acquired_price,
+                location: row.location_id ? {
+                    location_id: row.location_id,
+                    floor: row.floor,
+                    section: row.section,
+                    shelf: row.shelf,
+                    position: row.position,
+                    ddc_range: row.ddc_range
+                } : null
+            },
+            book: {
+                bib_id: row.bib_id,
+                isbn: row.isbn,
+                title: row.title,
+                subtitle: row.subtitle,
+                authors: parseJSONField(row.authors),
+                publisher_id: row.publisher_id,
+                publisher_name: row.publisher_name,
+                publish_year: row.publish_year,
+                edition: row.edition,
+                language: row.language,
+                description: row.description,
+                page_count: row.page_count,
+                call_number: row.call_number,
+                ddc_class: row.ddc_class,
+                subject_headings: parseJSONField(row.subject_headings),
+                keywords: parseJSONField(row.keywords),
+                cover_url: row.cover_url
+            }
+        };
+    }
+
+    // 2. Nếu không khớp barcode bản sao, kiểm tra khớp mã ISBN đầu sách (bibliographic_records)
+    const cleanCode = code.replace(/[-\s]/g, '');
+    const bookSql = `
+        SELECT 
+            b.*,
+            p.name AS publisher_name
+        FROM bibliographic_records b
+        LEFT JOIN publishers p ON b.publisher_id = p.publisher_id
+        WHERE b.isbn = ? OR REPLACE(b.isbn, '-', '') = ?
+        LIMIT 1
+    `;
+    const [bookRows] = await db.query(bookSql, [code, cleanCode]);
+
+    if (bookRows.length > 0) {
+        const book = bookRows[0];
+        const copiesSql = `
+            SELECT 
+                c.copy_id,
+                c.barcode,
+                c.condition,
+                c.status,
+                c.acquired_date,
+                c.acquired_price,
+                s.location_id,
+                s.floor,
+                s.section,
+                s.shelf,
+                s.position,
+                s.ddc_range
+            FROM book_copies c
+            LEFT JOIN shelf_locations s ON c.location_id = s.location_id
+            WHERE c.bib_id = ?
+            ORDER BY c.barcode ASC
+        `;
+        const [copies] = await db.query(copiesSql, [book.bib_id]);
+
+        return {
+            scan_type: 'book',
+            scanned_code: code,
+            book: {
+                ...book,
+                authors: parseJSONField(book.authors),
+                subject_headings: parseJSONField(book.subject_headings),
+                keywords: parseJSONField(book.keywords),
+                metadata: parseJSONField(book.metadata, {}),
+                total_copies: copies.length,
+                available_copies: copies.filter((c) => c.status === 'available').length,
+                copies
+            }
+        };
+    }
+
+    // 3. Không tìm thấy
+    return null;
 };
