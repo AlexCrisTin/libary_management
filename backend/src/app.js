@@ -15,6 +15,7 @@ const chatRoutes = require('./modules/chat/chat.routes');
 const uploadsRoutes = require('./modules/uploads/uploads.routes');
 const categoriesRoutes = require('./modules/categories/categories.routes');
 const publishersRoutes = require('./modules/publishers/publishers.routes');
+const dashboardRoutes = require('./modules/dashboard/dashboard.routes');
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/uploads', uploadsRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/publishers', publishersRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Route kiem tra suc khoe server
 app.get('/health', (req, res) => {
