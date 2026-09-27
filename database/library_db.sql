@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 27, 2026 at 05:32 AM
+-- Generation Time: Sep 27, 2026 at 03:58 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -136,7 +136,8 @@ CREATE TABLE `categories` (
 --
 
 INSERT INTO `categories` (`category_id`, `category_name`, `ddc_code`, `description`, `created_at`) VALUES
-('95330b77-ae33-47e3-9cdc-20a3b686d76d', 'Khoa học máy tính & Công nghệ thông tin', '004', 'Sách chuyên ngành về khoa học máy tính, lập trình, trí tuệ nhân tạo và mạng.', '2026-09-27 10:00:56');
+('95330b77-ae33-47e3-9cdc-20a3b686d76d', 'Khoa học máy tính & Công nghệ thông tin', '004', 'Sách chuyên ngành về khoa học máy tính, lập trình, trí tuệ nhân tạo và mạng.', '2026-09-27 10:00:56'),
+('b8510f5d-b1d7-47d0-a953-ba2949898259', 'Công nghệ phần mềm', '005.1', 'Thể loại tạo tự động từ thông tin sách', '2026-09-27 20:02:55');
 
 -- --------------------------------------------------------
 
@@ -237,6 +238,7 @@ CREATE TABLE `publishers` (
 --
 
 INSERT INTO `publishers` (`publisher_id`, `name`, `address`, `contact_email`, `created_at`) VALUES
+('655400b7-3d73-4193-ae83-e6c62a05cc66', 'Prentice Hall', NULL, NULL, '2026-09-27 20:02:55'),
 ('f130f3c3-c20c-4896-83fe-8f7fb3dd6408', 'Nhà xuất bản Trẻ', '161B Lý Chính Thắng, Phường Võ Thị Sáu, Quận 3, TP. Hồ Chí Minh', 'hopthu@nxbtre.com.vn', '2026-09-27 10:03:24');
 
 -- --------------------------------------------------------
@@ -319,6 +321,20 @@ CREATE TABLE `shelf_locations` (
 INSERT INTO `shelf_locations` (`location_id`, `floor`, `section`, `shelf`, `position`, `capacity`, `ddc_range`) VALUES
 ('7fb9864d-019b-45c9-967a-b2c0b9f0b843', 1, 'A', '02', 'Ngăn 1', 20, '100-199 Triết học'),
 ('b941abbf-089c-4dc6-b9bd-0547b0d06b96', 1, 'A', '01', 'Ngăn 1', 20, '000-099 Tin học');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `token_blacklist`
+--
+
+CREATE TABLE `token_blacklist` (
+  `id` int(11) NOT NULL,
+  `token` varchar(500) NOT NULL,
+  `user_id` varchar(36) DEFAULT NULL,
+  `expires_at` datetime NOT NULL,
+  `created_at` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -439,11 +455,29 @@ ALTER TABLE `shelf_locations`
   ADD PRIMARY KEY (`location_id`);
 
 --
+-- Indexes for table `token_blacklist`
+--
+ALTER TABLE `token_blacklist`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_token` (`token`(255)),
+  ADD KEY `idx_expires` (`expires_at`);
+
+--
 -- Indexes for table `users`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`user_id`),
   ADD UNIQUE KEY `username` (`username`);
+
+--
+-- AUTO_INCREMENT for dumped tables
+--
+
+--
+-- AUTO_INCREMENT for table `token_blacklist`
+--
+ALTER TABLE `token_blacklist`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- Constraints for dumped tables
