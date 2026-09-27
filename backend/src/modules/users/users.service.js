@@ -1,4 +1,4 @@
-﻿const db = require('../../config/db');
+const db = require('../../config/db');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 
@@ -21,9 +21,9 @@ exports.getAllUsers = async ({ role, is_active, keyword, page = 1, limit = 10 })
     }
 
     if (keyword && keyword.trim()) {
-        where.push('(u.username LIKE ? OR r.full_name LIKE ? OR r.email LIKE ?)');
+        where.push('(u.username LIKE ? OR u.email LIKE ? OR r.full_name LIKE ? OR r.email LIKE ?)');
         const kw = `%${keyword.trim()}%`;
-        params.push(kw, kw, kw);
+        params.push(kw, kw, kw, kw);
     }
 
     const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
@@ -41,13 +41,13 @@ exports.getAllUsers = async ({ role, is_active, keyword, page = 1, limit = 10 })
         SELECT 
             u.user_id,
             u.username,
+            COALESCE(u.email, r.email) AS email,
             u.role,
             u.is_active,
             u.created_at,
             r.reader_id,
             r.reader_code,
             r.full_name,
-            r.email,
             r.phone
         FROM users u
         LEFT JOIN readers r ON u.user_id = r.user_id
@@ -74,13 +74,13 @@ exports.getUserById = async (userId) => {
         SELECT 
             u.user_id,
             u.username,
+            COALESCE(u.email, r.email) AS email,
             u.role,
             u.is_active,
             u.created_at,
             r.reader_id,
             r.reader_code,
             r.full_name,
-            r.email,
             r.phone,
             r.status AS reader_status
         FROM users u
@@ -94,21 +94,30 @@ exports.getUserById = async (userId) => {
 /**
  * 3. Tạo tài khoản mới (Admin tạo Thủ thư / Admin khác)
  */
-exports.createUser = async ({ username, password, role = 'librarian', is_active = 1 }) => {
+exports.createUser = async ({ username, password, email, role = 'librarian', is_active = 1 }) => {
     const [existing] = await db.query('SELECT user_id FROM users WHERE username = ?', [username]);
     if (existing.length > 0) {
         throw new Error('Tên đăng nhập này đã tồn tại!');
     }
 
+    const cleanEmail = email && email.trim() ? email.trim().toLowerCase() : null;
+    if (cleanEmail) {
+        const [existingEmail] = await db.query('SELECT user_id FROM users WHERE email = ?', [cleanEmail]);
+        if (existingEmail.length > 0) {
+            throw new Error('Email này đã được sử dụng!');
+        }
+    }
+
     const userId = uuidv4();
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const sql = 'INSERT INTO users (user_id, username, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?)';
-    await db.query(sql, [userId, username, passwordHash, role, is_active ? 1 : 0]);
+    const sql = 'INSERT INTO users (user_id, username, email, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?, ?)';
+    await db.query(sql, [userId, username, cleanEmail, passwordHash, role, is_active ? 1 : 0]);
 
     return {
         user_id: userId,
         username,
+        email: cleanEmail,
         role,
         is_active: Boolean(is_active)
     };

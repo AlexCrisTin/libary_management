@@ -1,4 +1,4 @@
-﻿const authService = require('./auth.service');
+const authService = require('./auth.service');
 const { sendSuccess, sendError } = require('../../utils/response');
 
 /**
@@ -65,3 +65,38 @@ exports.changePassword = async (req, res, next) => {
         return sendError(res, error.message, 400);
     }
 };
+
+/**
+ * 5. POST /api/auth/forgot-password - Yêu cầu mã OTP quên mật khẩu
+ */
+exports.forgotPassword = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return sendError(res, 'Vui lòng cung cấp địa chỉ email!', 400);
+        }
+
+        const result = await authService.forgotPassword({ email });
+        return sendSuccess(res, 'Mã OTP đặt lại mật khẩu đã được tạo thành công', result);
+    } catch (error) {
+        return sendError(res, error.message, 400);
+    }
+};
+
+/**
+ * 6. POST /api/auth/reset-password - Đặt lại mật khẩu bằng mã OTP
+ */
+exports.resetPassword = async (req, res, next) => {
+    try {
+        const { email, otp, new_password } = req.body;
+        if (!email || !otp || !new_password) {
+            return sendError(res, 'Vui lòng cung cấp đầy đủ email, mã OTP và mật khẩu mới!', 400);
+        }
+
+        const result = await authService.resetPassword({ email, otp, new_password });
+        return sendSuccess(res, result.message, result);
+    } catch (error) {
+        return sendError(res, error.message, 400);
+    }
+};
+

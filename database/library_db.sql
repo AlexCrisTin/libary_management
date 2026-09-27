@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 25, 2026 at 02:55 PM
+-- Generation Time: Sep 27, 2026 at 05:32 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -26,11 +26,6 @@ SET time_zone = "+00:00";
 --
 -- Table structure for table `bibliographic_records`
 --
-CREATE DATABASE library_db
-CHARACTER SET utf8mb4
-COLLATE utf8mb4_unicode_ci;
-
-USE library_db;
 
 CREATE TABLE `bibliographic_records` (
   `bib_id` varchar(36) NOT NULL,
@@ -59,7 +54,8 @@ CREATE TABLE `bibliographic_records` (
 
 INSERT INTO `bibliographic_records` (`bib_id`, `isbn`, `title`, `subtitle`, `authors`, `publisher_id`, `publish_year`, `edition`, `language`, `description`, `page_count`, `call_number`, `ddc_class`, `subject_headings`, `keywords`, `cover_url`, `metadata`, `created_at`) VALUES
 ('538450b3-3716-4e3c-8049-de42c55abc23', '978-604-09999', 'Thiết kế Hướng đối tượng nâng cao', NULL, '[{\"name\":\"Erich Gamma\",\"role\":\"author\"}]', NULL, 2024, NULL, 'vi', 'Giáo trình Design Patterns và lập trình hướng đối tượng.', NULL, NULL, NULL, '[]', '[]', NULL, '{}', '2026-09-24 20:04:49'),
-('88cc3751-a92b-431a-91e0-3a03066cf96a', '978-604-0123', 'Lập trình Flutter Pro 2026 (Đã cập nhật)', NULL, '[{\"name\":\"Nguyễn Văn A\",\"role\":\"author\"}]', NULL, 2026, NULL, 'vi', 'Tài liệu tái bản mới nhất có bổ sung kiến thức AI', NULL, NULL, NULL, '[]', '[]', NULL, '{}', '2026-09-11 15:42:49');
+('88cc3751-a92b-431a-91e0-3a03066cf96a', '978-604-0123', 'Lập trình Flutter Pro 2026 (Đã cập nhật)', NULL, '[{\"name\":\"Nguyễn Văn A\",\"role\":\"author\"}]', NULL, 2026, NULL, 'vi', 'Tài liệu tái bản mới nhất có bổ sung kiến thức AI', NULL, NULL, NULL, '[]', '[]', NULL, '{}', '2026-09-11 15:42:49'),
+('e9309e6e-990e-4af8-b4fc-55b94bb3698c', '978-604-019988', 'Lập trình Node.js & Express toàn tập', NULL, '[{\"name\":\"Nguyễn Văn C\",\"role\":\"author\"},{\"name\":\"Trần Thị D\",\"role\":\"co-author\"}]', 'f130f3c3-c20c-4896-83fe-8f7fb3dd6408', 2024, 'Tái bản lần 2', 'vi', 'Giáo trình hướng dẫn xây dựng hệ thống RESTful API chuyên sâu với Node.js và MySQL.', 450, '004.6 TEST', '004', '[\"Khoa học máy tính & Công nghệ thông tin\",\"Lập trình Backend\",\"NodeJS\"]', '[\"express\",\"backend\",\"javascript\"]', NULL, '{}', '2026-09-27 10:06:34');
 
 -- --------------------------------------------------------
 
@@ -85,6 +81,7 @@ CREATE TABLE `book_copies` (
 INSERT INTO `book_copies` (`copy_id`, `bib_id`, `barcode`, `condition`, `location_id`, `status`, `acquired_date`, `acquired_price`) VALUES
 ('1d33d4f4-b40c-4013-8b07-d2ddd17d91a7', '88cc3751-a92b-431a-91e0-3a03066cf96a', 'BC-169661-03', 'good', 'b941abbf-089c-4dc6-b9bd-0547b0d06b96', 'available', '2026-09-11', 0.00),
 ('2ed45c21-7fb6-4c34-b3be-3d791ab20cca', '88cc3751-a92b-431a-91e0-3a03066cf96a', 'BC-169656-02', 'good', 'b941abbf-089c-4dc6-b9bd-0547b0d06b96', 'available', '2026-09-11', 0.00),
+('650e8fe9-0249-49fb-be83-5d4a17eb5b2f', 'e9309e6e-990e-4af8-b4fc-55b94bb3698c', 'BC-394279-01', 'good', NULL, 'available', '2026-09-27', 0.00),
 ('852c3384-a284-464c-ae1e-1d2d9954f6e3', '88cc3751-a92b-431a-91e0-3a03066cf96a', 'BC-169641-01', 'good', 'b941abbf-089c-4dc6-b9bd-0547b0d06b96', 'available', '2026-09-11', 0.00),
 ('9a609aa5-5e90-42fd-b433-7edaa626fd99', '538450b3-3716-4e3c-8049-de42c55abc23', 'BC-089066-01', 'good', '7fb9864d-019b-45c9-967a-b2c0b9f0b843', 'borrowed', '2026-09-24', 0.00);
 
@@ -116,7 +113,9 @@ CREATE TABLE `borrow_transactions` (
 
 INSERT INTO `borrow_transactions` (`tx_id`, `reader_id`, `copy_id`, `borrow_date`, `due_date`, `return_date`, `renewed_count`, `status`, `fine_amount`, `fine_paid`, `issued_by`, `returned_to`, `created_at`) VALUES
 ('06ed4e9b-3beb-4cfe-8553-9bcb2494c4bb', '6e4bd7c5-2f45-4242-8c15-79da2b71ca14', '852c3384-a284-464c-ae1e-1d2d9954f6e3', '2026-09-17', '2026-10-01', '2026-09-17', 0, 'returned', 0.00, 0, '7213e204-b28f-11f1-9923-6018953bc19c', '7213e204-b28f-11f1-9923-6018953bc19c', '2026-09-17 19:15:57'),
-('585bef7e-4873-43b5-a14a-358ff3f12258', '6e4bd7c5-2f45-4242-8c15-79da2b71ca14', '9a609aa5-5e90-42fd-b433-7edaa626fd99', '2026-09-24', '2026-10-08', NULL, 0, 'borrowed', 0.00, 0, '7213e204-b28f-11f1-9923-6018953bc19c', NULL, '2026-09-24 20:15:17');
+('2f22906d-e1e9-4854-9a0a-5bf914a92e55', '2fd98a5b-d96b-4f68-8423-7b63c87ed133', '9a609aa5-5e90-42fd-b433-7edaa626fd99', '2026-09-25', '2026-09-28', '2026-09-26', 0, 'returned', 0.00, 0, '7213e204-b28f-11f1-9923-6018953bc19c', '7213e204-b28f-11f1-9923-6018953bc19c', '2026-09-25 20:34:51'),
+('585bef7e-4873-43b5-a14a-358ff3f12258', '6e4bd7c5-2f45-4242-8c15-79da2b71ca14', '9a609aa5-5e90-42fd-b433-7edaa626fd99', '2026-09-24', '2026-10-08', '2026-09-25', 0, 'returned', 0.00, 0, '7213e204-b28f-11f1-9923-6018953bc19c', '7213e204-b28f-11f1-9923-6018953bc19c', '2026-09-24 20:15:17'),
+('ae7e9e67-e294-40bd-9ad7-f9eedd728105', '32cb4aad-7655-4334-a65b-2545eac8adde', '9a609aa5-5e90-42fd-b433-7edaa626fd99', '2026-09-26', '2026-09-27', NULL, 0, 'borrowed', 0.00, 0, '7213e204-b28f-11f1-9923-6018953bc19c', NULL, '2026-09-26 10:23:43');
 
 -- --------------------------------------------------------
 
@@ -131,6 +130,13 @@ CREATE TABLE `categories` (
   `description` text DEFAULT NULL,
   `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `categories`
+--
+
+INSERT INTO `categories` (`category_id`, `category_name`, `ddc_code`, `description`, `created_at`) VALUES
+('95330b77-ae33-47e3-9cdc-20a3b686d76d', 'Khoa học máy tính & Công nghệ thông tin', '004', 'Sách chuyên ngành về khoa học máy tính, lập trình, trí tuệ nhân tạo và mạng.', '2026-09-27 10:00:56');
 
 -- --------------------------------------------------------
 
@@ -170,8 +176,9 @@ CREATE TABLE `holds` (
 --
 
 INSERT INTO `holds` (`hold_id`, `reader_id`, `bib_id`, `requested_at`, `notified_at`, `expires_at`, `status`, `queue_position`) VALUES
-('9a945b17-77a9-4cd5-bf69-94988a78ddfe', '2fd98a5b-d96b-4f68-8423-7b63c87ed133', '538450b3-3716-4e3c-8049-de42c55abc23', '2026-09-24 20:23:35', NULL, NULL, 'waiting', 1),
-('cf376c61-f4f8-44a3-88cb-41b71bcf0128', '32cb4aad-7655-4334-a65b-2545eac8adde', '538450b3-3716-4e3c-8049-de42c55abc23', '2026-09-24 20:24:49', NULL, NULL, 'waiting', 2);
+('9a945b17-77a9-4cd5-bf69-94988a78ddfe', '2fd98a5b-d96b-4f68-8423-7b63c87ed133', '538450b3-3716-4e3c-8049-de42c55abc23', '2026-09-24 20:23:35', '2026-09-25 20:32:58', '2026-09-28 20:32:58', 'fulfilled', NULL),
+('c0e38942-dc21-4261-aabe-9990e8f8979b', '2fd98a5b-d96b-4f68-8423-7b63c87ed133', '538450b3-3716-4e3c-8049-de42c55abc23', '2026-09-26 10:26:31', NULL, NULL, 'waiting', 1),
+('cf376c61-f4f8-44a3-88cb-41b71bcf0128', '32cb4aad-7655-4334-a65b-2545eac8adde', '538450b3-3716-4e3c-8049-de42c55abc23', '2026-09-24 20:24:49', '2026-09-26 10:21:47', '2026-09-29 10:21:47', 'fulfilled', NULL);
 
 -- --------------------------------------------------------
 
@@ -190,6 +197,27 @@ CREATE TABLE `notifications` (
   `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `notifications`
+--
+
+INSERT INTO `notifications` (`notification_id`, `reader_id`, `title`, `content`, `type`, `reference_id`, `is_read`, `created_at`) VALUES
+('5367a592-0b9f-41b0-86b4-07e4725f1157', '2fd98a5b-d96b-4f68-8423-7b63c87ed133', 'Sách bạn đặt trước đã có sẵn tại thư viện', 'Cuốn sách \"Thiết kế Hướng đối tượng nâng cao\" mà bạn đặt trước đã có sẵn tại quầy. Vui lòng đến nhận sách trong vòng 3 ngày tới.', 'hold_available', '9a945b17-77a9-4cd5-bf69-94988a78ddfe', 0, '2026-09-25 20:32:58'),
+('b2e09925-10d3-4974-806c-c4be5781c9fc', '32cb4aad-7655-4334-a65b-2545eac8adde', 'Sách bạn đặt trước đã có sẵn tại thư viện', 'Cuốn sách \"Thiết kế Hướng đối tượng nâng cao\" mà bạn đặt trước đã có sẵn tại quầy. Vui lòng đến nhận sách trong vòng 3 ngày tới.', 'hold_available', 'cf376c61-f4f8-44a3-88cb-41b71bcf0128', 0, '2026-09-26 10:21:47');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `password_resets`
+--
+
+CREATE TABLE `password_resets` (
+  `email` varchar(255) NOT NULL,
+  `otp` varchar(10) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `created_at` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- --------------------------------------------------------
 
 --
@@ -203,6 +231,13 @@ CREATE TABLE `publishers` (
   `contact_email` varchar(255) DEFAULT NULL,
   `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `publishers`
+--
+
+INSERT INTO `publishers` (`publisher_id`, `name`, `address`, `contact_email`, `created_at`) VALUES
+('f130f3c3-c20c-4896-83fe-8f7fb3dd6408', 'Nhà xuất bản Trẻ', '161B Lý Chính Thắng, Phường Võ Thị Sáu, Quận 3, TP. Hồ Chí Minh', 'hopthu@nxbtre.com.vn', '2026-09-27 10:03:24');
 
 -- --------------------------------------------------------
 
@@ -294,6 +329,7 @@ INSERT INTO `shelf_locations` (`location_id`, `floor`, `section`, `shelf`, `posi
 CREATE TABLE `users` (
   `user_id` varchar(36) NOT NULL,
   `username` varchar(100) NOT NULL,
+  `email` varchar(255) DEFAULT NULL,
   `password_hash` varchar(255) NOT NULL,
   `role` enum('admin','librarian','reader') NOT NULL DEFAULT 'reader',
   `is_active` tinyint(1) DEFAULT 1,
@@ -304,11 +340,11 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`user_id`, `username`, `password_hash`, `role`, `is_active`, `created_at`) VALUES
-('3700a4d8-85ed-458e-b54a-9a67c5c13ec8', 'docgia_b', '$2a$10$3Q1ppfAPAvwHpgu52C/62OYJy.dRSnhcXMDy./CDDeBjIdzHfZ6Ly', 'reader', 1, '2026-09-24 20:16:49'),
-('596ff42c-6dd3-4622-abba-a4d7bdcc6fe1', 'docgia_nguyenvanb', '$2a$10$oLx6YMGvNPqc87C9QxU.9OI3STaiWN0CSGKGKg1pY73YjLTyZWNVu', 'reader', 1, '2026-09-15 09:23:06'),
-('7213e204-b28f-11f1-9923-6018953bc19c', 'admin', '$2a$12$F2coLM/cuo8GBgC9mIwdS.QabWZE3ahUhY5gXhx4eyTKP7dQ2BQKq', 'librarian', 1, '2026-09-17 19:00:58'),
-('da87f3b4-5989-468c-afe5-bdd46de9cdbf', 'docgia_a', '$2a$10$KxEgMEU6pYXHSjOfTxzv6ukByt0Q5gRkcOSqZFec8MjmGOQAqYwtC', 'reader', 1, '2026-09-24 20:16:07');
+INSERT INTO `users` (`user_id`, `username`, `email`, `password_hash`, `role`, `is_active`, `created_at`) VALUES
+('3700a4d8-85ed-458e-b54a-9a67c5c13ec8', 'docgia_b', 'docgia_b@test.com', '$2a$10$3Q1ppfAPAvwHpgu52C/62OYJy.dRSnhcXMDy./CDDeBjIdzHfZ6Ly', 'reader', 1, '2026-09-24 20:16:49'),
+('596ff42c-6dd3-4622-abba-a4d7bdcc6fe1', 'docgia_nguyenvanb', 'vanb@gmail.com', '$2a$10$oLx6YMGvNPqc87C9QxU.9OI3STaiWN0CSGKGKg1pY73YjLTyZWNVu', 'reader', 1, '2026-09-15 09:23:06'),
+('7213e204-b28f-11f1-9923-6018953bc19c', 'admin', 'admin@gmail.com', '$2a$12$F2coLM/cuo8GBgC9mIwdS.QabWZE3ahUhY5gXhx4eyTKP7dQ2BQKq', 'librarian', 1, '2026-09-17 19:00:58'),
+('da87f3b4-5989-468c-afe5-bdd46de9cdbf', 'docgia_a', 'docgia_a@test.com', '$2a$10$iAwWgFf7ewEeCt4rpjEYq.uXs7HEt4CWZbOWDkQ0GDKP1aPUEfDzq', 'reader', 1, '2026-09-24 20:16:07');
 
 --
 -- Indexes for dumped tables
@@ -369,6 +405,12 @@ ALTER TABLE `holds`
 ALTER TABLE `notifications`
   ADD PRIMARY KEY (`notification_id`),
   ADD KEY `fk_notif_reader` (`reader_id`);
+
+--
+-- Indexes for table `password_resets`
+--
+ALTER TABLE `password_resets`
+  ADD PRIMARY KEY (`email`);
 
 --
 -- Indexes for table `publishers`
