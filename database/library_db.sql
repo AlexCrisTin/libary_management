@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 27, 2026 at 03:58 PM
+-- Generation Time: Sep 28, 2026 at 05:50 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -271,7 +271,7 @@ CREATE TABLE `readers` (
 
 INSERT INTO `readers` (`reader_id`, `user_id`, `reader_code`, `full_name`, `birth_date`, `phone`, `email`, `reader_type`, `faculty`, `card_issued`, `card_expired`, `status`, `max_books`, `avatar_url`, `created_at`) VALUES
 ('2fd98a5b-d96b-4f68-8423-7b63c87ed133', 'da87f3b4-5989-468c-afe5-bdd46de9cdbf', 'RD-767378', 'Test A', NULL, NULL, 'docgia_a@test.com', 'student', 'Công nghệ thông tin', '2026-09-24', '2027-09-24', 'active', 5, NULL, '2026-09-24 20:16:07'),
-('32cb4aad-7655-4334-a65b-2545eac8adde', '3700a4d8-85ed-458e-b54a-9a67c5c13ec8', 'RD-809238', 'Test B', NULL, NULL, 'docgia_b@test.com', 'student', 'Toán Tin', '2026-09-24', '2027-09-24', 'active', 5, NULL, '2026-09-24 20:16:49'),
+('32cb4aad-7655-4334-a65b-2545eac8adde', '3700a4d8-85ed-458e-b54a-9a67c5c13ec8', 'RD-809238', 'Nguyễn Quản Trị Viên', NULL, '0988776655', 'docgia_b@test.com', 'student', 'Toán Tin', '2026-09-24', '2027-09-24', 'active', 5, 'http://localhost:3000/uploads/avatars/admin-test.png', '2026-09-24 20:16:49'),
 ('6e4bd7c5-2f45-4242-8c15-79da2b71ca14', '596ff42c-6dd3-4622-abba-a4d7bdcc6fe1', 'RD-986776', 'Nguyễn Văn B', '2003-10-20', '0901234567', 'vanb@gmail.com', 'student', 'Công nghệ thông tin', '2026-09-15', '2027-09-15', 'active', 5, NULL, '2026-09-15 09:23:06');
 
 -- --------------------------------------------------------
@@ -346,6 +346,9 @@ CREATE TABLE `users` (
   `user_id` varchar(36) NOT NULL,
   `username` varchar(100) NOT NULL,
   `email` varchar(255) DEFAULT NULL,
+  `full_name` varchar(200) DEFAULT NULL,
+  `phone` varchar(20) DEFAULT NULL,
+  `avatar_url` text DEFAULT NULL,
   `password_hash` varchar(255) NOT NULL,
   `role` enum('admin','librarian','reader') NOT NULL DEFAULT 'reader',
   `is_active` tinyint(1) DEFAULT 1,
@@ -356,11 +359,11 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`user_id`, `username`, `email`, `password_hash`, `role`, `is_active`, `created_at`) VALUES
-('3700a4d8-85ed-458e-b54a-9a67c5c13ec8', 'docgia_b', 'docgia_b@test.com', '$2a$10$3Q1ppfAPAvwHpgu52C/62OYJy.dRSnhcXMDy./CDDeBjIdzHfZ6Ly', 'reader', 1, '2026-09-24 20:16:49'),
-('596ff42c-6dd3-4622-abba-a4d7bdcc6fe1', 'docgia_nguyenvanb', 'vanb@gmail.com', '$2a$10$oLx6YMGvNPqc87C9QxU.9OI3STaiWN0CSGKGKg1pY73YjLTyZWNVu', 'reader', 1, '2026-09-15 09:23:06'),
-('7213e204-b28f-11f1-9923-6018953bc19c', 'admin', 'admin@gmail.com', '$2a$12$F2coLM/cuo8GBgC9mIwdS.QabWZE3ahUhY5gXhx4eyTKP7dQ2BQKq', 'librarian', 1, '2026-09-17 19:00:58'),
-('da87f3b4-5989-468c-afe5-bdd46de9cdbf', 'docgia_a', 'docgia_a@test.com', '$2a$10$iAwWgFf7ewEeCt4rpjEYq.uXs7HEt4CWZbOWDkQ0GDKP1aPUEfDzq', 'reader', 1, '2026-09-24 20:16:07');
+INSERT INTO `users` (`user_id`, `username`, `email`, `full_name`, `phone`, `avatar_url`, `password_hash`, `role`, `is_active`, `created_at`) VALUES
+('3700a4d8-85ed-458e-b54a-9a67c5c13ec8', 'docgia_b', 'docgia_b@test.com', 'Nguyễn Quản Trị Viên', '0988776655', 'http://localhost:3000/uploads/avatars/admin-test.png', '$2a$10$3Q1ppfAPAvwHpgu52C/62OYJy.dRSnhcXMDy./CDDeBjIdzHfZ6Ly', 'reader', 1, '2026-09-24 20:16:49'),
+('596ff42c-6dd3-4622-abba-a4d7bdcc6fe1', 'docgia_nguyenvanb', 'vanb@gmail.com', NULL, NULL, NULL, '$2a$10$oLx6YMGvNPqc87C9QxU.9OI3STaiWN0CSGKGKg1pY73YjLTyZWNVu', 'reader', 1, '2026-09-15 09:23:06'),
+('7213e204-b28f-11f1-9923-6018953bc19c', 'admin', 'thuthutruong@library.vn', 'Nguyễn Văn Thủ Thư Trưởng', '0901234567', 'http://localhost:3000/uploads/avatars/thuthu.jpg', '$2a$12$F2coLM/cuo8GBgC9mIwdS.QabWZE3ahUhY5gXhx4eyTKP7dQ2BQKq', 'librarian', 1, '2026-09-17 19:00:58'),
+('da87f3b4-5989-468c-afe5-bdd46de9cdbf', 'docgia_a', 'docgia_a@test.com', NULL, NULL, NULL, '$2a$10$iAwWgFf7ewEeCt4rpjEYq.uXs7HEt4CWZbOWDkQ0GDKP1aPUEfDzq', 'reader', 1, '2026-09-24 20:16:07');
 
 --
 -- Indexes for dumped tables

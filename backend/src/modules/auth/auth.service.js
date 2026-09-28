@@ -32,8 +32,8 @@ exports.register = async ({ username, password, full_name, email, phone, reader_
 
     // Tạo tài khoản trong bảng users (role: reader)
     await db.query(
-        'INSERT INTO users (user_id, username, email, password_hash, role, is_active) VALUES (?, ?, ?, ?, "reader", 1)',
-        [userId, username, email ? email.trim().toLowerCase() : null, passwordHash]
+        'INSERT INTO users (user_id, username, email, full_name, phone, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?, ?, "reader", 1)',
+        [userId, username, email ? email.trim().toLowerCase() : null, full_name || null, phone || null, passwordHash]
     );
 
     // Tạo hồ sơ độc giả trong bảng readers (Thẻ có hạn 1 năm tính từ ngày đăng ký)
@@ -72,6 +72,7 @@ exports.register = async ({ username, password, full_name, email, phone, reader_
             reader_code: readerCode,
             username,
             full_name,
+            phone,
             role: 'reader',
             email
         }
@@ -110,6 +111,10 @@ exports.login = async ({ username, password }) => {
     let userResponse = {
         user_id: user.user_id,
         username: user.username,
+        email: user.email,
+        full_name: user.full_name,
+        phone: user.phone,
+        avatar_url: user.avatar_url,
         role: user.role
     };
 
@@ -123,8 +128,10 @@ exports.login = async ({ username, password }) => {
 
             userResponse.reader_id = reader.reader_id;
             userResponse.reader_code = reader.reader_code;
-            userResponse.full_name = reader.full_name;
-            userResponse.email = reader.email;
+            userResponse.full_name = reader.full_name || user.full_name;
+            userResponse.email = reader.email || user.email;
+            userResponse.phone = reader.phone || user.phone;
+            userResponse.avatar_url = reader.avatar_url || user.avatar_url;
             userResponse.card_status = reader.status;
             userResponse.card_expired = reader.card_expired;
         }
@@ -157,6 +164,101 @@ exports.changePassword = async (userId, { oldPassword, newPassword }) => {
     await db.query('UPDATE users SET password_hash = ? WHERE user_id = ?', [newHash, userId]);
 
     return true;
+};
+
+/**
+ * 4. Lấy chi tiết thông tin tài khoản hiện tại từ Database
+ */
+exports.getMe = async (userId) => {
+    const [users] = await db.query(
+        `SELECT user_id, username, email, full_name, phone, avatar_url, role, is_active, created_at 
+         FROM users WHERE user_id = ?`,
+        [userId]
+    );
+    if (users.length === 0) {
+        throw new Error('Không tìm thấy tài khoản người dùng!');
+    }
+
+    const user = users[0];
+
+    // Nếu là Độc giả -> Lấy kèm thông tin thẻ thư viện bên bảng readers
+    if (user.role === 'reader') {
+        const [readers] = await db.query('SELECT * FROM readers WHERE user_id = ?', [userId]);
+        if (readers.length > 0) {
+            const r = readers[0];
+            return {
+                ...user,
+                reader_id: r.reader_id,
+                reader_code: r.reader_code,
+                full_name: r.full_name || user.full_name,
+                phone: r.phone || user.phone,
+                email: r.email || user.email,
+                avatar_url: r.avatar_url || user.avatar_url,
+                birth_date: r.birth_date,
+                reader_type: r.reader_type,
+                faculty: r.faculty,
+                card_issued: r.card_issued,
+                card_expired: r.card_expired,
+                card_status: r.status,
+                max_books: r.max_books
+            };
+        }
+    }
+
+    return user;
+};
+
+/**
+ * 5. Cập nhật hồ sơ cá nhân (Dành cho CẢ Thủ thư, Admin và Độc giả)
+ */
+exports.updateProfile = async (userId, { full_name, phone, email, avatar_url }) => {
+    const [users] = await db.query('SELECT * FROM users WHERE user_id = ?', [userId]);
+    if (users.length === 0) {
+        throw new Error('Không tìm thấy tài khoản người dùng!');
+    }
+    const user = users[0];
+
+    // Nếu có cập nhật email -> Kiểm tra trùng lặp
+    let cleanEmail = user.email;
+    if (email !== undefined) {
+        cleanEmail = email && email.trim() ? email.trim().toLowerCase() : null;
+        if (cleanEmail && cleanEmail !== user.email) {
+            const [existing] = await db.query(
+                'SELECT user_id FROM users WHERE email = ? AND user_id != ?',
+                [cleanEmail, userId]
+            );
+            if (existing.length > 0) {
+                throw new Error('Email này đã được sử dụng bởi một tài khoản khác!');
+            }
+        }
+    }
+
+    const newFullName = full_name !== undefined ? (full_name ? full_name.trim() : null) : user.full_name;
+    const newPhone = phone !== undefined ? (phone ? phone.trim() : null) : user.phone;
+    const newAvatarUrl = avatar_url !== undefined ? avatar_url : user.avatar_url;
+
+    // 1. Cập nhật vào bảng users
+    await db.query(
+        `UPDATE users 
+         SET full_name = ?, phone = ?, email = ?, avatar_url = ? 
+         WHERE user_id = ?`,
+        [newFullName, newPhone, cleanEmail, newAvatarUrl, userId]
+    );
+
+    // 2. Nếu là Độc giả -> Đồng bộ sang cả bảng readers
+    if (user.role === 'reader') {
+        await db.query(
+            `UPDATE readers 
+             SET full_name = COALESCE(?, full_name), 
+                 phone = COALESCE(?, phone), 
+                 email = COALESCE(?, email), 
+                 avatar_url = COALESCE(?, avatar_url) 
+             WHERE user_id = ?`,
+            [newFullName, newPhone, cleanEmail, newAvatarUrl, userId]
+        );
+    }
+
+    return exports.getMe(userId);
 };
 
 /**

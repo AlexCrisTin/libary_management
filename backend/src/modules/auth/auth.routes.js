@@ -12,6 +12,9 @@ router.post('/login', authController.login);
 // 3. Lấy thông tin tài khoản đang đăng nhập (Yêu cầu có Token)
 router.get('/me', authMiddleware, authController.getMe);
 
+// 3.1. Cập nhật hồ sơ cá nhân (Yêu cầu có Token)
+router.put('/profile', authMiddleware, authController.updateProfile);
+
 // 4. Đổi mật khẩu (Yêu cầu có Token)
 router.put('/change-password', authMiddleware, authController.changePassword);
 

@@ -42,13 +42,14 @@ exports.getAllUsers = async ({ role, is_active, keyword, page = 1, limit = 10 })
             u.user_id,
             u.username,
             COALESCE(u.email, r.email) AS email,
+            COALESCE(u.full_name, r.full_name) AS full_name,
+            COALESCE(u.phone, r.phone) AS phone,
+            COALESCE(u.avatar_url, r.avatar_url) AS avatar_url,
             u.role,
             u.is_active,
             u.created_at,
             r.reader_id,
-            r.reader_code,
-            r.full_name,
-            r.phone
+            r.reader_code
         FROM users u
         LEFT JOIN readers r ON u.user_id = r.user_id
         ${whereClause}
@@ -75,13 +76,14 @@ exports.getUserById = async (userId) => {
             u.user_id,
             u.username,
             COALESCE(u.email, r.email) AS email,
+            COALESCE(u.full_name, r.full_name) AS full_name,
+            COALESCE(u.phone, r.phone) AS phone,
+            COALESCE(u.avatar_url, r.avatar_url) AS avatar_url,
             u.role,
             u.is_active,
             u.created_at,
             r.reader_id,
             r.reader_code,
-            r.full_name,
-            r.phone,
             r.status AS reader_status
         FROM users u
         LEFT JOIN readers r ON u.user_id = r.user_id
@@ -94,7 +96,7 @@ exports.getUserById = async (userId) => {
 /**
  * 3. Tạo tài khoản mới (Admin tạo Thủ thư / Admin khác)
  */
-exports.createUser = async ({ username, password, email, role = 'librarian', is_active = 1 }) => {
+exports.createUser = async ({ username, password, email, full_name, phone, role = 'librarian', is_active = 1 }) => {
     const [existing] = await db.query('SELECT user_id FROM users WHERE username = ?', [username]);
     if (existing.length > 0) {
         throw new Error('Tên đăng nhập này đã tồn tại!');
@@ -111,13 +113,15 @@ exports.createUser = async ({ username, password, email, role = 'librarian', is_
     const userId = uuidv4();
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const sql = 'INSERT INTO users (user_id, username, email, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?, ?)';
-    await db.query(sql, [userId, username, cleanEmail, passwordHash, role, is_active ? 1 : 0]);
+    const sql = 'INSERT INTO users (user_id, username, email, full_name, phone, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+    await db.query(sql, [userId, username, cleanEmail, full_name || null, phone || null, passwordHash, role, is_active ? 1 : 0]);
 
     return {
         user_id: userId,
         username,
         email: cleanEmail,
+        full_name: full_name || null,
+        phone: phone || null,
         role,
         is_active: Boolean(is_active)
     };

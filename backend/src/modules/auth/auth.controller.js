@@ -36,13 +36,26 @@ exports.login = async (req, res, next) => {
 };
 
 /**
- * 3. GET /api/auth/me - Lấy thông tin tài khoản hiện tại
+ * 3. GET /api/auth/me - Lấy thông tin tài khoản hiện tại (Dữ liệu thời gian thực từ DB)
  */
 exports.getMe = async (req, res, next) => {
     try {
-        return sendSuccess(res, 'Lấy thông tin tài khoản thành công', req.user);
+        const user = await authService.getMe(req.user.userId);
+        return sendSuccess(res, 'Lấy thông tin tài khoản thành công', user);
     } catch (error) {
         next(error);
+    }
+};
+
+/**
+ * 3.1. PUT /api/auth/profile - Cập nhật thông tin hồ sơ cá nhân
+ */
+exports.updateProfile = async (req, res, next) => {
+    try {
+        const updatedUser = await authService.updateProfile(req.user.userId, req.body);
+        return sendSuccess(res, 'Cập nhật hồ sơ cá nhân thành công', updatedUser);
+    } catch (error) {
+        return sendError(res, error.message, 400);
     }
 };
 
