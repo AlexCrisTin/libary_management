@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const db = require('./config/db');
+const swaggerUi = require('swagger-ui-express');
+const swaggerDocument = require('./docs/swagger.json');
 
 // Import routes
 const authRoutes = require('./modules/auth/auth.routes');
@@ -40,9 +43,38 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/publishers', publishersRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
-// Route kiem tra suc khoe server
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'OK', message: 'Library Backend Server dang chay binh thuong!' });
+// Giao dien tai lieu truc quan Swagger UI / OpenAPI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+// Endpoint xuat dac ta OpenAPI dang JSON chuan
+app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.json(swaggerDocument);
+});
+
+// Route kiem tra suc khoe server va database
+app.get('/health', async (req, res) => {
+    try {
+        await db.query('SELECT 1');
+        res.status(200).json({
+            status: 'OK',
+            timestamp: new Date().toISOString(),
+            services: {
+                server: 'healthy',
+                database: 'connected'
+            }
+        });
+    } catch (error) {
+        res.status(503).json({
+            status: 'ERROR',
+            timestamp: new Date().toISOString(),
+            services: {
+                server: 'healthy',
+                database: 'disconnected'
+            },
+            error: error.message
+        });
+    }
 });
 
 // Xu ly route khong ton tai (404)

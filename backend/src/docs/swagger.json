@@ -1,0 +1,1422 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Library Management System API",
+    "version": "1.0.0",
+    "description": "Tai lieu API he thong Quan ly Thu vien (Library Management System). Ho tro xac thuc JWT, quan ly sach, muon tra, the doc gia, dat truoc, thong bao, chat truc tuyen va thong ke."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Local Development Server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Nhap JWT token vao o value. Giao dien Swagger se tu dong them tien to Bearer."
+      }
+    }
+  },
+  "tags": [
+    { "name": "Health", "description": "Kiem tra trang thai hoat dong cua Server va Database" },
+    { "name": "Auth", "description": "Xac thuc, Dang nhap, Dang ky, Quen mat khau OTP, Profile, Dang xuat" },
+    { "name": "Books", "description": "Tra cuu sach, them sua xoa, ban sao vat ly, quet Barcode/ISBN va tra cuu Internet" },
+    { "name": "Circulation", "description": "Nghiep vu muon sach, tra sach, gia han, phat qua han, bao mat" },
+    { "name": "Readers", "description": "Quan ly ho so doc gia, the thu vien, so thich doc sach" },
+    { "name": "Holds", "description": "Dat truoc sach khi dang het ban sao san sang" },
+    { "name": "Categories", "description": "Quan ly danh muc the loai sach" },
+    { "name": "Publishers", "description": "Quan ly thong tin nha xuat ban" },
+    { "name": "Shelves", "description": "Quan ly ke sach va vi tri xep sach" },
+    { "name": "Notifications", "description": "Thong bao he thong danh cho doc gia" },
+    { "name": "Chat", "description": "Trao doi tin nhan truc tuyen giua doc gia va thu thu" },
+    { "name": "Uploads", "description": "Tai len anh bia sach va anh dai dien doc gia" },
+    { "name": "Dashboard", "description": "Thong ke tong quan so luong sach, doc gia, luot muon, doanh thu phat" },
+    { "name": "Users", "description": "Quan ly tai khoan nguoi dung he thong va phan quyen" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Kiem tra suc khoe he thong (Server + MySQL)",
+        "responses": {
+          "200": { "description": "Server va MySQL deu hoat dong tot" },
+          "503": { "description": "Mat ket noi den co so du lieu MySQL" }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Dang ky tai khoan doc gia moi",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password", "email", "full_name"],
+                "properties": {
+                  "username": { "type": "string", "example": "nguyenvanan" },
+                  "password": { "type": "string", "example": "MatKhau123@" },
+                  "email": { "type": "string", "example": "an.nguyen@example.com" },
+                  "full_name": { "type": "string", "example": "Nguyen Van An" },
+                  "phone": { "type": "string", "example": "0987654321" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Dang ky thanh cong" },
+          "400": { "description": "Du lieu dau vao khong hop le hoac username/email da ton tai" }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Dang nhap he thong (Doc gia, Thu thu hoac Admin)",
+        "description": "Co gioi han Rate Limiting: toi da 5 lan thu sai trong 15 phut.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password"],
+                "properties": {
+                  "username": { "type": "string", "example": "librarian1" },
+                  "password": { "type": "string", "example": "123456" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Dang nhap thanh cong, tra ve accessToken va thong tin user" },
+          "401": { "description": "Sai ten dang nhap hoac mat khau" },
+          "429": { "description": "Vuot qua gioi han thu mat khau (Rate Limit)" }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Lay thong tin tai khoan dang dang nhap (Tu database moi nhat)",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Thanh cong, tra ve ho so day du gom full_name, phone, avatar_url, role" },
+          "401": { "description": "Chua dang nhap hoac token khong hop le/da bi thu hoi" }
+        }
+      }
+    },
+    "/api/auth/profile": {
+      "put": {
+        "tags": ["Auth"],
+        "summary": "Cap nhat ho so ca nhan (Ho ten, so dien thoai, avatar)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "full_name": { "type": "string", "example": "Nguyen Van An Cap Nhat" },
+                  "phone": { "type": "string", "example": "0912345678" },
+                  "avatar_url": { "type": "string", "example": "/uploads/avatars/an_avatar.jpg" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cap nhat ho so thanh cong (dong bo ca readers neu la doc gia)" },
+          "401": { "description": "Khong co quyen truy cap" }
+        }
+      }
+    },
+    "/api/auth/change-password": {
+      "put": {
+        "tags": ["Auth"],
+        "summary": "Doi mat khau tai khoan dang dang nhap",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["oldPassword", "newPassword"],
+                "properties": {
+                  "oldPassword": { "type": "string", "example": "123456" },
+                  "newPassword": { "type": "string", "example": "MatKhauMoi123@" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Doi mat khau thanh cong" },
+          "400": { "description": "Mat khau cu khong chinh xac" }
+        }
+      }
+    },
+    "/api/auth/forgot-password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Yeu cau quen mat khau, gui ma OTP qua email",
+        "description": "Co Rate Limiting: toi da 5 yeu cau trong 15 phut.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": { "type": "string", "example": "an.nguyen@example.com" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Ma OTP da duoc tao (hieu luc 5 phut, tu xoa sau khi dung)" }
+        }
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Dat lai mat khau moi bang ma OTP",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "otp", "newPassword"],
+                "properties": {
+                  "email": { "type": "string", "example": "an.nguyen@example.com" },
+                  "otp": { "type": "string", "example": "123456" },
+                  "newPassword": { "type": "string", "example": "MatKhauMoiToanDien123@" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Dat lai mat khau thanh cong" },
+          "400": { "description": "Ma OTP sai hoac da het han" }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Dang xuat va thu hoi token hien tai vao danh sach den (Token Blacklist)",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Dang xuat thanh cong, token bi vo hieu hoa ngay lap tuc" },
+          "401": { "description": "Token khong hop le" }
+        }
+      }
+    },
+    "/api/books": {
+      "get": {
+        "tags": ["Books"],
+        "summary": "Danh sach va tim kiem sach (phan trang, loc the loai, nha xuat ban)",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Tu khoa tim kiem ten sach, tac gia, isbn" },
+          { "name": "category_id", "in": "query", "schema": { "type": "string" }, "description": "Ma the loai can loc" },
+          { "name": "publisher_id", "in": "query", "schema": { "type": "string" }, "description": "Ma nha xuat ban can loc" },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sach sach va metadata phan trang" }
+        }
+      },
+      "post": {
+        "tags": ["Books"],
+        "summary": "Them dau sach moi (Ho tro tu dong tao the loai & NXB neu chua co)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "isbn"],
+                "properties": {
+                  "title": { "type": "string", "example": "Lap trinh Flutter toan tap" },
+                  "isbn": { "type": "string", "example": "9786045678901" },
+                  "author": { "type": "string", "example": "Tran Van B" },
+                  "category_id": { "type": "string", "example": "Cong nghe thong tin" },
+                  "publisher_id": { "type": "string", "example": "NXB Thong Tin va Truyen Thong" },
+                  "publication_year": { "type": "integer", "example": 2024 },
+                  "description": { "type": "string", "example": "Giao trinh Flutter tu co ban den nang cao" },
+                  "cover_image": { "type": "string", "example": "/uploads/covers/flutter_book.jpg" },
+                  "total_copies": { "type": "integer", "example": 5 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Tao dau sach moi thanh cong" }
+        }
+      }
+    },
+    "/api/books/scan/{code}": {
+      "get": {
+        "tags": ["Books"],
+        "summary": "Quet ma vach (Barcode ban sao) hoac ma ISBN de tim sach & vi tri ke",
+        "parameters": [
+          { "name": "code", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Ma Barcode ban sao vat ly hoac ma ISBN dau sach" }
+        ],
+        "responses": {
+          "200": { "description": "Thong tin chi tiet sach, trang thai ban sao va vi tri tren ke" },
+          "404": { "description": "Khong tim thay ban sao hoac dau sach phu hop" }
+        }
+      }
+    },
+    "/api/books/lookup-isbn/{isbn}": {
+      "get": {
+        "tags": ["Books"],
+        "summary": "Tra cuu thong tin sach that tren Internet qua ISBN (Google Books & Open Library)",
+        "parameters": [
+          { "name": "isbn", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Ma ISBN 10 hoac 13 so" }
+        ],
+        "responses": {
+          "200": { "description": "Thong tin tim duoc tu Internet (Tua de, tac gia, anh bia, mo ta, NXB)" },
+          "404": { "description": "Khong tim thay tren co so du lieu quoc te" }
+        }
+      }
+    },
+    "/api/books/{id}": {
+      "get": {
+        "tags": ["Books"],
+        "summary": "Xem chi tiet mot dau sach",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Chi tiet dau sach kem so luong san co" },
+          "404": { "description": "Dau sach khong ton tai" }
+        }
+      },
+      "put": {
+        "tags": ["Books"],
+        "summary": "Cap nhat thong tin dau sach",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "author": { "type": "string" },
+                  "publication_year": { "type": "integer" },
+                  "description": { "type": "string" },
+                  "cover_image": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cap nhat thanh cong" }
+        }
+      },
+      "delete": {
+        "tags": ["Books"],
+        "summary": "Xoa dau sach",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Xoa thanh cong" },
+          "400": { "description": "Khong the xoa do sach dang co ban sao duoc muon" }
+        }
+      }
+    },
+    "/api/books/{id}/copies": {
+      "get": {
+        "tags": ["Books"],
+        "summary": "Lay danh sach tat ca ban sao vat ly cua dau sach",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sach ban sao kem ma barcode, tinh trang, vi tri ke" }
+        }
+      },
+      "post": {
+        "tags": ["Books"],
+        "summary": "Them ban sao vat ly moi cho dau sach",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["barcode"],
+                "properties": {
+                  "barcode": { "type": "string", "example": "BC-100293" },
+                  "shelf_id": { "type": "string", "example": "shelf-uuid-123" },
+                  "condition_status": { "type": "string", "enum": ["new", "good", "worn", "damaged"], "default": "good" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Them ban sao thanh cong" }
+        }
+      }
+    },
+    "/api/books/copies/{copyId}": {
+      "put": {
+        "tags": ["Books"],
+        "summary": "Cap nhat tinh trang hoac vi tri cua ban sao vat ly (Kiem ke)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "copyId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "condition_status": { "type": "string", "enum": ["new", "good", "worn", "damaged", "lost"] },
+                  "shelf_id": { "type": "string" },
+                  "status": { "type": "string", "enum": ["available", "borrowed", "maintenance", "lost"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cap nhat ban sao thanh cong" }
+        }
+      }
+    },
+    "/api/circulation/borrow": {
+      "post": {
+        "tags": ["Circulation"],
+        "summary": "Cho muon sach tai quay (Thu thu thao tac)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["reader_id", "barcode"],
+                "properties": {
+                  "reader_id": { "type": "string", "example": "reader-uuid-1" },
+                  "barcode": { "type": "string", "example": "BC-100293" },
+                  "due_date": { "type": "string", "format": "date", "example": "2026-10-15" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Tao phieu muon thanh cong" },
+          "400": { "description": "The doc gia bi khoa, het han, qua so luong cho phep, hoac sach da duoc muon" }
+        }
+      }
+    },
+    "/api/circulation/return": {
+      "post": {
+        "tags": ["Circulation"],
+        "summary": "Nhan tra sach tai quay (Thu thu thao tac)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["barcode"],
+                "properties": {
+                  "barcode": { "type": "string", "example": "BC-100293" },
+                  "condition_status": { "type": "string", "enum": ["good", "worn", "damaged"], "default": "good" },
+                  "note": { "type": "string", "example": "Sach nguyen ven khong rach" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Tra sach thanh cong, tinh tien phat neu co tre han" }
+        }
+      }
+    },
+    "/api/circulation/renew/{id}": {
+      "post": {
+        "tags": ["Circulation"],
+        "summary": "Gia han muon sach (Doc gia tu gia han hoac Thu thu thao tac)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Ma phieu muon (loan_id)" }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "additional_days": { "type": "integer", "default": 7, "example": 7 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Gia han thanh cong ngay hen tra moi" },
+          "400": { "description": "Khong the gia han vi da qua so lan, da qua han hoac co nguoi dat truoc" }
+        }
+      }
+    },
+    "/api/circulation/active": {
+      "get": {
+        "tags": ["Circulation"],
+        "summary": "Danh sach cac luot dang muon (Dang muon hoac Qua han)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "reader_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "overdue", "in": "query", "schema": { "type": "boolean" }, "description": "Loc rieng sach qua han" },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sach luot muon dang hoat dong" }
+        }
+      }
+    },
+    "/api/circulation/history": {
+      "get": {
+        "tags": ["Circulation"],
+        "summary": "Lich su muon tra sach",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "reader_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sach lich su muon tra" }
+        }
+      }
+    },
+    "/api/circulation/{id}/pay-fine": {
+      "put": {
+        "tags": ["Circulation"],
+        "summary": "Thu tien phat qua han hoac lam hong sach (Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["fine_paid"],
+                "properties": {
+                  "fine_paid": { "type": "number", "example": 15000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Xac nhan nop phat thanh cong" }
+        }
+      }
+    },
+    "/api/circulation/{id}/lost": {
+      "put": {
+        "tags": ["Circulation"],
+        "summary": "Bao mat sach (Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fine_amount": { "type": "number", "example": 120000 },
+                  "note": { "type": "string", "example": "Doc gia lam mat sach tai phong hoc" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cap nhat trang thai mat sach thanh cong" }
+        }
+      }
+    },
+    "/api/readers": {
+      "get": {
+        "tags": ["Readers"],
+        "summary": "Danh sach doc gia (tim kiem, loc khoa phong, trang thai the)",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "department", "in": "query", "schema": { "type": "string" } },
+          { "name": "card_status", "in": "query", "schema": { "type": "string", "enum": ["active", "suspended", "expired"] } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sach ho so doc gia" }
+        }
+      },
+      "post": {
+        "tags": ["Readers"],
+        "summary": "Tao ho so doc gia va cap the thu vien moi",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["full_name", "email"],
+                "properties": {
+                  "full_name": { "type": "string", "example": "Tran Thi Mai" },
+                  "email": { "type": "string", "example": "mai.tran@example.com" },
+                  "phone": { "type": "string", "example": "0901234567" },
+                  "address": { "type": "string", "example": "Quan Cau Giay, Ha Noi" },
+                  "student_id": { "type": "string", "example": "SV20260199" },
+                  "department": { "type": "string", "example": "Cong nghe thong tin" },
+                  "card_expiry_date": { "type": "string", "format": "date", "example": "2027-12-31" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Tao ho so doc gia thanh cong" }
+        }
+      }
+    },
+    "/api/readers/{id}": {
+      "get": {
+        "tags": ["Readers"],
+        "summary": "Xem chi tiet mot doc gia",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Thong tin chi tiet doc gia" },
+          "404": { "description": "Doc gia khong ton tai" }
+        }
+      },
+      "put": {
+        "tags": ["Readers"],
+        "summary": "Chinh sua thong tin doc gia",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "full_name": { "type": "string" },
+                  "phone": { "type": "string" },
+                  "address": { "type": "string" },
+                  "department": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cap nhat thanh cong" }
+        }
+      },
+      "delete": {
+        "tags": ["Readers"],
+        "summary": "Xoa ho so doc gia",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Xoa thanh cong" }
+        }
+      }
+    },
+    "/api/readers/{id}/card": {
+      "put": {
+        "tags": ["Readers"],
+        "summary": "Quan ly the thu vien: Khoa, Mo khoa, Gia han the",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "card_status": { "type": "string", "enum": ["active", "suspended", "expired"] },
+                  "expiry_date": { "type": "string", "format": "date", "example": "2028-12-31" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cap nhat trang thai the thanh cong" }
+        }
+      }
+    },
+    "/api/readers/{id}/borrowing": {
+      "get": {
+        "tags": ["Readers"],
+        "summary": "Lay danh sach sach ma doc gia dang muon",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sach sach dang muon" }
+        }
+      }
+    },
+    "/api/readers/{id}/history": {
+      "get": {
+        "tags": ["Readers"],
+        "summary": "Lich su muon tra cua doc gia",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sach lich su" }
+        }
+      }
+    },
+    "/api/readers/{id}/preferences": {
+      "get": {
+        "tags": ["Readers"],
+        "summary": "Xem so thich the loai sach cua doc gia",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sach so thich the loai" }
+        }
+      },
+      "put": {
+        "tags": ["Readers"],
+        "summary": "Cap nhat so thich the loai sach cua doc gia",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["category_ids"],
+                "properties": {
+                  "category_ids": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "example": ["uuid-cat-1", "uuid-cat-2"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cap nhat so thich thanh cong" }
+        }
+      }
+    },
+    "/api/holds": {
+      "get": {
+        "tags": ["Holds"],
+        "summary": "Xem toan bo danh sach dat truoc sach (Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Danh sach dat truoc" }
+        }
+      },
+      "post": {
+        "tags": ["Holds"],
+        "summary": "Dat truoc mot cuon sach (khi khong con ban sao san sang)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["book_id"],
+                "properties": {
+                  "book_id": { "type": "string", "example": "book-uuid-1" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Dat truoc sach thanh cong" },
+          "400": { "description": "Sach van con ban sao san sang hoac da dat truoc roi" }
+        }
+      }
+    },
+    "/api/holds/my-holds": {
+      "get": {
+        "tags": ["Holds"],
+        "summary": "Doc gia xem danh sach yeu cau dat truoc cua chinh minh",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Danh sach yeu cau dat truoc" }
+        }
+      }
+    },
+    "/api/holds/{id}/cancel": {
+      "put": {
+        "tags": ["Holds"],
+        "summary": "Huy yeu cau dat truoc",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Huy thanh cong" }
+        }
+      }
+    },
+    "/api/categories": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "Lay danh sach the loai sach",
+        "responses": {
+          "200": { "description": "Danh sach the loai" }
+        }
+      },
+      "post": {
+        "tags": ["Categories"],
+        "summary": "Them the loai sach moi (Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["category_name"],
+                "properties": {
+                  "category_name": { "type": "string", "example": "Khoa hoc may tinh" },
+                  "description": { "type": "string", "example": "Sach ve tri tue nhan tao, du lieu lon va lap trinh" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Them the loai thanh cong" }
+        }
+      }
+    },
+    "/api/categories/{id}": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "Xem chi tiet 1 the loai",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Chi tiet the loai" }
+        }
+      },
+      "put": {
+        "tags": ["Categories"],
+        "summary": "Sua thong tin the loai (Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "category_name": { "type": "string" },
+                  "description": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cap nhat thanh cong" }
+        }
+      },
+      "delete": {
+        "tags": ["Categories"],
+        "summary": "Xoa the loai (Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Xoa the loai thanh cong" }
+        }
+      }
+    },
+    "/api/publishers": {
+      "get": {
+        "tags": ["Publishers"],
+        "summary": "Lay danh sach nha xuat ban",
+        "responses": {
+          "200": { "description": "Danh sach nha xuat ban" }
+        }
+      },
+      "post": {
+        "tags": ["Publishers"],
+        "summary": "Them nha xuat ban moi (Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["publisher_name"],
+                "properties": {
+                  "publisher_name": { "type": "string", "example": "Nha xuat ban Tre" },
+                  "address": { "type": "string", "example": "161B Ly Chinh Thang, Quan 3, TP.HCM" },
+                  "phone": { "type": "string", "example": "02839316289" },
+                  "email": { "type": "string", "example": "hopthu@nxbtre.com.vn" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Them nha xuat ban thanh cong" }
+        }
+      }
+    },
+    "/api/publishers/{id}": {
+      "get": {
+        "tags": ["Publishers"],
+        "summary": "Xem chi tiet 1 nha xuat ban",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Chi tiet nha xuat ban" }
+        }
+      },
+      "put": {
+        "tags": ["Publishers"],
+        "summary": "Sua thong tin nha xuat ban (Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "publisher_name": { "type": "string" },
+                  "address": { "type": "string" },
+                  "phone": { "type": "string" },
+                  "email": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cap nhat thanh cong" }
+        }
+      },
+      "delete": {
+        "tags": ["Publishers"],
+        "summary": "Xoa nha xuat ban (Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Xoa thanh cong" }
+        }
+      }
+    },
+    "/api/shelves": {
+      "get": {
+        "tags": ["Shelves"],
+        "summary": "Lay danh sach toan bo ke sach",
+        "responses": {
+          "200": { "description": "Danh sach ke sach" }
+        }
+      },
+      "post": {
+        "tags": ["Shelves"],
+        "summary": "Them ke sach moi (Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["shelf_name", "location"],
+                "properties": {
+                  "shelf_name": { "type": "string", "example": "Ke A1 - Tang 2" },
+                  "location": { "type": "string", "example": "Khu vuc Sach Khoa hoc Tu nhien" },
+                  "capacity": { "type": "integer", "example": 100 },
+                  "description": { "type": "string", "example": "Ke kim loai 4 tang" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Them ke sach thanh cong" }
+        }
+      }
+    },
+    "/api/shelves/assign-book": {
+      "put": {
+        "tags": ["Shelves"],
+        "summary": "Xep ban sao sach vao ke / Chuyen ke / Go khoi ke",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["copy_id"],
+                "properties": {
+                  "copy_id": { "type": "string", "example": "copy-uuid-123" },
+                  "shelf_id": { "type": "string", "nullable": true, "example": "shelf-uuid-456" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cap nhat vi tri ke cho sach thanh cong" }
+        }
+      }
+    },
+    "/api/shelves/{id}": {
+      "get": {
+        "tags": ["Shelves"],
+        "summary": "Xem chi tiet 1 ke sach",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Chi tiet ke sach" }
+        }
+      },
+      "put": {
+        "tags": ["Shelves"],
+        "summary": "Cap nhat thong tin ke sach",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "shelf_name": { "type": "string" },
+                  "location": { "type": "string" },
+                  "capacity": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cap nhat thanh cong" }
+        }
+      },
+      "delete": {
+        "tags": ["Shelves"],
+        "summary": "Xoa ke sach",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Xoa thanh cong" }
+        }
+      }
+    },
+    "/api/shelves/{id}/books": {
+      "get": {
+        "tags": ["Shelves"],
+        "summary": "Xem danh sach cac cuon sach dang nam tren ke nay",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sach sach tren ke" }
+        }
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Lay danh sach thong bao cua doc gia",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Danh sach thong bao" }
+        }
+      }
+    },
+    "/api/notifications/unread-count": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Dem so luong thong bao chua doc cua doc gia",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "So luong thong bao chua doc" }
+        }
+      }
+    },
+    "/api/notifications/read-all": {
+      "put": {
+        "tags": ["Notifications"],
+        "summary": "Danh dau tat ca thong bao la da doc",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Da danh dau tat ca la da doc" }
+        }
+      }
+    },
+    "/api/notifications/{id}/read": {
+      "put": {
+        "tags": ["Notifications"],
+        "summary": "Danh dau mot thong bao cu the la da doc",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Danh dau da doc thanh cong" }
+        }
+      }
+    },
+    "/api/notifications/{id}": {
+      "delete": {
+        "tags": ["Notifications"],
+        "summary": "Xoa 1 thong bao",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Xoa thong bao thanh cong" }
+        }
+      }
+    },
+    "/api/chat/messages": {
+      "get": {
+        "tags": ["Chat"],
+        "summary": "Doc gia xem lich su tro chuyen voi thu thu",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Danh sach tin nhan" }
+        }
+      },
+      "post": {
+        "tags": ["Chat"],
+        "summary": "Gui tin nhan chat truc tuyen (Doc gia hoac Thu thu)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["message_text"],
+                "properties": {
+                  "reader_id": { "type": "string", "description": "Bat buoc neu nguoi gui la thu thu", "example": "reader-uuid-1" },
+                  "message_text": { "type": "string", "example": "Xin chao, toi muon hoi ve thoi gian mo cua thu vien." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Gui tin nhan thanh cong" }
+        }
+      }
+    },
+    "/api/chat/conversations": {
+      "get": {
+        "tags": ["Chat"],
+        "summary": "Thu thu xem danh sach tat ca cuoc hoi thoai cua cac doc gia",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Danh sach hoi thoai kem so tin nhan chua doc" }
+        }
+      }
+    },
+    "/api/chat/conversations/{readerId}/messages": {
+      "get": {
+        "tags": ["Chat"],
+        "summary": "Thu thu xem chi tiet tin nhan voi mot doc gia cu the",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "readerId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Chi tiet hoi thoai" }
+        }
+      }
+    },
+    "/api/uploads/book-cover": {
+      "post": {
+        "tags": ["Uploads"],
+        "summary": "Tai len anh bia sach (Multipart form-data)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Tai len thanh cong, tra ve URL anh tren server" }
+        }
+      }
+    },
+    "/api/uploads/reader-avatar": {
+      "post": {
+        "tags": ["Uploads"],
+        "summary": "Tai len anh dai dien doc gia / nguoi dung (Multipart form-data)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Tai len thanh cong, tra ve URL anh tren server" }
+        }
+      }
+    },
+    "/api/dashboard/statistics": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "Thong ke tong quan: Tong so sach, doc gia, sach dang muon, qua han, tong tien phat",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Du lieu thong ke tong quan toan he thong" }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Xem danh sach tai khoan he thong",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "role", "in": "query", "schema": { "type": "string", "enum": ["admin", "librarian", "reader"] } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sach tai khoan" }
+        }
+      },
+      "post": {
+        "tags": ["Users"],
+        "summary": "Tao tai khoan moi boi Admin (vi du: Tao thu thu moi)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password", "email", "role"],
+                "properties": {
+                  "username": { "type": "string", "example": "librarian2" },
+                  "password": { "type": "string", "example": "MatKhau123@" },
+                  "email": { "type": "string", "example": "librarian2@library.com" },
+                  "role": { "type": "string", "enum": ["librarian", "admin", "reader"], "default": "librarian" },
+                  "full_name": { "type": "string", "example": "Le Van Cuong" },
+                  "phone": { "type": "string", "example": "0912345678" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Tao tai khoan thanh cong" }
+        }
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Xem chi tiet 1 tai khoan",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Chi tiet tai khoan" }
+        }
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Xoa tai khoan (Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Xoa tai khoan thanh cong" }
+        }
+      }
+    },
+    "/api/users/{id}/role": {
+      "put": {
+        "tags": ["Users"],
+        "summary": "Cap nhat vai tro tai khoan (Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["role"],
+                "properties": {
+                  "role": { "type": "string", "enum": ["admin", "librarian", "reader"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cap nhat vai tro thanh cong" }
+        }
+      }
+    },
+    "/api/users/{id}/status": {
+      "put": {
+        "tags": ["Users"],
+        "summary": "Khoa hoac Mo khoa tai khoan (Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["active", "locked"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cap nhat trang thai thanh cong" }
+        }
+      }
+    },
+    "/api/users/{id}/reset-password": {
+      "put": {
+        "tags": ["Users"],
+        "summary": "Admin dat lai mat khau cho tai khoan bat ky",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["newPassword"],
+                "properties": {
+                  "newPassword": { "type": "string", "example": "MatKhauMoiCuaAdmin123@" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Dat lai mat khau thanh cong" }
+        }
+      }
+    }
+  }
+}
