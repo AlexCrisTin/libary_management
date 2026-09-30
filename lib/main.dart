@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
     return const MaterialApp(
       title: 'Library Management',
       debugShowCheckedModeBanner: false,
-      home: ,
+      home: Begin(),
     );
   }
 }
