@@ -73,6 +73,41 @@ exports.getMyNotifications = async ({ reader_id, is_read = null, page = 1, limit
 };
 
 /**
+ * Lấy luồng thông báo chung của toàn bộ độc giả cho thủ thư/admin.
+ */
+exports.getAllNotifications = async ({ page = 1, limit = 100 }) => {
+    const offset = (page - 1) * limit;
+    const [countRows] = await db.query('SELECT COUNT(*) AS total FROM notifications');
+    const total = countRows[0].total;
+    const [rows] = await db.query(
+        `SELECT
+            n.notification_id,
+            n.reader_id,
+            n.title,
+            n.content,
+            n.type,
+            n.reference_id,
+            n.is_read,
+            n.created_at,
+            r.full_name AS reader_name,
+            r.reader_code
+         FROM notifications n
+         JOIN readers r ON n.reader_id = r.reader_id
+         ORDER BY n.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [Number(limit), Number(offset)]
+    );
+
+    return {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        total_pages: Math.ceil(total / limit),
+        data: rows
+    };
+};
+
+/**
  * 3. Đếm số lượng thông báo chưa đọc (để hiển thị badge chấm đỏ trên app)
  */
 exports.getUnreadCount = async ({ reader_id }) => {

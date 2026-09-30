@@ -28,6 +28,22 @@ exports.getMyNotifications = async (req, res, next) => {
 };
 
 /**
+ * GET /api/notifications/all - Thủ thư/admin xem chung thông báo của độc giả
+ */
+exports.getAllNotifications = async (req, res, next) => {
+    try {
+        const { page, limit } = req.query;
+        const result = await notificationsService.getAllNotifications({
+            page: parseInt(page || 1, 10),
+            limit: parseInt(limit || 100, 10)
+        });
+        return sendSuccess(res, 'Lấy luồng thông báo chung thành công', result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * 2. GET /api/notifications/unread-count - Đếm số lượng thông báo chưa đọc
  */
 exports.getUnreadCount = async (req, res, next) => {

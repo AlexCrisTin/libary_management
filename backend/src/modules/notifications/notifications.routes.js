@@ -13,19 +13,22 @@ router.get('/unread-count', notificationsController.getUnreadCount);
 // 2. Đánh dấu tất cả thông báo là đã đọc (đặt trước route /:id)
 router.put('/read-all', notificationsController.markAllAsRead);
 
-// 3. Lấy danh sách thông báo của độc giả
+// 3. Thủ thư / Admin xem chung thông báo của toàn bộ độc giả
+router.get('/all', roleMiddleware('librarian', 'admin'), notificationsController.getAllNotifications);
+
+// 4. Lấy danh sách thông báo của độc giả
 router.get('/', notificationsController.getMyNotifications);
 
-// 4. Đánh dấu 1 thông báo là đã đọc
+// 5. Đánh dấu 1 thông báo là đã đọc
 router.put('/:id/read', notificationsController.markAsRead);
 
-// 5. Xóa 1 thông báo
+// 6. Xóa 1 thông báo
 router.delete('/:id', notificationsController.deleteNotification);
 
-// 6. Quét và tạo thông báo quá hạn & sắp hết hạn ngay lập tức (Thủ thư / Admin)
+// 7. Quét và tạo thông báo quá hạn & sắp hết hạn ngay lập tức (Thủ thư / Admin)
 router.post('/scan-overdue', roleMiddleware('librarian', 'admin'), notificationsController.triggerOverdueScan);
 
-// 7. Quét và tạo thông báo thẻ sắp/hết hạn ngay lập tức (Thủ thư / Admin)
+// 8. Quét và tạo thông báo thẻ sắp/hết hạn ngay lập tức (Thủ thư / Admin)
 router.post('/scan-card-expiration', roleMiddleware('librarian', 'admin'), notificationsController.triggerCardExpirationScan);
 
 module.exports = router;
