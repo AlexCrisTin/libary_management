@@ -289,6 +289,162 @@ class _DetailBookState extends State<DetailBook> {
     return values.join(', ');
   }
 
+  Future<void> _addCopy() async {
+    final barcode = TextEditingController();
+    final price = TextEditingController();
+    var condition = 'good';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Thêm bản sao sách'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: barcode,
+                decoration: const InputDecoration(
+                  labelText: 'Mã barcode (để trống sẽ tự tạo)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: condition,
+                decoration: const InputDecoration(
+                  labelText: 'Tình trạng',
+                  border: OutlineInputBorder(),
+                ),
+                items: _copyConditions
+                    .map(
+                      (value) => DropdownMenuItem(
+                        value: value,
+                        child: Text(_copyConditionLabel(value)),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setDialogState(() => condition = value ?? condition),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: price,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Giá nhập',
+                  suffixText: 'đ',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Thêm'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed == true && mounted) {
+      try {
+        await ApiClient.post(
+          '/books/${widget.bookId}/copies',
+          body: {
+            'barcode': _nullable(barcode.text),
+            'condition': condition,
+            'acquired_price': num.tryParse(price.text) ?? 0,
+          },
+        );
+        _showMessage('Đã thêm bản sao sách.');
+        await _load();
+      } catch (error) {
+        _showMessage(error.toString());
+      }
+    }
+    barcode.dispose();
+    price.dispose();
+  }
+
+  Future<void> _editCopy(Map<String, dynamic> copy) async {
+    var condition = apiText(copy['condition'], fallback: 'good');
+    var status = apiText(copy['status'], fallback: 'available');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(apiText(copy['barcode'])),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: condition,
+                decoration: const InputDecoration(
+                  labelText: 'Tình trạng vật lý',
+                  border: OutlineInputBorder(),
+                ),
+                items: _copyConditions
+                    .map(
+                      (value) => DropdownMenuItem(
+                        value: value,
+                        child: Text(_copyConditionLabel(value)),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setDialogState(() => condition = value ?? condition),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: status,
+                decoration: const InputDecoration(
+                  labelText: 'Trạng thái lưu thông',
+                  border: OutlineInputBorder(),
+                ),
+                items: _copyStatuses
+                    .map(
+                      (value) => DropdownMenuItem(
+                        value: value,
+                        child: Text(_copyStatusLabel(value)),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setDialogState(() => status = value ?? status),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Lưu'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await ApiClient.put(
+        '/books/copies/${copy['copy_id']}',
+        body: {'condition': condition, 'status': status},
+      );
+      _showMessage('Đã cập nhật bản sao sách.');
+      await _load();
+    } catch (error) {
+      _showMessage(error.toString());
+    }
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
@@ -377,6 +533,12 @@ class _DetailBookState extends State<DetailBook> {
                       borrowedCopies: _borrowedCopies,
                       totalCopies: _totalCopies,
                     ),
+                    const SizedBox(height: 18),
+                    _CopiesCard(
+                      copies: _copies,
+                      onAdd: _addCopy,
+                      onEdit: _editCopy,
+                    ),
                   ],
                 ),
               ),
@@ -421,6 +583,126 @@ class _DetailBookState extends State<DetailBook> {
       ),
     );
   }
+}
+
+const _copyConditions = ['new', 'good', 'fair', 'poor', 'damaged'];
+const _copyStatuses = [
+  'available',
+  'borrowed',
+  'reserved',
+  'lost',
+  'processing',
+];
+
+String _copyConditionLabel(String value) => switch (value) {
+  'new' => 'Mới',
+  'good' => 'Tốt',
+  'fair' => 'Khá',
+  'poor' => 'Kém',
+  'damaged' => 'Hư hỏng',
+  _ => value,
+};
+
+String _copyStatusLabel(String value) => switch (value) {
+  'available' => 'Có sẵn',
+  'borrowed' => 'Đang mượn',
+  'reserved' => 'Đã giữ chỗ',
+  'lost' => 'Thất lạc',
+  'processing' => 'Đang xử lý',
+  _ => value,
+};
+
+class _CopiesCard extends StatelessWidget {
+  const _CopiesCard({
+    required this.copies,
+    required this.onAdd,
+    required this.onEdit,
+  });
+
+  final List<Map<String, dynamic>> copies;
+  final VoidCallback onAdd;
+  final ValueChanged<Map<String, dynamic>> onEdit;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+    decoration: BoxDecoration(
+      color: kLibCardFill,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Column(
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Quản lý từng bản sao',
+                style: TextStyle(
+                  color: kLibBookTitle,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            IconButton.filled(
+              tooltip: 'Thêm bản sao',
+              onPressed: onAdd,
+              style: IconButton.styleFrom(backgroundColor: kLibBeigeButton),
+              icon: const Icon(Icons.add, color: Colors.white),
+            ),
+          ],
+        ),
+        if (copies.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 22),
+            child: Text('Đầu sách này chưa có bản sao vật lý.'),
+          )
+        else
+          ...copies.map(
+            (copy) => Container(
+              margin: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.qr_code_rounded, color: kLibBrownTitle),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          apiText(copy['barcode']),
+                          style: const TextStyle(
+                            color: kLibBookTitle,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          '${_copyStatusLabel(apiText(copy['status'], fallback: ''))} • ${_copyConditionLabel(apiText(copy['condition'], fallback: ''))}',
+                        ),
+                        if (copy['shelf'] != null)
+                          Text(
+                            'Kệ: ${apiText(copy['floor'])} / ${apiText(copy['section'])} / ${apiText(copy['shelf'])}',
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Cập nhật bản sao',
+                    onPressed: () => onEdit(copy),
+                    icon: const Icon(Icons.edit_outlined),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
 }
 
 class _CoverCard extends StatelessWidget {

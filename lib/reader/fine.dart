@@ -66,14 +66,31 @@ class _FineState extends State<Fine> {
               separatorBuilder: (_, __) => const Divider(),
               itemBuilder: (_, i) {
                 final item = _items[i];
+                final paid =
+                    item['fine_paid'] == true ||
+                    item['fine_paid'] == 1 ||
+                    item['fine_paid']?.toString() == '1';
                 return ListTile(
                   title: Text(apiText(item['book_title'])),
-                  subtitle: Text('Hạn trả: ${apiDate(item['due_date'])}'),
-                  trailing: Text(
-                    '${item['fine_amount']} đ',
-                    style: const TextStyle(
-                      color: kBookTitle,
-                      fontWeight: FontWeight.w700,
+                  subtitle: Text(
+                    'Hạn trả: ${apiDate(item['due_date'])}\n'
+                    '${paid ? 'Đã thanh toán' : 'Chưa thanh toán'}',
+                  ),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: paid ? const Color(0xFF82D1A8) : kBeigeButton,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      '${item['fine_amount']} đ',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 );

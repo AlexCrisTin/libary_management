@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:libary_management/core/api_client.dart';
 import 'package:libary_management/core/api_state.dart';
-import 'package:libary_management/reader/qr_scanner.dart';
 import 'package:libary_management/reader/reader_nav.dart';
 
 class Message extends StatefulWidget {
@@ -230,10 +229,6 @@ class _MessageState extends State<Message> {
       bottomNavigationBar: ReaderBottomBar(
         currentIndex: 0,
         onSelect: _selectTab,
-        onScan: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const QrScanner()),
-        ),
       ),
     );
   }

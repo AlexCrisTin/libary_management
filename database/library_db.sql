@@ -102,6 +102,10 @@ CREATE TABLE `borrow_transactions` (
   `status` enum('borrowed','returned','overdue','lost') DEFAULT 'borrowed',
   `fine_amount` decimal(10,2) DEFAULT 0.00,
   `fine_paid` tinyint(1) DEFAULT 0,
+  `report_reason` varchar(30) DEFAULT NULL,
+  `report_note` text DEFAULT NULL,
+  `report_evidence_url` text DEFAULT NULL,
+  `reported_at` datetime DEFAULT NULL,
   `issued_by` varchar(36) DEFAULT NULL COMMENT 'Thủ thư cho mượn',
   `returned_to` varchar(36) DEFAULT NULL COMMENT 'Thủ thư nhận trả',
   `created_at` datetime DEFAULT current_timestamp()

@@ -1,5 +1,6 @@
 const notificationsService = require('./notifications.service');
 const { scanAndNotifyOverdue } = require('../../jobs/overdueNotification.job');
+const { scanAndNotifyCardExpiration } = require('../../jobs/cardExpirationNotification.job');
 const { sendSuccess, sendError } = require('../../utils/response');
 
 /**
@@ -102,3 +103,14 @@ exports.triggerOverdueScan = async (req, res, next) => {
     }
 };
 
+/**
+ * 7. POST /api/notifications/scan-card-expiration - Quét hạn thẻ ngay lập tức
+ */
+exports.triggerCardExpirationScan = async (req, res, next) => {
+    try {
+        const result = await scanAndNotifyCardExpiration();
+        return sendSuccess(res, 'Quét và tạo thông báo hạn thẻ thành công', result);
+    } catch (error) {
+        next(error);
+    }
+};

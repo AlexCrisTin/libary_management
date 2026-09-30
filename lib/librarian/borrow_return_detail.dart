@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:libary_management/core/api_client.dart';
 
 import 'librarian_nav.dart';
+import 'report.dart';
 
 class BorrowReturnDetail extends StatefulWidget {
   const BorrowReturnDetail({super.key, required this.loan});
@@ -30,10 +31,37 @@ class _BorrowReturnDetailState extends State<BorrowReturnDetail> {
     }
   }
 
+  Future<void> _payFine(String tx) async {
+    setState(() => _loading = true);
+    try {
+      await ApiClient.put('/circulation/$tx/pay-fine');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã xác nhận thu tiền phạt.')),
+      );
+      Navigator.pop(context, true);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final loan = widget.loan;
     final tx = apiText(loan['tx_id'], fallback: '');
+    final fineAmount = num.tryParse('${loan['fine_amount'] ?? 0}') ?? 0;
+    final finePaid =
+        loan['fine_paid'] == true ||
+        loan['fine_paid'] == 1 ||
+        loan['fine_paid']?.toString() == '1';
+    final status = loan['status']?.toString();
+    final active = status == 'borrowed' || status == 'overdue';
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
@@ -72,64 +100,111 @@ class _BorrowReturnDetailState extends State<BorrowReturnDetail> {
                       _row('Tình trạng', loan['status']),
                       _row('Tiền phạt', loan['fine_amount']),
                       const SizedBox(height: 24),
+                      if (active)
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _loading
+                                    ? null
+                                    : () => _action(
+                                        '/circulation/renew/$tx',
+                                        'Gia hạn thành công',
+                                      ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: kLibGreen,
+                                  foregroundColor: Colors.white,
+                                ),
+                                icon: const Icon(Icons.library_books),
+                                label: const Text('Gia hạn'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _loading
+                                    ? null
+                                    : () async {
+                                        final navigator = Navigator.of(context);
+                                        final messenger = ScaffoldMessenger.of(
+                                          context,
+                                        );
+                                        setState(() => _loading = true);
+                                        try {
+                                          await ApiClient.post(
+                                            '/circulation/return',
+                                            body: {'tx_id': tx},
+                                          );
+                                          if (!mounted) return;
+                                          navigator.pop(true);
+                                        } catch (error) {
+                                          if (mounted) {
+                                            messenger.showSnackBar(
+                                              SnackBar(
+                                                content: Text(error.toString()),
+                                              ),
+                                            );
+                                          }
+                                        } finally {
+                                          if (mounted) {
+                                            setState(() => _loading = false);
+                                          }
+                                        }
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: kLibBeigeButton,
+                                  foregroundColor: Colors.white,
+                                ),
+                                icon: const Icon(Icons.assignment_return),
+                                label: const Text('Trả sách'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: _loading
                                   ? null
-                                  : () => _action(
-                                      '/circulation/renew/$tx',
-                                      'Gia hạn thành công',
-                                    ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: kLibGreen,
-                                foregroundColor: Colors.white,
-                              ),
-                              icon: const Icon(Icons.library_books),
-                              label: const Text('Gia hạn'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _loading
-                                  ? null
                                   : () async {
-                                      final navigator = Navigator.of(context);
-                                      final messenger = ScaffoldMessenger.of(
-                                        context,
-                                      );
-                                      setState(() => _loading = true);
-                                      try {
-                                        await ApiClient.post(
-                                          '/circulation/return',
-                                          body: {'tx_id': tx},
-                                        );
-                                        if (!mounted) return;
-                                        navigator.pop(true);
-                                      } catch (error) {
-                                        if (mounted) {
-                                          messenger.showSnackBar(
-                                            SnackBar(
-                                              content: Text(error.toString()),
+                                      final changed =
+                                          await Navigator.push<bool>(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => Report(
+                                                transactionId: tx,
+                                                initialLoan: loan,
+                                              ),
                                             ),
                                           );
-                                        }
-                                      } finally {
-                                        if (mounted) {
-                                          setState(() => _loading = false);
-                                        }
+                                      if (changed == true && context.mounted) {
+                                        Navigator.of(context).pop(true);
                                       }
                                     },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: kLibBeigeButton,
+                                backgroundColor: kLibRed,
                                 foregroundColor: Colors.white,
                               ),
-                              icon: const Icon(Icons.assignment_return),
-                              label: const Text('Trả sách'),
+                              icon: const Icon(Icons.warning_amber_rounded),
+                              label: const Text('Báo cáo'),
                             ),
                           ),
+                          if (fineAmount > 0 && !finePaid) ...[
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _loading ? null : () => _payFine(tx),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: kLibBrownTitle,
+                                  foregroundColor: Colors.white,
+                                ),
+                                icon: const Icon(Icons.payments_outlined),
+                                label: const Text('Thu tiền phạt'),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],

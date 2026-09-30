@@ -25,7 +25,10 @@ router.get('/history', circulationController.getLoanHistory);
 // 6. Thu tiền phạt quá hạn (Chỉ Thủ thư hoặc Quản trị viên)
 router.put('/:id/pay-fine', roleMiddleware('librarian', 'admin'), circulationController.payFine);
 
-// 7. Báo mất sách (Chỉ Thủ thư hoặc Quản trị viên)
+// 7. Ghi nhận sự cố mượn sách: mất, hỏng, quá hạn hoặc lý do khác
+router.put('/:id/report', roleMiddleware('librarian', 'admin'), circulationController.reportBookIssue);
+
+// 8. Báo mất sách (giữ tương thích với ứng dụng cũ)
 router.put('/:id/lost', roleMiddleware('librarian', 'admin'), circulationController.reportLostBook);
 
 module.exports = router;

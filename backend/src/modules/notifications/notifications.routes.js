@@ -25,4 +25,7 @@ router.delete('/:id', notificationsController.deleteNotification);
 // 6. Quét và tạo thông báo quá hạn & sắp hết hạn ngay lập tức (Thủ thư / Admin)
 router.post('/scan-overdue', roleMiddleware('librarian', 'admin'), notificationsController.triggerOverdueScan);
 
+// 7. Quét và tạo thông báo thẻ sắp/hết hạn ngay lập tức (Thủ thư / Admin)
+router.post('/scan-card-expiration', roleMiddleware('librarian', 'admin'), notificationsController.triggerCardExpirationScan);
+
 module.exports = router;

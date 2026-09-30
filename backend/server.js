@@ -1,6 +1,7 @@
 require('dotenv').config();
 const app = require('./src/app');
 const { startOverdueScheduler } = require('./src/jobs/overdueNotification.job');
+const { startCardExpirationScheduler } = require('./src/jobs/cardExpirationNotification.job');
 
 const PORT = process.env.PORT || 3000;
 
@@ -10,4 +11,5 @@ app.listen(PORT, () => {
     
     // Khoi dong tien trinh tu dong quet sach qua han (Dinh ky 60 phut)
     startOverdueScheduler(60);
+    startCardExpirationScheduler(60);
 });

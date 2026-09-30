@@ -55,3 +55,4 @@ const createImageUpload = (folder, label) => {
 
 exports.uploadBookCover = createImageUpload('book-covers', 'Ảnh bìa');
 exports.uploadReaderAvatar = createImageUpload('reader-avatars', 'Ảnh đại diện');
+exports.uploadReportEvidence = createImageUpload('report-evidence', 'Ảnh minh chứng');

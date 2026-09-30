@@ -611,37 +611,73 @@ exports.payFine = async ({ tx_id }) => {
 };
 
 /**
- * 7. Báo mất sách (Report Lost Book)
+ * 7. Ghi nhận sự cố mượn sách và khoản phạt liên quan.
  */
-exports.reportLostBook = async ({ tx_id }) => {
+exports.reportBookIssue = async ({ tx_id, reason, note = null, fine_amount = 0, evidence_url = null }) => {
+    const validReasons = ['lost', 'damaged', 'overdue', 'other'];
+    if (!validReasons.includes(reason)) {
+        throw new Error('Lý do báo cáo không hợp lệ!');
+    }
+
+    const fineAmount = Number(fine_amount || 0);
+    if (!Number.isFinite(fineAmount) || fineAmount < 0) {
+        throw new Error('Tiền phạt phải là số không âm!');
+    }
+
     const [rows] = await db.query(
-        `SELECT bt.*, bc.copy_id 
+        `SELECT bt.*, bc.copy_id, bc.status AS copy_status
          FROM borrow_transactions bt 
          JOIN book_copies bc ON bt.copy_id = bc.copy_id 
-         WHERE bt.tx_id = ? AND bt.status IN ('borrowed', 'overdue')`,
+         WHERE bt.tx_id = ?`,
         [tx_id]
     );
 
     if (rows.length === 0) {
-        throw new Error('Không tìm thấy giao dịch mượn đang hoạt động!');
+        throw new Error('Không tìm thấy giao dịch mượn sách!');
     }
 
     const tx = rows[0];
+    if (reason === 'lost' && !['borrowed', 'overdue'].includes(tx.status)) {
+        throw new Error('Chỉ có thể báo mất với giao dịch đang mượn hoặc quá hạn!');
+    }
 
     const conn = await db.getConnection();
     try {
         await conn.beginTransaction();
 
-        await conn.query('UPDATE borrow_transactions SET status = "lost" WHERE tx_id = ?', [tx_id]);
-        await conn.query('UPDATE book_copies SET status = "lost" WHERE copy_id = ?', [tx.copy_id]);
+        const nextStatus = reason === 'lost' ? 'lost' : tx.status;
+        await conn.query(
+            `UPDATE borrow_transactions
+             SET status = ?, fine_amount = ?, fine_paid = ?, report_reason = ?,
+                 report_note = ?, report_evidence_url = ?, reported_at = NOW()
+             WHERE tx_id = ?`,
+            [
+                nextStatus,
+                fineAmount,
+                fineAmount === 0 ? 1 : 0,
+                reason,
+                note && String(note).trim() ? String(note).trim() : null,
+                evidence_url && String(evidence_url).trim() ? String(evidence_url).trim() : null,
+                tx_id
+            ]
+        );
+
+        if (reason === 'lost') {
+            await conn.query('UPDATE book_copies SET status = "lost" WHERE copy_id = ?', [tx.copy_id]);
+        } else if (reason === 'damaged') {
+            await conn.query('UPDATE book_copies SET `condition` = "damaged" WHERE copy_id = ?', [tx.copy_id]);
+        }
 
         await conn.commit();
 
         return {
             tx_id,
             copy_id: tx.copy_id,
-            status: 'lost',
-            message: 'Đã ghi nhận sách bị mất'
+            status: nextStatus,
+            reason,
+            fine_amount: fineAmount,
+            fine_paid: fineAmount === 0,
+            evidence_url: evidence_url || null
         };
     } catch (error) {
         await conn.rollback();
@@ -650,3 +686,5 @@ exports.reportLostBook = async ({ tx_id }) => {
         conn.release();
     }
 };
+
+exports.reportLostBook = async ({ tx_id }) => exports.reportBookIssue({ tx_id, reason: 'lost' });

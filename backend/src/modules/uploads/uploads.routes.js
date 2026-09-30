@@ -18,4 +18,11 @@ router.post(
     uploadsController.uploadReaderAvatar
 );
 
+router.post(
+    '/report-evidence',
+    authMiddleware,
+    roleMiddleware('librarian', 'admin'),
+    uploadsController.uploadReportEvidence
+);
+
 module.exports = router;

@@ -16,6 +16,7 @@ class _BorrowReturnBookManagementState
     extends State<BorrowReturnBookManagement> {
   final _search = TextEditingController();
   List<Map<String, dynamic>> _loans = const [];
+  bool _showFines = false;
   bool _loading = true;
   String? _error;
   @override
@@ -38,11 +39,32 @@ class _BorrowReturnBookManagementState
     try {
       final result = apiMap(
         await ApiClient.get(
-          '/circulation/active',
-          query: {'keyword': _search.text.trim(), 'limit': 100},
+          _showFines ? '/circulation/history' : '/circulation/active',
+          query: {
+            if (!_showFines) 'keyword': _search.text.trim(),
+            'limit': 100,
+          },
         ),
       );
-      if (mounted) setState(() => _loans = apiList(result['data']));
+      var loans = apiList(result['data']);
+      if (_showFines) {
+        final keyword = _search.text.trim().toLowerCase();
+        loans = loans.where((loan) {
+          final fine = num.tryParse('${loan['fine_amount'] ?? 0}') ?? 0;
+          final matches =
+              keyword.isEmpty ||
+              apiText(
+                loan['reader_name'],
+                fallback: '',
+              ).toLowerCase().contains(keyword) ||
+              apiText(
+                loan['book_title'],
+                fallback: '',
+              ).toLowerCase().contains(keyword);
+          return fine > 0 && matches;
+        }).toList();
+      }
+      if (mounted) setState(() => _loans = loans);
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -79,6 +101,28 @@ class _BorrowReturnBookManagementState
                   icon: const Icon(Icons.refresh, color: kLibBrownTitle),
                 ),
               ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(11, 0, 11, 10),
+            child: SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                  value: false,
+                  icon: Icon(Icons.menu_book_rounded),
+                  label: Text('Đang mượn'),
+                ),
+                ButtonSegment(
+                  value: true,
+                  icon: Icon(Icons.payments_outlined),
+                  label: Text('Tiền phạt'),
+                ),
+              ],
+              selected: {_showFines},
+              onSelectionChanged: (value) {
+                setState(() => _showFines = value.first);
+                _load();
+              },
             ),
           ),
           Container(
@@ -119,7 +163,9 @@ class _BorrowReturnBookManagementState
               error: _error,
               isEmpty: _loans.isEmpty,
               onRetry: _load,
-              emptyMessage: 'Không có lượt mượn đang hoạt động',
+              emptyMessage: _showFines
+                  ? 'Không có giao dịch phát sinh tiền phạt'
+                  : 'Không có lượt mượn đang hoạt động',
               child: RefreshIndicator(
                 onRefresh: _load,
                 child: ListView.separated(

@@ -4,6 +4,7 @@ import 'package:libary_management/core/api_client.dart';
 
 import 'librarian_nav.dart';
 import 'profile_admin_detail.dart';
+import 'user_management.dart';
 
 class ProfileAdmin extends StatelessWidget {
   const ProfileAdmin({super.key});
@@ -71,15 +72,32 @@ class ProfileAdmin extends StatelessWidget {
               children: [
                 LibSectionCard(
                   title: 'Tài khoản',
-                  child: LibMenuRow(
-                    label: 'Thông tin cá nhân',
-                    icon: Icons.badge_outlined,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ProfileAdminDetail(),
+                  child: Column(
+                    children: [
+                      LibMenuRow(
+                        label: 'Thông tin cá nhân',
+                        icon: Icons.badge_outlined,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ProfileAdminDetail(),
+                          ),
+                        ),
                       ),
-                    ),
+                      if (AppSession.user?['role'] == 'admin') ...[
+                        const Divider(height: 1),
+                        LibMenuRow(
+                          label: 'Quản lý tài khoản',
+                          icon: Icons.manage_accounts_outlined,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const UserManagement(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 const SizedBox(height: 16),

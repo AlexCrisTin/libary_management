@@ -3,7 +3,6 @@ import 'package:libary_management/core/api_client.dart';
 import 'package:libary_management/core/api_state.dart';
 import 'package:libary_management/reader/home.dart';
 import 'package:libary_management/reader/message.dart';
-import 'package:libary_management/reader/qr_scanner.dart';
 import 'package:libary_management/reader/reader_nav.dart';
 
 class DetailBook extends StatefulWidget {
@@ -71,25 +70,13 @@ class _DetailBookState extends State<DetailBook> {
           ),
           content: Text(
             'Hiện còn $_availableCopies bản trên kệ. '
-            'Bạn hãy đến quầy thủ thư hoặc quét mã QR của bản sách để mượn.',
+            'Bạn hãy đến quầy thủ thư để làm thủ tục mượn sách.',
             style: const TextStyle(color: kBookTitle, height: 1.45),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Đóng'),
-            ),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: kBrownTitle),
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const QrScanner()),
-                );
-              },
-              icon: const Icon(Icons.qr_code_scanner_rounded),
-              label: const Text('Quét mã'),
             ),
           ],
         ),
@@ -196,14 +183,7 @@ class _DetailBookState extends State<DetailBook> {
         ],
       ),
       floatingActionButton: ChatFab(onPressed: _openMessage),
-      bottomNavigationBar: ReaderBottomBar(
-        currentIndex: 1,
-        onSelect: _openTab,
-        onScan: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const QrScanner()),
-        ),
-      ),
+      bottomNavigationBar: ReaderBottomBar(currentIndex: 1, onSelect: _openTab),
     );
   }
 }

@@ -6,7 +6,6 @@ import 'package:libary_management/reader/detailbook.dart';
 import 'package:libary_management/reader/message.dart';
 import 'package:libary_management/reader/notice.dart';
 import 'package:libary_management/reader/profile.dart';
-import 'package:libary_management/reader/qr_scanner.dart';
 import 'package:libary_management/reader/reader_nav.dart';
 import 'package:libary_management/reader/seeborrowbook.dart';
 
@@ -38,14 +37,13 @@ class _HomeState extends State<Home> {
         },
       ),
       const AllBook(),
-      const SizedBox.shrink(),
       SeeBorrowBook(onOpenSearch: () => setState(() => _index = 1)),
       const Profile(),
     ];
     return Scaffold(
       backgroundColor: Colors.white,
       body: pages[_index],
-      floatingActionButton: _index < 4
+      floatingActionButton: _index < 3
           ? ChatFab(
               onPressed: () => Navigator.push(
                 context,
@@ -60,10 +58,6 @@ class _HomeState extends State<Home> {
       bottomNavigationBar: ReaderBottomBar(
         currentIndex: _index,
         onSelect: (i) => setState(() => _index = i),
-        onScan: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const QrScanner()),
-        ),
       ),
     );
   }

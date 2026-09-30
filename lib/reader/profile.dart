@@ -5,6 +5,7 @@ import 'package:libary_management/core/local_image.dart';
 import 'package:libary_management/login/login.dart';
 import 'package:libary_management/reader/fine.dart';
 import 'package:libary_management/reader/history.dart';
+import 'package:libary_management/reader/holds.dart';
 import 'package:libary_management/reader/profile_detail.dart';
 import 'package:libary_management/reader/reader_nav.dart';
 
@@ -274,6 +275,11 @@ class _ProfileState extends State<Profile> {
                         label: 'Tiền phạt',
                         icon: Icons.warning_rounded,
                         onTap: () => _open(const Fine()),
+                      ),
+                      _ProfileMenuRow(
+                        label: 'Sách đã đặt trước',
+                        icon: Icons.bookmark_rounded,
+                        onTap: () => _open(const ReaderHolds()),
                       ),
                       _ProfileMenuRow(
                         label: 'Thẻ thư viện',

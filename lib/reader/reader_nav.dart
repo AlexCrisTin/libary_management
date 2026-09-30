@@ -12,16 +12,10 @@ const kCardFill = Color(0xFFF7F0EA);
 const kCoverAsset = 'assets/img/F4bfd9e1649e82dcfdbe.jpg';
 
 class ReaderBottomBar extends StatelessWidget {
-  const ReaderBottomBar({
-    super.key,
-    required this.currentIndex,
-    this.onSelect,
-    this.onScan,
-  });
+  const ReaderBottomBar({super.key, required this.currentIndex, this.onSelect});
 
   final int currentIndex;
   final ValueChanged<int>? onSelect;
-  final VoidCallback? onScan;
 
   void _open(BuildContext context, int index) {
     onSelect?.call(index);
@@ -43,17 +37,8 @@ class ReaderBottomBar extends StatelessWidget {
             children: [
               _item(context, 0, Icons.home_rounded),
               _item(context, 1, Icons.auto_stories_rounded),
-              IconButton(
-                tooltip: 'Quét mã QR sách',
-                onPressed: onScan,
-                icon: Icon(
-                  Icons.camera_alt_rounded,
-                  size: 28,
-                  color: kBrownTitle.withValues(alpha: 0.6),
-                ),
-              ),
-              _item(context, 3, Icons.menu_book_rounded),
-              _item(context, 4, Icons.person_rounded),
+              _item(context, 2, Icons.menu_book_rounded),
+              _item(context, 3, Icons.person_rounded),
             ],
           ),
         ),

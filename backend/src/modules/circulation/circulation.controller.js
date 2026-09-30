@@ -152,12 +152,32 @@ exports.payFine = async (req, res, next) => {
 };
 
 /**
- * 7. PUT /api/circulation/:id/lost - Báo mất sách (Thủ thư/Admin)
+ * 7. PUT /api/circulation/:id/report - Ghi nhận sự cố và tiền phạt
+ */
+exports.reportBookIssue = async (req, res, next) => {
+    try {
+        const tx_id = req.params.id;
+        const { reason, note, fine_amount, evidence_url } = req.body;
+        const result = await circulationService.reportBookIssue({
+            tx_id,
+            reason,
+            note,
+            fine_amount,
+            evidence_url
+        });
+        return sendSuccess(res, 'Ghi nhận báo cáo thành công', result);
+    } catch (error) {
+        return sendError(res, error.message, 400);
+    }
+};
+
+/**
+ * 8. PUT /api/circulation/:id/lost - Báo mất sách (Thủ thư/Admin)
  */
 exports.reportLostBook = async (req, res, next) => {
     try {
         const tx_id = req.params.id;
-        const result = await circulationService.reportLostBook({ tx_id });
+        const result = await circulationService.reportBookIssue({ tx_id, reason: 'lost' });
         return sendSuccess(res, 'Ghi nhận mất sách thành công', result);
     } catch (error) {
         return sendError(res, error.message, 400);
