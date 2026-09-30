@@ -355,7 +355,8 @@
     "/api/books/{id}/copies": {
       "get": {
         "tags": ["Books"],
-        "summary": "Lay danh sach tat ca ban sao vat ly cua dau sach",
+        "summary": "Lay danh sach tat ca ban sao vat ly cua dau sach (Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
@@ -585,7 +586,8 @@
     "/api/readers": {
       "get": {
         "tags": ["Readers"],
-        "summary": "Danh sach doc gia (tim kiem, loc khoa phong, trang thai the)",
+        "summary": "Danh sach doc gia (tim kiem, loc khoa phong, trang thai the - Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
         "parameters": [
           { "name": "search", "in": "query", "schema": { "type": "string" } },
           { "name": "department", "in": "query", "schema": { "type": "string" } },
@@ -597,7 +599,8 @@
       },
       "post": {
         "tags": ["Readers"],
-        "summary": "Tao ho so doc gia va cap the thu vien moi",
+        "summary": "Tao ho so doc gia va cap the thu vien moi (Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -626,7 +629,8 @@
     "/api/readers/{id}": {
       "get": {
         "tags": ["Readers"],
-        "summary": "Xem chi tiet mot doc gia",
+        "summary": "Xem chi tiet mot doc gia (Chinh doc gia hoac Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
@@ -637,7 +641,8 @@
       },
       "put": {
         "tags": ["Readers"],
-        "summary": "Chinh sua thong tin doc gia",
+        "summary": "Chinh sua thong tin doc gia (Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
@@ -663,7 +668,8 @@
       },
       "delete": {
         "tags": ["Readers"],
-        "summary": "Xoa ho so doc gia",
+        "summary": "Xoa ho so doc gia (Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
@@ -675,7 +681,8 @@
     "/api/readers/{id}/card": {
       "put": {
         "tags": ["Readers"],
-        "summary": "Quan ly the thu vien: Khoa, Mo khoa, Gia han the",
+        "summary": "Quan ly the thu vien: Khoa, Mo khoa, Gia han the (Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
@@ -701,7 +708,8 @@
     "/api/readers/{id}/borrowing": {
       "get": {
         "tags": ["Readers"],
-        "summary": "Lay danh sach sach ma doc gia dang muon",
+        "summary": "Lay danh sach sach ma doc gia dang muon (Chinh doc gia hoac Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
@@ -713,7 +721,8 @@
     "/api/readers/{id}/history": {
       "get": {
         "tags": ["Readers"],
-        "summary": "Lich su muon tra cua doc gia",
+        "summary": "Lich su muon tra cua doc gia (Chinh doc gia hoac Thu thu/Admin)",
+        "security": [{ "BearerAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],

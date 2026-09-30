@@ -1,6 +1,12 @@
-﻿const express = require('express');
+const express = require('express');
 const router = express.Router();
 const usersController = require('./users.controller');
+const authMiddleware = require('../../middlewares/auth.middleware');
+const roleMiddleware = require('../../middlewares/role.middleware');
+
+// Toàn bộ chức năng quản lý tài khoản bắt buộc phải đăng nhập và chỉ dành riêng cho Quản trị viên (Admin)
+router.use(authMiddleware);
+router.use(roleMiddleware('admin'));
 
 // 1. Lấy danh sách tài khoản (hỗ trợ lọc theo role, tìm kiếm)
 router.get('/', usersController.getAllUsers);
