@@ -1160,6 +1160,17 @@
         }
       }
     },
+    "/api/notifications/scan-overdue": {
+      "post": {
+        "tags": ["Notifications"],
+        "summary": "Thu thu / Admin kich hoat quet sach qua han va tao thong bao ngay lap tuc",
+        "description": "Quet toan bo sach muon qua han va sap het han (trong 2 ngay toi), tu dong cap nhat status overdue va tao notification cho doc gia (co chong spam trung lap trong ngay).",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Quet va tao thong bao thanh cong, tra ve so luong thong bao moi" }
+        }
+      }
+    },
     "/api/chat/messages": {
       "get": {
         "tags": ["Chat"],

@@ -1,4 +1,5 @@
 const notificationsService = require('./notifications.service');
+const { scanAndNotifyOverdue } = require('../../jobs/overdueNotification.job');
 const { sendSuccess, sendError } = require('../../utils/response');
 
 /**
@@ -88,3 +89,16 @@ exports.deleteNotification = async (req, res, next) => {
         return sendError(res, error.message, 400);
     }
 };
+
+/**
+ * 6. POST /api/notifications/scan-overdue - Thu thu / Admin kich hoat quet va tao thong bao qua han ngay lap tuc
+ */
+exports.triggerOverdueScan = async (req, res, next) => {
+    try {
+        const result = await scanAndNotifyOverdue();
+        return sendSuccess(res, 'Quét và tạo thông báo quá hạn thành công', result);
+    } catch (error) {
+        next(error);
+    }
+};
+

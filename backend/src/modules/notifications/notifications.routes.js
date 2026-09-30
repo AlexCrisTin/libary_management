@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const notificationsController = require('./notifications.controller');
 const authMiddleware = require('../../middlewares/auth.middleware');
+const roleMiddleware = require('../../middlewares/role.middleware');
 
 // Tất cả các thao tác thông báo đều yêu cầu đăng nhập
 router.use(authMiddleware);
@@ -20,5 +21,8 @@ router.put('/:id/read', notificationsController.markAsRead);
 
 // 5. Xóa 1 thông báo
 router.delete('/:id', notificationsController.deleteNotification);
+
+// 6. Quét và tạo thông báo quá hạn & sắp hết hạn ngay lập tức (Thủ thư / Admin)
+router.post('/scan-overdue', roleMiddleware('librarian', 'admin'), notificationsController.triggerOverdueScan);
 
 module.exports = router;
