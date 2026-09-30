@@ -35,7 +35,10 @@ class _FormAddBookState extends State<FormAddBook> {
   String? _locationId;
   bool _loading = false;
   bool _loadingShelves = true;
+  bool _lookingUpIsbn = false;
   String _coverData = '';
+  String _lookupCoverUrl = '';
+  String? _lookupSource;
 
   @override
   void initState() {
@@ -95,6 +98,124 @@ class _FormAddBookState extends State<FormAddBook> {
     }
   }
 
+  Future<void> _scanIsbn() async {
+    final code = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LibrarianScanner(
+          returnRawCode: true,
+          title: 'Quét mã ISBN',
+          instruction: 'Đưa mã ISBN ở bìa sau của sách vào khung',
+        ),
+      ),
+    );
+    if (!mounted || code == null) return;
+    final isbn = _normalizeIsbn(code);
+    if (!_isValidIsbn(isbn)) {
+      _show('Mã vừa quét không phải ISBN-10 hoặc ISBN-13 hợp lệ.');
+      return;
+    }
+    _isbn.text = isbn;
+    await _lookupIsbn();
+  }
+
+  Future<void> _lookupIsbn() async {
+    final isbn = _normalizeIsbn(_isbn.text);
+    if (!_isValidIsbn(isbn)) {
+      _show('Hãy nhập hoặc quét ISBN-10 / ISBN-13 hợp lệ.');
+      return;
+    }
+
+    setState(() => _lookingUpIsbn = true);
+    try {
+      final result = apiMap(await ApiClient.get('/books/lookup-isbn/$isbn'));
+      if (result['already_in_library'] == true) {
+        final existing = apiMap(result['existing_book']);
+        final existingTitle = apiText(existing['title'], fallback: '');
+        throw ApiException(
+          existingTitle.isEmpty
+              ? 'ISBN này đã có trong thư viện.'
+              : 'ISBN này đã có trong thư viện: $existingTitle',
+        );
+      }
+
+      final info = apiMap(result['book_info']);
+      if (info.isEmpty) {
+        throw const ApiException('Máy chủ không trả về thông tin sách.');
+      }
+      _applyLookupData(isbn, info);
+      if (mounted) {
+        _show('Đã tự động điền thông tin. Bạn có thể chỉnh sửa trước khi tạo.');
+      }
+    } catch (error) {
+      if (mounted) _show(error.toString());
+    } finally {
+      if (mounted) setState(() => _lookingUpIsbn = false);
+    }
+  }
+
+  void _applyLookupData(String isbn, Map<String, dynamic> info) {
+    final authorNames = <String>[];
+    for (final author
+        in info['authors'] is List ? info['authors'] as List : const []) {
+      final name = author is Map
+          ? apiText(author['name'], fallback: '')
+          : apiText(author, fallback: '');
+      if (name.isNotEmpty && !authorNames.contains(name)) authorNames.add(name);
+    }
+
+    final categoryNames = <String>[];
+    final categoryValues = info['categories_status'] is List
+        ? info['categories_status'] as List
+        : (info['categories'] is List ? info['categories'] as List : const []);
+    for (final category in categoryValues) {
+      final name = category is Map
+          ? apiText(category['name'], fallback: '')
+          : apiText(category, fallback: '');
+      if (name.isNotEmpty && !categoryNames.contains(name)) {
+        categoryNames.add(name);
+      }
+    }
+
+    final publisherStatus = apiMap(info['publisher_status']);
+    setState(() {
+      _isbn.text = apiText(info['isbn'], fallback: isbn);
+      _setController(_title, info['title']);
+      _setController(_subtitle, info['subtitle']);
+      _setController(
+        _publisherName,
+        publisherStatus['name'] ?? info['publisher_name'],
+      );
+      _setController(_year, info['publish_year']);
+      _setController(_edition, info['edition']);
+      _setController(_language, info['language'], fallback: 'vi');
+      _setController(_pages, info['page_count']);
+      _setController(_description, info['description']);
+      _authors
+        ..clear()
+        ..addAll(authorNames);
+      _subjects
+        ..clear()
+        ..addAll(categoryNames);
+      _lookupCoverUrl = apiText(info['cover_url'], fallback: '');
+      _lookupSource = apiText(info['source'], fallback: '');
+    });
+  }
+
+  void _setController(
+    TextEditingController controller,
+    dynamic value, {
+    String fallback = '',
+  }) {
+    controller.text = apiText(value, fallback: fallback);
+  }
+
+  String _normalizeIsbn(String value) =>
+      value.toUpperCase().replaceAll(RegExp(r'[^0-9X]'), '');
+
+  bool _isValidIsbn(String value) =>
+      RegExp(r'^(?:\d{13}|\d{9}[\dX])$').hasMatch(value);
+
   Future<void> _submit() async {
     if (_title.text.trim().isEmpty) {
       _show('Tên sách không được để trống.');
@@ -125,7 +246,9 @@ class _FormAddBookState extends State<FormAddBook> {
     setState(() => _loading = true);
     try {
       await _ensureIsbnIsUnique();
-      String? uploadedCoverUrl;
+      String? uploadedCoverUrl = _lookupCoverUrl.isEmpty
+          ? null
+          : _lookupCoverUrl;
       if (_coverData.isNotEmpty) {
         final bytes = decodeDataImage(_coverData);
         if (bytes == null) {
@@ -143,9 +266,8 @@ class _FormAddBookState extends State<FormAddBook> {
           'subtitle': _nullable(_subtitle.text),
           'isbn': _nullable(_isbn.text),
           'authors': _authors,
-          // Chưa có API danh mục nhà xuất bản: lưu tên vào metadata thay vì
-          // gửi nó vào khóa ngoại publisher_id và làm MySQL từ chối bản ghi.
           'publisher_id': null,
+          'publisher_name': _nullable(_publisherName.text),
           'publish_year': publishYear,
           'edition': _nullable(_edition.text),
           'language': _language.text.trim().isEmpty
@@ -258,19 +380,31 @@ class _FormAddBookState extends State<FormAddBook> {
                         ),
                         _CoverPicker(
                           data: _coverData,
+                          networkUrl: _lookupCoverUrl,
                           onTap: _selectCoverImage,
-                          onRemove: _coverData.isEmpty
+                          onRemove:
+                              _coverData.isEmpty && _lookupCoverUrl.isEmpty
                               ? null
-                              : () => setState(() => _coverData = ''),
+                              : () => setState(() {
+                                  _coverData = '';
+                                  _lookupCoverUrl = '';
+                                }),
                         ),
                         const SizedBox(height: 26),
+                        _IsbnLookupField(
+                          controller: _isbn,
+                          loading: _lookingUpIsbn,
+                          onScan: _scanIsbn,
+                          onLookup: _lookupIsbn,
+                        ),
+                        if (_lookupSource != null && _lookupSource!.isNotEmpty)
+                          _LookupNotice(source: _lookupSource!),
                         _FullField(
                           label: 'Tên sách',
                           controller: _title,
                           required: true,
                         ),
                         _FullField(label: 'Phụ đề', controller: _subtitle),
-                        _FullField(label: 'ISBN', controller: _isbn),
                         _MultiValueField(
                           label: 'Tác giả',
                           controller: _authorInput,
@@ -388,11 +522,13 @@ const _labelStyle = TextStyle(
 class _CoverPicker extends StatelessWidget {
   const _CoverPicker({
     required this.data,
+    required this.networkUrl,
     required this.onTap,
     required this.onRemove,
   });
 
   final String data;
+  final String networkUrl;
   final VoidCallback onTap;
   final VoidCallback? onRemove;
 
@@ -412,13 +548,23 @@ class _CoverPicker extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             clipBehavior: Clip.antiAlias,
-            child: bytes == null
-                ? const Icon(
+            child: bytes != null
+                ? Image.memory(bytes, fit: BoxFit.cover)
+                : networkUrl.isNotEmpty
+                ? Image.network(
+                    networkUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.broken_image_outlined,
+                      color: Color(0xFF405170),
+                      size: 38,
+                    ),
+                  )
+                : const Icon(
                     Icons.image_rounded,
                     color: Color(0xFF405170),
                     size: 38,
-                  )
-                : Image.memory(bytes, fit: BoxFit.cover),
+                  ),
           ),
         ),
         const SizedBox(height: 4),
@@ -431,6 +577,116 @@ class _CoverPicker extends StatelessWidget {
           label: Text(onRemove == null ? 'Chọn ảnh từ máy' : 'Xóa ảnh'),
         ),
       ],
+    );
+  }
+}
+
+class _IsbnLookupField extends StatelessWidget {
+  const _IsbnLookupField({
+    required this.controller,
+    required this.loading,
+    required this.onScan,
+    required this.onLookup,
+  });
+
+  final TextEditingController controller;
+  final bool loading;
+  final VoidCallback onScan;
+  final VoidCallback onLookup;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          const SizedBox(width: 82, child: Text('ISBN', style: _labelStyle)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _InputBox(
+              controller: controller,
+              keyboardType: TextInputType.text,
+              onSubmitted: (_) => onLookup(),
+            ),
+          ),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: IconButton.filled(
+              tooltip: 'Tra cứu ISBN đã nhập',
+              onPressed: loading ? null : onLookup,
+              padding: EdgeInsets.zero,
+              style: IconButton.styleFrom(backgroundColor: kLibBrownTitle),
+              icon: loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.search_rounded, color: Colors.white),
+            ),
+          ),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: IconButton.filled(
+              tooltip: 'Quét mã ISBN',
+              onPressed: loading ? null : onScan,
+              padding: EdgeInsets.zero,
+              style: IconButton.styleFrom(backgroundColor: kLibBeigeButton),
+              icon: const Icon(
+                Icons.qr_code_scanner_rounded,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LookupNotice extends StatelessWidget {
+  const _LookupNotice({required this.source});
+
+  final String source;
+
+  @override
+  Widget build(BuildContext context) {
+    final sourceLabel = source == 'google_books'
+        ? 'Google Books'
+        : source == 'open_library'
+        ? 'Open Library'
+        : source;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: kLibGreen.withValues(alpha: .14),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.auto_awesome_rounded, color: kLibGreen, size: 18),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              'Đã điền từ $sourceLabel • Có thể chỉnh sửa tất cả thông tin',
+              style: const TextStyle(
+                color: kLibBrownTitle,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

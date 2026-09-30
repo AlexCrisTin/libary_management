@@ -5,7 +5,18 @@ import 'package:libary_management/core/api_client.dart';
 import 'detail_book.dart';
 
 class LibrarianScanner extends StatefulWidget {
-  const LibrarianScanner({super.key});
+  const LibrarianScanner({
+    super.key,
+    this.returnRawCode = false,
+    this.title = 'Quét QR / mã vạch sách',
+    this.instruction = 'Đưa mã QR hoặc mã vạch sách vào khung',
+  });
+
+  /// Khi bật, màn hình chỉ quét và trả mã về trang đã mở camera.
+  /// Chế độ mặc định vẫn tra cứu và mở chi tiết sách như trước.
+  final bool returnRawCode;
+  final String title;
+  final String instruction;
 
   @override
   State<LibrarianScanner> createState() => _LibrarianScannerState();
@@ -27,6 +38,11 @@ class _LibrarianScannerState extends State<LibrarianScanner> {
     if (value == null || value.isEmpty) return;
 
     _openingBook = true;
+    if (widget.returnRawCode) {
+      await _controller.stop();
+      if (mounted) Navigator.pop(context, value.trim());
+      return;
+    }
     try {
       String bookId = value;
       try {
@@ -73,9 +89,9 @@ class _LibrarianScannerState extends State<LibrarianScanner> {
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
                     ),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Quét QR / mã vạch sách',
+                        widget.title,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white,
@@ -108,8 +124,8 @@ class _LibrarianScannerState extends State<LibrarianScanner> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Đưa mã QR hoặc mã vạch sách vào khung',
+                Text(
+                  widget.instruction,
                   style: TextStyle(color: Colors.white, fontSize: 15),
                 ),
                 const Spacer(),
