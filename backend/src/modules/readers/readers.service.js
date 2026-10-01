@@ -117,6 +117,7 @@ exports.createReader = async (data) => {
         birth_date = null,
         phone = null,
         email = null,
+        address = null,
         reader_type = 'student',
         faculty = null,
         max_books = 5,
@@ -144,14 +145,14 @@ exports.createReader = async (data) => {
     const sql = `
         INSERT INTO readers (
             reader_id, user_id, reader_code, full_name, birth_date, 
-            phone, email, reader_type, faculty, card_issued, card_expired, 
+            phone, email, address, reader_type, faculty, card_issued, card_expired,
             status, max_books, avatar_url
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     await db.query(sql, [
         readerId, user_id, readerCode, full_name, birth_date,
-        phone, email, reader_type, faculty, cardIssued, cardExpired,
+        phone, email, address, reader_type, faculty, cardIssued, cardExpired,
         status, Number(max_books), avatar_url
     ]);
 
@@ -174,7 +175,7 @@ exports.updateReader = async (readerId, updateData) => {
     const fields = [];
     const values = [];
 
-    const allowed = ['full_name', 'birth_date', 'phone', 'email', 'reader_type', 'faculty', 'max_books', 'avatar_url'];
+    const allowed = ['full_name', 'birth_date', 'phone', 'email', 'address', 'reader_type', 'faculty', 'max_books', 'avatar_url'];
     allowed.forEach((col) => {
         if (updateData[col] !== undefined) {
             fields.push(`${col} = ?`);

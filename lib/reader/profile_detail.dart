@@ -51,6 +51,7 @@ class _ProfileDetailState extends State<ProfileDetail> {
     required String field,
     required dynamic value,
     TextInputType keyboard = TextInputType.text,
+    int maxLines = 1,
   }) async {
     final controller = TextEditingController(
       text: apiText(value, fallback: ''),
@@ -70,6 +71,8 @@ class _ProfileDetailState extends State<ProfileDetail> {
         content: TextField(
           controller: controller,
           keyboardType: keyboard,
+          minLines: maxLines,
+          maxLines: maxLines,
           autofocus: true,
           decoration: InputDecoration(
             filled: true,
@@ -305,6 +308,17 @@ class _ProfileDetailState extends State<ProfileDetail> {
                           field: 'email',
                           value: _reader['email'],
                           keyboard: TextInputType.emailAddress,
+                        ),
+                      ),
+                      _ProfileRow(
+                        label: 'Địa chỉ',
+                        value: apiText(_reader['address']),
+                        onEdit: () => _editText(
+                          title: 'Chỉnh sửa địa chỉ',
+                          field: 'address',
+                          value: _reader['address'],
+                          keyboard: TextInputType.streetAddress,
+                          maxLines: 2,
                         ),
                       ),
                       _ProfileRow(

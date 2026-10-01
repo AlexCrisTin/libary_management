@@ -44,8 +44,8 @@ router.put('/:id/preferences', readerOrStaffMiddleware, readersController.update
 // 7. Xem chi tiết hồ sơ 1 độc giả (Chính độc giả đó hoặc Thủ thư/Admin)
 router.get('/:id', readerOrStaffMiddleware, readersController.getReaderById);
 
-// 8. Chỉnh sửa thông tin độc giả (Chỉ Thủ thư hoặc Admin)
-router.put('/:id', roleMiddleware('librarian', 'admin'), readersController.updateReader);
+// 8. Chỉnh sửa thông tin độc giả (Chính độc giả đó hoặc Thủ thư/Admin)
+router.put('/:id', readerOrStaffMiddleware, readersController.updateReader);
 
 // 9. Xóa hồ sơ độc giả (Chỉ Thủ thư hoặc Admin)
 router.delete('/:id', roleMiddleware('librarian', 'admin'), readersController.deleteReader);

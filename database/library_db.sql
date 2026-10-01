@@ -259,6 +259,7 @@ CREATE TABLE `readers` (
   `birth_date` date DEFAULT NULL,
   `phone` varchar(20) DEFAULT NULL,
   `email` varchar(255) DEFAULT NULL,
+  `address` text DEFAULT NULL,
   `reader_type` enum('student','lecturer','staff','public') DEFAULT 'student',
   `faculty` varchar(200) DEFAULT NULL COMMENT 'Khoa nếu là SV/GV',
   `card_issued` date DEFAULT NULL,

@@ -266,6 +266,7 @@ class _InformationCard extends StatelessWidget {
       _InfoRow(label: 'Ngày sinh', value: apiDate(reader['birth_date'])),
       _InfoRow(label: 'Số điện thoại', value: reader['phone']),
       _InfoRow(label: 'Email', value: reader['email']),
+      _InfoRow(label: 'Địa chỉ', value: reader['address']),
       _InfoRow(label: 'Khoa', value: reader['faculty']),
       _InfoRow(
         label: 'Loại độc giả',
