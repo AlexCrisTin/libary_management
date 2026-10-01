@@ -89,7 +89,7 @@ class _SeeBorrowBookState extends State<SeeBorrowBook> {
       await ApiClient.post('/circulation/renew/$id');
       if (mounted) setState(() => _selectedDueDate = null);
       await _load();
-      _showMessage('Gia hạn sách thành công.');
+      _showMessage('Đã gửi yêu cầu gia hạn đến thủ thư.');
     } catch (error) {
       _showMessage(error.toString());
     } finally {
@@ -211,6 +211,9 @@ class _SeeBorrowBookState extends State<SeeBorrowBook> {
                         child: _LoanCard(
                           loan: loan,
                           renewing: _renewingId == loan['tx_id']?.toString(),
+                          renewalPending:
+                              loan['renewal_request_status']?.toString() ==
+                              'pending',
                           onReturn: () => _showReturnInstructions(loan),
                           onRenew: () => _renew(loan),
                         ),
@@ -507,12 +510,14 @@ class _LoanCard extends StatelessWidget {
   const _LoanCard({
     required this.loan,
     required this.renewing,
+    required this.renewalPending,
     required this.onReturn,
     required this.onRenew,
   });
 
   final Map<String, dynamic> loan;
   final bool renewing;
+  final bool renewalPending;
   final VoidCallback onReturn;
   final VoidCallback onRenew;
 
@@ -590,7 +595,9 @@ class _LoanCard extends StatelessWidget {
               SizedBox(
                 height: 40,
                 child: ElevatedButton(
-                  onPressed: renewing ? null : onRenew,
+                  onPressed: renewing || renewalPending || overdue
+                      ? null
+                      : onRenew,
                   style: _loanButtonStyle,
                   child: renewing
                       ? const SizedBox(
@@ -601,7 +608,13 @@ class _LoanCard extends StatelessWidget {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text('Gia hạn'),
+                      : Text(
+                          overdue
+                              ? 'Đã quá hạn'
+                              : renewalPending
+                              ? 'Đang chờ duyệt'
+                              : 'Yêu cầu gia hạn',
+                        ),
                 ),
               ),
             ],

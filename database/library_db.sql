@@ -294,6 +294,24 @@ CREATE TABLE `reader_preferences` (
   `notification_pref` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'Cấu hình thông báo: {"email": true, "app": true, "sms": false}' CHECK (json_valid(`notification_pref`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `renewal_requests`
+--
+
+CREATE TABLE `renewal_requests` (
+  `request_id` varchar(36) NOT NULL,
+  `tx_id` varchar(36) NOT NULL,
+  `reader_id` varchar(36) NOT NULL,
+  `requested_days` tinyint(3) unsigned NOT NULL DEFAULT 7,
+  `approved_days` tinyint(3) unsigned DEFAULT NULL,
+  `status` enum('pending','approved','rejected','cancelled') NOT NULL DEFAULT 'pending',
+  `processed_by` varchar(36) DEFAULT NULL,
+  `processed_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 --
 -- Dumping data for table `reader_preferences`
 --
@@ -457,6 +475,15 @@ ALTER TABLE `reader_preferences`
   ADD PRIMARY KEY (`reader_id`);
 
 --
+-- Indexes for table `renewal_requests`
+--
+ALTER TABLE `renewal_requests`
+  ADD PRIMARY KEY (`request_id`),
+  ADD KEY `idx_renewal_tx_status` (`tx_id`,`status`),
+  ADD KEY `idx_renewal_reader` (`reader_id`),
+  ADD KEY `fk_renewal_processor` (`processed_by`);
+
+--
 -- Indexes for table `shelf_locations`
 --
 ALTER TABLE `shelf_locations`
@@ -532,6 +559,14 @@ ALTER TABLE `holds`
 --
 ALTER TABLE `notifications`
   ADD CONSTRAINT `fk_notif_reader` FOREIGN KEY (`reader_id`) REFERENCES `readers` (`reader_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `renewal_requests`
+--
+ALTER TABLE `renewal_requests`
+  ADD CONSTRAINT `fk_renewal_transaction` FOREIGN KEY (`tx_id`) REFERENCES `borrow_transactions` (`tx_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_renewal_reader` FOREIGN KEY (`reader_id`) REFERENCES `readers` (`reader_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_renewal_processor` FOREIGN KEY (`processed_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `readers`

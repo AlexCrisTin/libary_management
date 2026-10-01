@@ -5,6 +5,7 @@ import 'package:libary_management/core/api_state.dart';
 import 'borrow_return_detail.dart';
 import 'borrow_flow.dart';
 import 'librarian_nav.dart';
+import 'renewal_requests.dart';
 
 class BorrowReturnBookManagement extends StatefulWidget {
   const BorrowReturnBookManagement({super.key});
@@ -81,16 +82,34 @@ class _BorrowReturnBookManagementState
         children: [
           LibTitleHeader(
             title: 'Quản lý mượn / trả',
-            trailing: IconButton(
-              tooltip: 'Lập phiếu mượn',
-              onPressed: () async {
-                final changed = await Navigator.push<bool>(
-                  context,
-                  MaterialPageRoute(builder: (_) => const BorrowFlow()),
-                );
-                if (changed == true) _load();
-              },
-              icon: const Icon(Icons.add, color: Colors.white, size: 30),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'Duyệt yêu cầu gia hạn',
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const RenewalRequests(),
+                      ),
+                    );
+                    _load();
+                  },
+                  icon: const Icon(Icons.pending_actions, color: Colors.white),
+                ),
+                IconButton(
+                  tooltip: 'Lập phiếu mượn',
+                  onPressed: () async {
+                    final changed = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(builder: (_) => const BorrowFlow()),
+                    );
+                    if (changed == true) _load();
+                  },
+                  icon: const Icon(Icons.add, color: Colors.white, size: 30),
+                ),
+              ],
             ),
           ),
           Padding(

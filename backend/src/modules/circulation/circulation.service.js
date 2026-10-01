@@ -1,6 +1,14 @@
 const db = require('../../config/db');
 const { v4: uuidv4 } = require('uuid');
 
+const normalizeExtendDays = (value) => {
+    const days = Number(value);
+    if (!Number.isInteger(days) || days < 1 || days > 7) {
+        throw new Error('Số ngày gia hạn phải từ 1 đến 7 ngày!');
+    }
+    return days;
+};
+
 /**
  * 1. Cho mượn sách (Borrow Book)
  * Thủ thư thực hiện tại quầy hoặc thông qua quét mã
@@ -256,6 +264,14 @@ exports.returnBook = async ({ barcode, copy_id, tx_id, returned_to, condition, f
             [returnDate, returned_to || null, fineAmount, tx.tx_id]
         );
 
+        // Yêu cầu gia hạn chưa xử lý không còn giá trị sau khi sách được trả.
+        await conn.query(
+            `UPDATE renewal_requests
+             SET status = 'cancelled', processed_at = NOW()
+             WHERE tx_id = ? AND status = 'pending'`,
+            [tx.tx_id]
+        );
+
         // Kiểm tra xem đầu sách này có ai đang đặt trước trong hàng đợi (holds) không
         const [waitingHolds] = await conn.query(
             `SELECT * FROM holds 
@@ -349,9 +365,10 @@ exports.returnBook = async ({ barcode, copy_id, tx_id, returned_to, condition, f
 
 /**
  * 3. Gia hạn thời gian mượn (Renew Book)
- * Độc giả tự gia hạn hoặc Thủ thư hỗ trợ gia hạn
+ * Chỉ thủ thư/admin thực hiện gia hạn trực tiếp.
  */
 exports.renewBook = async ({ tx_id, reader_id, user_role, extend_days = 7 }) => {
+    const normalizedDays = normalizeExtendDays(extend_days);
     // 1. Tìm giao dịch mượn
     const [transactions] = await db.query(
         `SELECT 
@@ -370,6 +387,14 @@ exports.renewBook = async ({ tx_id, reader_id, user_role, extend_days = 7 }) => 
     }
 
     const tx = transactions[0];
+
+    const [pendingRequests] = await db.query(
+        'SELECT request_id FROM renewal_requests WHERE tx_id = ? AND status = "pending" LIMIT 1',
+        [tx_id]
+    );
+    if (pendingRequests.length > 0) {
+        throw new Error('Lượt mượn này có yêu cầu đang chờ duyệt. Vui lòng xử lý trong danh sách yêu cầu gia hạn!');
+    }
 
     // Nếu người gia hạn là độc giả, kiểm tra có đúng giao dịch của họ không
     if (user_role === 'reader' && tx.reader_id !== reader_id) {
@@ -402,7 +427,7 @@ exports.renewBook = async ({ tx_id, reader_id, user_role, extend_days = 7 }) => 
 
     // Tính ngày trả mới
     const newDueDateObj = new Date(dueDate);
-    newDueDateObj.setDate(newDueDateObj.getDate() + Number(extend_days));
+    newDueDateObj.setDate(newDueDateObj.getDate() + normalizedDays);
     const newDueDate = newDueDateObj.toISOString().split('T')[0];
 
     // Cập nhật giao dịch
@@ -421,6 +446,207 @@ exports.renewBook = async ({ tx_id, reader_id, user_role, extend_days = 7 }) => 
         renewed_count: tx.renewed_count + 1,
         max_renewals: 2
     };
+};
+
+/**
+ * Độc giả gửi yêu cầu gia hạn. Yêu cầu chỉ thay đổi hạn trả sau khi thủ thư duyệt.
+ */
+exports.requestRenewal = async ({ tx_id, reader_id, requested_days = 7 }) => {
+    const normalizedDays = normalizeExtendDays(requested_days);
+    const [transactions] = await db.query(
+        `SELECT bt.*, bc.bib_id, br.title AS book_title
+         FROM borrow_transactions bt
+         JOIN book_copies bc ON bt.copy_id = bc.copy_id
+         JOIN bibliographic_records br ON bc.bib_id = br.bib_id
+         WHERE bt.tx_id = ? AND bt.reader_id = ? AND bt.status IN ('borrowed', 'overdue')`,
+        [tx_id, reader_id]
+    );
+
+    if (transactions.length === 0) {
+        throw new Error('Không tìm thấy lượt mượn hợp lệ của bạn!');
+    }
+
+    const tx = transactions[0];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(tx.due_date);
+    dueDate.setHours(0, 0, 0, 0);
+    if (today > dueDate) {
+        throw new Error('Sách đã quá hạn nên không thể gửi yêu cầu gia hạn!');
+    }
+    if (tx.renewed_count >= 2) {
+        throw new Error('Cuốn sách này đã đạt giới hạn gia hạn tối đa (2 lần)!');
+    }
+
+    const [holds] = await db.query(
+        'SELECT hold_id FROM holds WHERE bib_id = ? AND status = "waiting" LIMIT 1',
+        [tx.bib_id]
+    );
+    if (holds.length > 0) {
+        throw new Error('Đầu sách đang có độc giả khác đặt trước nên không thể gia hạn!');
+    }
+
+    const [pending] = await db.query(
+        'SELECT request_id FROM renewal_requests WHERE tx_id = ? AND status = "pending" LIMIT 1',
+        [tx_id]
+    );
+    if (pending.length > 0) {
+        throw new Error('Yêu cầu gia hạn của cuốn sách này đang chờ thủ thư duyệt!');
+    }
+
+    const requestId = uuidv4();
+    await db.query(
+        `INSERT INTO renewal_requests
+            (request_id, tx_id, reader_id, requested_days, status, created_at)
+         VALUES (?, ?, ?, ?, 'pending', NOW())`,
+        [requestId, tx_id, reader_id, normalizedDays]
+    );
+
+    return {
+        request_id: requestId,
+        tx_id,
+        book_title: tx.book_title,
+        requested_days: normalizedDays,
+        status: 'pending'
+    };
+};
+
+/**
+ * Danh sách yêu cầu gia hạn để thủ thư/admin xét duyệt.
+ */
+exports.getRenewalRequests = async ({ status = 'pending' }) => {
+    const allowedStatuses = ['pending', 'approved', 'rejected', 'cancelled'];
+    const normalizedStatus = allowedStatuses.includes(status) ? status : 'pending';
+    const [rows] = await db.query(
+        `SELECT
+            rr.request_id,
+            rr.tx_id,
+            rr.reader_id,
+            rr.requested_days,
+            rr.approved_days,
+            rr.status,
+            rr.processed_at,
+            rr.created_at,
+            r.full_name AS reader_name,
+            r.reader_code,
+            br.title AS book_title,
+            bc.barcode,
+            bt.due_date,
+            bt.renewed_count
+         FROM renewal_requests rr
+         JOIN borrow_transactions bt ON rr.tx_id = bt.tx_id
+         JOIN readers r ON rr.reader_id = r.reader_id
+         JOIN book_copies bc ON bt.copy_id = bc.copy_id
+         JOIN bibliographic_records br ON bc.bib_id = br.bib_id
+         WHERE rr.status = ?
+         ORDER BY rr.created_at ASC`,
+        [normalizedStatus]
+    );
+    return { data: rows, total: rows.length };
+};
+
+/**
+ * Thủ thư duyệt/từ chối yêu cầu và chọn số ngày gia hạn từ 1 đến 7.
+ */
+exports.resolveRenewalRequest = async ({ request_id, action, extend_days = 7, processed_by }) => {
+    if (!['approve', 'reject'].includes(action)) {
+        throw new Error('Hành động xử lý yêu cầu không hợp lệ!');
+    }
+
+    const conn = await db.getConnection();
+    try {
+        await conn.beginTransaction();
+        const [requests] = await conn.query(
+            `SELECT rr.*, bt.due_date, bt.renewed_count, bt.status AS loan_status,
+                    bc.bib_id, br.title AS book_title
+             FROM renewal_requests rr
+             JOIN borrow_transactions bt ON rr.tx_id = bt.tx_id
+             JOIN book_copies bc ON bt.copy_id = bc.copy_id
+             JOIN bibliographic_records br ON bc.bib_id = br.bib_id
+             WHERE rr.request_id = ? FOR UPDATE`,
+            [request_id]
+        );
+        if (requests.length === 0) throw new Error('Không tìm thấy yêu cầu gia hạn!');
+
+        const request = requests[0];
+        if (request.status !== 'pending') {
+            throw new Error('Yêu cầu gia hạn này đã được xử lý!');
+        }
+
+        if (action === 'reject') {
+            await conn.query(
+                `UPDATE renewal_requests
+                 SET status = 'rejected', processed_by = ?, processed_at = NOW()
+                 WHERE request_id = ?`,
+                [processed_by, request_id]
+            );
+            await conn.query(
+                `INSERT INTO notifications
+                    (notification_id, reader_id, title, content, type, reference_id, is_read, created_at)
+                 VALUES (?, ?, ?, ?, 'system', ?, 0, NOW())`,
+                [uuidv4(), request.reader_id, 'Yêu cầu gia hạn bị từ chối',
+                    `Yêu cầu gia hạn sách "${request.book_title}" đã bị từ chối.`, request.tx_id]
+            );
+            await conn.commit();
+            return { request_id, status: 'rejected' };
+        }
+
+        const normalizedDays = normalizeExtendDays(extend_days);
+        if (!['borrowed', 'overdue'].includes(request.loan_status)) {
+            throw new Error('Lượt mượn này không còn hoạt động!');
+        }
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dueDate = new Date(request.due_date);
+        dueDate.setHours(0, 0, 0, 0);
+        if (today > dueDate) throw new Error('Sách đã quá hạn nên không thể gia hạn!');
+        if (request.renewed_count >= 2) {
+            throw new Error('Cuốn sách đã đạt giới hạn gia hạn tối đa (2 lần)!');
+        }
+        const [holds] = await conn.query(
+            'SELECT hold_id FROM holds WHERE bib_id = ? AND status = "waiting" LIMIT 1',
+            [request.bib_id]
+        );
+        if (holds.length > 0) {
+            throw new Error('Đầu sách đang có độc giả khác đặt trước nên không thể gia hạn!');
+        }
+
+        const newDueDateObj = new Date(dueDate);
+        newDueDateObj.setDate(newDueDateObj.getDate() + normalizedDays);
+        const newDueDate = newDueDateObj.toISOString().split('T')[0];
+        await conn.query(
+            `UPDATE borrow_transactions
+             SET due_date = ?, renewed_count = renewed_count + 1
+             WHERE tx_id = ?`,
+            [newDueDate, request.tx_id]
+        );
+        await conn.query(
+            `UPDATE renewal_requests
+             SET status = 'approved', approved_days = ?, processed_by = ?, processed_at = NOW()
+             WHERE request_id = ?`,
+            [normalizedDays, processed_by, request_id]
+        );
+        await conn.query(
+            `INSERT INTO notifications
+                (notification_id, reader_id, title, content, type, reference_id, is_read, created_at)
+             VALUES (?, ?, ?, ?, 'system', ?, 0, NOW())`,
+            [uuidv4(), request.reader_id, 'Yêu cầu gia hạn đã được duyệt',
+                `Sách "${request.book_title}" được gia hạn thêm ${normalizedDays} ngày, đến ${newDueDate}.`, request.tx_id]
+        );
+        await conn.commit();
+        return {
+            request_id,
+            tx_id: request.tx_id,
+            status: 'approved',
+            approved_days: normalizedDays,
+            new_due_date: newDueDate
+        };
+    } catch (error) {
+        await conn.rollback();
+        throw error;
+    } finally {
+        conn.release();
+    }
 };
 
 /**
@@ -474,6 +700,14 @@ exports.getActiveLoans = async ({ reader_id = '', keyword = '', status = '', pag
             bt.status,
             bt.fine_amount,
             bt.fine_paid,
+            (SELECT rr.status
+             FROM renewal_requests rr
+             WHERE rr.tx_id = bt.tx_id
+             ORDER BY rr.created_at DESC LIMIT 1) AS renewal_request_status,
+            (SELECT rr.requested_days
+             FROM renewal_requests rr
+             WHERE rr.tx_id = bt.tx_id
+             ORDER BY rr.created_at DESC LIMIT 1) AS renewal_requested_days,
             r.full_name AS reader_name,
             r.reader_code,
             r.phone AS reader_phone,

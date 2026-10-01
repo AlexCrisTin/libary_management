@@ -71,6 +71,15 @@ exports.renewBook = async (req, res, next) => {
         const user_role = req.user.role;
         const reader_id = req.user.readerId; // Có nếu là độc giả đăng nhập
 
+        if (user_role === 'reader') {
+            const request = await circulationService.requestRenewal({
+                tx_id,
+                reader_id,
+                requested_days: extend_days ? parseInt(extend_days, 10) : 7
+            });
+            return sendSuccess(res, 'Đã gửi yêu cầu gia hạn đến thủ thư', request, 201);
+        }
+
         const result = await circulationService.renewBook({
             tx_id,
             reader_id,
@@ -79,6 +88,42 @@ exports.renewBook = async (req, res, next) => {
         });
 
         return sendSuccess(res, 'Gia hạn mượn sách thành công', result);
+    } catch (error) {
+        return sendError(res, error.message, 400);
+    }
+};
+
+/**
+ * GET /api/circulation/renew-requests - Thủ thư xem yêu cầu gia hạn
+ */
+exports.getRenewalRequests = async (req, res, next) => {
+    try {
+        const result = await circulationService.getRenewalRequests({
+            status: req.query.status || 'pending'
+        });
+        return sendSuccess(res, 'Lấy danh sách yêu cầu gia hạn thành công', result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * PUT /api/circulation/renew-requests/:id - Thủ thư duyệt/từ chối
+ */
+exports.resolveRenewalRequest = async (req, res, next) => {
+    try {
+        const { action, extend_days } = req.body;
+        const result = await circulationService.resolveRenewalRequest({
+            request_id: req.params.id,
+            action,
+            extend_days: extend_days ? parseInt(extend_days, 10) : 7,
+            processed_by: req.user.userId
+        });
+        return sendSuccess(
+            res,
+            action === 'approve' ? 'Đã duyệt yêu cầu gia hạn' : 'Đã từ chối yêu cầu gia hạn',
+            result
+        );
     } catch (error) {
         return sendError(res, error.message, 400);
     }

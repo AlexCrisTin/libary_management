@@ -13,8 +13,12 @@ router.post('/borrow', roleMiddleware('librarian', 'admin'), circulationControll
 // 2. Nhận trả sách (Chỉ Thủ thư hoặc Quản trị viên)
 router.post('/return', roleMiddleware('librarian', 'admin'), circulationController.returnBook);
 
-// 3. Gia hạn mượn sách (Độc giả tự gia hạn hoặc Thủ thư thao tác)
+// 3. Độc giả gửi yêu cầu gia hạn; thủ thư có thể gia hạn trực tiếp
 router.post('/renew/:id', circulationController.renewBook);
+
+// 3.1. Thủ thư/admin xem và xử lý các yêu cầu gia hạn
+router.get('/renew-requests', roleMiddleware('librarian', 'admin'), circulationController.getRenewalRequests);
+router.put('/renew-requests/:id', roleMiddleware('librarian', 'admin'), circulationController.resolveRenewalRequest);
 
 // 4. Lấy danh sách các lượt đang mượn (Độc giả xem của mình, Thủ thư xem toàn bộ hoặc lọc)
 router.get('/active', circulationController.getActiveLoans);

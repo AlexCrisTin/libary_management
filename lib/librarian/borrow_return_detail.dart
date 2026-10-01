@@ -13,14 +13,55 @@ class BorrowReturnDetail extends StatefulWidget {
 
 class _BorrowReturnDetailState extends State<BorrowReturnDetail> {
   bool _loading = false;
-  Future<void> _action(String path, String success) async {
+  Future<void> _renew(String tx) async {
+    var days = 7;
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Gia hạn sách'),
+          content: DropdownButtonFormField<int>(
+            value: days,
+            decoration: const InputDecoration(
+              labelText: 'Số ngày gia hạn',
+              helperText: 'Tối đa 7 ngày',
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              for (var value = 1; value <= 7; value++)
+                DropdownMenuItem(value: value, child: Text('$value ngày')),
+            ],
+            onChanged: (value) {
+              if (value != null) setDialogState(() => days = value);
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, days),
+              style: FilledButton.styleFrom(backgroundColor: kLibGreen),
+              child: const Text('Xác nhận'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     setState(() => _loading = true);
     try {
-      await ApiClient.post(path);
+      await ApiClient.post(
+        '/circulation/renew/$tx',
+        body: {'extend_days': selected},
+      );
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text(success)));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Đã gia hạn thêm $selected ngày.')),
+      );
       navigator.pop(true);
     } catch (error) {
       if (mounted) {
@@ -105,12 +146,7 @@ class _BorrowReturnDetailState extends State<BorrowReturnDetail> {
                           children: [
                             Expanded(
                               child: ElevatedButton.icon(
-                                onPressed: _loading
-                                    ? null
-                                    : () => _action(
-                                        '/circulation/renew/$tx',
-                                        'Gia hạn thành công',
-                                      ),
+                                onPressed: _loading ? null : () => _renew(tx),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: kLibGreen,
                                   foregroundColor: Colors.white,
