@@ -3,6 +3,7 @@ import 'package:libary_management/core/api_client.dart';
 import 'package:libary_management/core/api_state.dart';
 
 import 'borrow_return_detail.dart';
+import 'borrow_flow.dart';
 import 'librarian_nav.dart';
 
 class BorrowReturnBookManagement extends StatefulWidget {
@@ -78,7 +79,20 @@ class _BorrowReturnBookManagementState
     body: SafeArea(
       child: Column(
         children: [
-          const LibTitleHeader(title: 'Quản lý mượn / trả'),
+          LibTitleHeader(
+            title: 'Quản lý mượn / trả',
+            trailing: IconButton(
+              tooltip: 'Lập phiếu mượn',
+              onPressed: () async {
+                final changed = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(builder: (_) => const BorrowFlow()),
+                );
+                if (changed == true) _load();
+              },
+              icon: const Icon(Icons.add, color: Colors.white, size: 30),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(11, 10, 11, 8),
             child: Row(

@@ -3,7 +3,7 @@ import 'package:libary_management/core/api_client.dart';
 import 'package:libary_management/core/api_state.dart';
 import 'package:libary_management/core/local_image.dart';
 
-import 'borrow_return_book_management.dart';
+import 'borrow_flow.dart';
 import 'librarian_nav.dart';
 import 'message_detail.dart';
 import 'report.dart';
@@ -207,7 +207,14 @@ class _ReaderDetailState extends State<ReaderDetail> {
                   _InformationCard(
                     reader: _reader,
                     onEdit: _editReader,
-                    onBorrow: () => _open(const BorrowReturnBookManagement()),
+                    onBorrow: () => _open(
+                      BorrowFlow(
+                        initialReaderCode: apiText(
+                          _reader['reader_code'],
+                          fallback: '',
+                        ),
+                      ),
+                    ),
                     onReport: () => _open(const Report()),
                   ),
                   const SizedBox(height: 18),

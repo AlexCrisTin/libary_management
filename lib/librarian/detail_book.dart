@@ -6,6 +6,7 @@ import 'package:libary_management/core/local_image.dart';
 import 'librarian_nav.dart';
 import 'librarian_scanner.dart';
 import 'librarian_shell.dart';
+import 'borrow_flow.dart';
 
 class DetailBook extends StatefulWidget {
   const DetailBook({super.key, required this.bookId});
@@ -69,73 +70,15 @@ class _DetailBookState extends State<DetailBook> {
       return;
     }
 
-    final readerCodeController = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Cho mượn sách'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              apiText(_book['title']),
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: readerCodeController,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Mã độc giả',
-                hintText: 'Ví dụ: RD-123456',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Bản sao: ${apiText(available.first['barcode'])}',
-              style: const TextStyle(color: kLibBrownTitle),
-            ),
-          ],
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BorrowFlow(
+          initialBarcode: apiText(available.first['barcode'], fallback: ''),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (readerCodeController.text.trim().isEmpty) return;
-              Navigator.pop(dialogContext, true);
-            },
-            child: const Text('Xác nhận'),
-          ),
-        ],
       ),
     );
-
-    final readerCode = readerCodeController.text.trim();
-    readerCodeController.dispose();
-    if (confirmed != true || readerCode.isEmpty || !mounted) return;
-
-    setState(() => _submitting = true);
-    try {
-      await ApiClient.post(
-        '/circulation/borrow',
-        body: {
-          'reader_code': readerCode,
-          'copy_id': available.first['copy_id'],
-        },
-      );
-      if (!mounted) return;
-      _showMessage('Cho mượn sách thành công.');
-      await _load();
-    } catch (error) {
-      if (mounted) _showMessage(error.toString());
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
+    if (changed == true && mounted) await _load();
   }
 
   Future<void> _editBook() async {
