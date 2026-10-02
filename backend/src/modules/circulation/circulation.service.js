@@ -792,7 +792,9 @@ exports.getLoanHistory = async ({ reader_id = '', copy_id = '', status = '', fro
             r.full_name AS reader_name,
             r.reader_code,
             bc.barcode,
+            br.bib_id,
             br.title AS book_title,
+            br.cover_url,
             u1.username AS issued_by_user,
             u2.username AS returned_to_user
         FROM borrow_transactions bt
