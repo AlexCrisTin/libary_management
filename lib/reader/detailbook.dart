@@ -19,6 +19,10 @@ class _DetailBookState extends State<DetailBook> {
   bool _loading = true;
   bool _submitting = false;
   bool _bookmarked = false;
+  bool _suggestionsLoading = false;
+  List<Map<String, dynamic>> _suggestionPool = const [];
+  List<Map<String, dynamic>> _suggestedBooks = const [];
+  String? _suggestionsError;
   String? _error;
 
   int get _availableCopies =>
@@ -41,18 +45,56 @@ class _DetailBookState extends State<DetailBook> {
   }
 
   Future<void> _load() async {
+    var bookLoaded = false;
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
       final data = apiMap(await ApiClient.get('/books/${widget.bookId}'));
-      if (mounted) setState(() => _book = data);
+      if (mounted) {
+        setState(() => _book = data);
+        bookLoaded = true;
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+    if (bookLoaded) await _loadSuggestions();
+  }
+
+  Future<void> _loadSuggestions() async {
+    if (!mounted) return;
+    setState(() {
+      _suggestionsLoading = true;
+      _suggestionsError = null;
+    });
+    try {
+      final result = apiMap(
+        await ApiClient.get('/books', query: {'limit': 100}),
+      );
+      final books = apiList(result['items']).where((book) {
+        return apiText(book['bib_id'], fallback: '') != widget.bookId;
+      }).toList();
+      books.shuffle();
+      if (mounted) {
+        setState(() {
+          _suggestionPool = books;
+          _suggestedBooks = books.take(3).toList();
+        });
+      }
+    } catch (error) {
+      if (mounted) setState(() => _suggestionsError = error.toString());
+    } finally {
+      if (mounted) setState(() => _suggestionsLoading = false);
+    }
+  }
+
+  void _shuffleSuggestions() {
+    if (_suggestionPool.isEmpty) return;
+    final shuffled = [..._suggestionPool]..shuffle();
+    setState(() => _suggestedBooks = shuffled.take(3).toList());
   }
 
   Future<void> _borrowOrHold() async {
@@ -174,6 +216,24 @@ class _DetailBookState extends State<DetailBook> {
                       description: apiText(_book['description']),
                       borrowedCopies: _borrowedCopies,
                       totalCopies: _totalCopies,
+                    ),
+                    const SizedBox(height: 24),
+                    _SuggestedBooksSection(
+                      books: _suggestedBooks,
+                      loading: _suggestionsLoading,
+                      error: _suggestionsError,
+                      onRetry: _loadSuggestions,
+                      onShuffle: _shuffleSuggestions,
+                      onOpen: (book) {
+                        final id = apiText(book['bib_id'], fallback: '');
+                        if (id.isEmpty) return;
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => DetailBook(bookId: id),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -461,6 +521,177 @@ class _InfoLine extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text('$label: $value', style: _infoStyle),
+    );
+  }
+}
+
+class _SuggestedBooksSection extends StatelessWidget {
+  const _SuggestedBooksSection({
+    required this.books,
+    required this.loading,
+    required this.error,
+    required this.onRetry,
+    required this.onShuffle,
+    required this.onOpen,
+  });
+
+  final List<Map<String, dynamic>> books;
+  final bool loading;
+  final String? error;
+  final Future<void> Function() onRetry;
+  final VoidCallback onShuffle;
+  final ValueChanged<Map<String, dynamic>> onOpen;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+    decoration: BoxDecoration(
+      color: kCardFill,
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Có thể bạn muốn xem qua',
+                style: TextStyle(
+                  color: kBookTitle,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Đổi gợi ý',
+              onPressed: books.isEmpty ? null : onShuffle,
+              icon: const Icon(Icons.shuffle_rounded, color: kBrownTitle),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (loading)
+          const SizedBox(
+            height: 220,
+            child: Center(child: CircularProgressIndicator(color: kBrownTitle)),
+          )
+        else if (error != null)
+          SizedBox(
+            height: 110,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Không tải được sách gợi ý.',
+                    style: TextStyle(color: kBrownTitle),
+                  ),
+                  TextButton(onPressed: onRetry, child: const Text('Thử lại')),
+                ],
+              ),
+            ),
+          )
+        else if (books.isEmpty)
+          const SizedBox(
+            height: 90,
+            child: Center(
+              child: Text(
+                'Chưa có đủ sách khác để gợi ý.',
+                style: TextStyle(color: kBrownTitle),
+              ),
+            ),
+          )
+        else
+          SizedBox(
+            height: 226,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: books.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, index) => _SuggestedBookCard(
+                book: books[index],
+                onTap: () => onOpen(books[index]),
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+class _SuggestedBookCard extends StatelessWidget {
+  const _SuggestedBookCard({required this.book, required this.onTap});
+
+  final Map<String, dynamic> book;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final authors = book['authors'];
+    final authorText = authors is List
+        ? authors.map(apiText).join(', ')
+        : apiText(authors);
+    final available = int.tryParse('${book['available_copies'] ?? 0}') ?? 0;
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(13),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(13),
+        child: SizedBox(
+          width: 136,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: BookCover(
+                    width: 98,
+                    height: 132,
+                    url: book['cover_url']?.toString(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  apiText(book['title']),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: kBookTitle,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  authorText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: kMuted.withValues(alpha: .9),
+                    fontSize: 10,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  available > 0 ? 'Còn $available bản' : 'Đang hết sách',
+                  style: TextStyle(
+                    color: available > 0
+                        ? const Color(0xFF4F9B73)
+                        : const Color(0xFFD18282),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
