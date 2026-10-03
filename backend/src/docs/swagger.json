@@ -35,7 +35,8 @@
     { "name": "Chat", "description": "Trao doi tin nhan truc tuyen giua doc gia va thu thu" },
     { "name": "Uploads", "description": "Tai len anh bia sach va anh dai dien doc gia" },
     { "name": "Dashboard", "description": "Thong ke tong quan so luong sach, doc gia, luot muon, doanh thu phat" },
-    { "name": "Users", "description": "Quan ly tai khoan nguoi dung he thong va phan quyen" }
+    { "name": "Users", "description": "Quan ly tai khoan nguoi dung he thong va phan quyen" },
+    { "name": "AI Assistant", "description": "Tro ly ao AI Thu thu tich hop Google Gemini va Function Calling tra cuu du lieu" }
   ],
   "paths": {
     "/health": {
@@ -1435,6 +1436,73 @@
         },
         "responses": {
           "200": { "description": "Dat lai mat khau thanh cong" }
+        }
+      }
+    },
+    "/api/ai/librarian/chat": {
+      "post": {
+        "tags": ["AI Assistant"],
+        "summary": "Chat voi Tro ly ao AI Thu thu (Google Gemini + Function Calling)",
+        "description": "API tro ly ao danh rieng cho Thu thu va Admin. AI tu dong goi cac cong cu doc du lieu MySQL an toan de tra loi chinh xac ve sach, muon tra, qua han, thong ke.",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["message"],
+                "properties": {
+                  "message": { "type": "string", "example": "Nhung doc gia nao dang co sach bi qua han tra?" },
+                  "conversation_id": { "type": "string", "nullable": true, "example": null }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Tra loi tu AI kem nguon tham chieu va ma phien hoi thoai" },
+          "400": { "description": "Thieu cau hoi hoac cau hoi qua dai" },
+          "403": { "description": "Tu choi truy cap (Chi danh cho Thu thu va Admin)" },
+          "429": { "description": "Qua han muc Gemini API" }
+        }
+      }
+    },
+    "/api/ai/librarian/conversations": {
+      "get": {
+        "tags": ["AI Assistant"],
+        "summary": "Lay danh sach cac cuoc tro chuyen AI cua Thu thu",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sach cuoc tro chuyen" }
+        }
+      }
+    },
+    "/api/ai/librarian/conversations/{id}": {
+      "get": {
+        "tags": ["AI Assistant"],
+        "summary": "Lay chi tiet toan bo tin nhan trong mot cuoc hoi thoai",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Chi tiet tin nhan cua phien hoi thoai" }
+        }
+      },
+      "delete": {
+        "tags": ["AI Assistant"],
+        "summary": "Xoa mot cuoc tro chuyen AI",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Xoa thanh cong" }
         }
       }
     }

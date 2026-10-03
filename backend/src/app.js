@@ -19,6 +19,7 @@ const uploadsRoutes = require('./modules/uploads/uploads.routes');
 const categoriesRoutes = require('./modules/categories/categories.routes');
 const publishersRoutes = require('./modules/publishers/publishers.routes');
 const dashboardRoutes = require('./modules/dashboard/dashboard.routes');
+const aiRoutes = require('./modules/ai/ai.routes');
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use('/api/uploads', uploadsRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/publishers', publishersRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Giao dien tai lieu truc quan Swagger UI / OpenAPI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
