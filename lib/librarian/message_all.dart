@@ -4,6 +4,7 @@ import 'package:libary_management/core/api_state.dart';
 import 'package:libary_management/core/local_image.dart';
 
 import 'librarian_nav.dart';
+import 'librarian_ai.dart';
 import 'librarian_scanner.dart';
 import 'librarian_shell.dart';
 import 'message_detail.dart';
@@ -132,9 +133,10 @@ class _MessageAllState extends State<MessageAll> {
     );
   }
 
-  void _showAiUnavailable() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Trợ lý AI chưa được cấu hình API.')),
+  void _openAiAssistant() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LibrarianAiPage()),
     );
   }
 
@@ -200,7 +202,7 @@ class _MessageAllState extends State<MessageAll> {
                     width: 150,
                     height: 46,
                     child: FilledButton(
-                      onPressed: _showAiUnavailable,
+                      onPressed: _openAiAssistant,
                       style: FilledButton.styleFrom(
                         backgroundColor: kLibBookTitle,
                         foregroundColor: kLibBeigeSoft,

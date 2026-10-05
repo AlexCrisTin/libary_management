@@ -1,6 +1,6 @@
 const db = require('../../config/db');
 const { v4: uuidv4 } = require('uuid');
-const { callGeminiApi } = require('./ai.provider');
+const { callOpenRouterApi } = require('./ai.provider');
 const { toolsMap } = require('./ai.tools');
 
 /**
@@ -8,6 +8,7 @@ const { toolsMap } = require('./ai.tools');
  */
 async function chatWithLibrarianAI({ userId, userRole, message, conversation_id }) {
     let currentConversationId = conversation_id;
+    let createdNewConversation = false;
 
     // 1. Kiem tra hoac tao phien hoi thoai moi
     if (currentConversationId) {
@@ -25,6 +26,7 @@ async function chatWithLibrarianAI({ userId, userRole, message, conversation_id 
         }
     } else {
         currentConversationId = uuidv4();
+        createdNewConversation = true;
         const autoTitle = message.length > 60 ? `${message.substring(0, 57)}...` : message;
         await db.query(
             'INSERT INTO ai_conversations (conversation_id, user_id, title, created_at) VALUES (?, ?, ?, NOW())',
@@ -34,64 +36,80 @@ async function chatWithLibrarianAI({ userId, userRole, message, conversation_id 
 
     // 2. Lay lich su tin nhan gan nhat (toi da 6 tin) de lam ngu canh
     const [historyRows] = await db.query(
-        `SELECT role, content 
-         FROM ai_messages 
-         WHERE conversation_id = ? AND role IN ('user', 'model')
-         ORDER BY created_at ASC 
-         LIMIT 6`,
+        `SELECT role, content
+         FROM (
+             SELECT message_id, role, content, created_at
+             FROM ai_messages
+             WHERE conversation_id = ? AND role IN ('user', 'model')
+             ORDER BY created_at DESC, message_id DESC
+             LIMIT 6
+         ) recent_messages
+         ORDER BY created_at ASC, message_id ASC`,
         [currentConversationId]
     );
 
-    // Chuyen doi lich su sang cau truc contents
-    const contents = historyRows.map(r => ({
-        role: r.role === 'user' ? 'user' : 'model',
-        parts: [{ text: r.content }]
+    // Chuyen lich su sang dinh dang Chat Completions cua OpenRouter
+    const messages = historyRows.map(r => ({
+        role: r.role === 'user' ? 'user' : 'assistant',
+        content: r.content
     }));
 
     // Them cau hoi hien tai cua thu thu
-    contents.push({
+    messages.push({
         role: 'user',
-        parts: [{ text: message }]
+        content: message
     });
 
     const startTime = Date.now();
     const toolsCalled = [];
     const sources = [];
     let finalAnswer = '';
+    let usedModel = process.env.OPENROUTER_MODEL || 'openrouter/free';
 
     try {
         let loopCount = 0;
         const maxLoops = 4;
 
         while (loopCount < maxLoops) {
-            const apiResult = await callGeminiApi({ contents });
-            const candidate = apiResult.candidates?.[0];
-            if (!candidate || !candidate.content) {
-                throw new Error('Không nhận được phản hồi hợp lệ từ Gemini.');
+            const apiResult = await callOpenRouterApi({ messages });
+            usedModel = apiResult.model || usedModel;
+            const assistantMessage = apiResult.choices?.[0]?.message;
+            if (!assistantMessage) {
+                throw new Error('Không nhận được phản hồi hợp lệ từ OpenRouter.');
             }
 
-            // Luu candidate vao lich su vong hoi thoai hien tai
-            contents.push(candidate.content);
+            // OpenRouter can nhan lai chinh assistant message de giu ngu canh tool call
+            messages.push({
+                role: 'assistant',
+                content: assistantMessage.content || '',
+                ...(Array.isArray(assistantMessage.tool_calls)
+                    ? { tool_calls: assistantMessage.tool_calls }
+                    : {})
+            });
 
-            // Kiem tra xem Gemini co yeu cau goi function hay khong
-            const callParts = candidate.content.parts.filter(p => p.functionCall);
-            if (!callParts || callParts.length === 0) {
-                // Khong con goi tool nua, trich xuat cau tra loi bang van ban cuoi cung
-                finalAnswer = candidate.content.parts
-                    .map(p => p.text)
-                    .filter(Boolean)
-                    .join('\n')
-                    .trim();
+            const toolCalls = Array.isArray(assistantMessage.tool_calls)
+                ? assistantMessage.tool_calls
+                : [];
+            if (toolCalls.length === 0) {
+                finalAnswer = String(assistantMessage.content || '').trim();
                 break;
             }
 
             loopCount++;
-            const responseParts = [];
 
-            for (const part of callParts) {
-                const call = part.functionCall;
-                const toolName = call.name;
-                const toolArgs = call.args || {};
+            for (const call of toolCalls) {
+                const toolName = call.function?.name;
+                let toolArgs = {};
+                const rawArguments = call.function?.arguments;
+                if (rawArguments && typeof rawArguments === 'object') {
+                    toolArgs = rawArguments;
+                } else {
+                    try {
+                        toolArgs = JSON.parse(rawArguments || '{}');
+                    } catch {
+                        toolArgs = {};
+                    }
+                }
                 toolsCalled.push(toolName);
 
                 let toolOutput = {};
@@ -123,19 +141,13 @@ async function chatWithLibrarianAI({ userId, userRole, message, conversation_id 
                     });
                 }
 
-                responseParts.push({
-                    functionResponse: {
-                        name: toolName,
-                        response: toolOutput
-                    }
+                messages.push({
+                    role: 'tool',
+                    tool_call_id: call.id,
+                    name: toolName,
+                    content: JSON.stringify(toolOutput)
                 });
             }
-
-            // Dua ket qua thuc thi tool vao voi role: 'user'
-            contents.push({
-                role: 'user',
-                parts: responseParts
-            });
         }
 
         if (!finalAnswer) {
@@ -146,26 +158,38 @@ async function chatWithLibrarianAI({ userId, userRole, message, conversation_id 
 
         // 4. Luu tin nhan cua user va phan hoi cua AI vao co so du lieu
         const userMsgId = uuidv4();
-        await db.query(
-            'INSERT INTO ai_messages (message_id, conversation_id, role, content, created_at) VALUES (?, ?, "user", ?, NOW())',
-            [userMsgId, currentConversationId, message]
-        );
-
         const modelMsgId = uuidv4();
         const sourcesJson = sources.length > 0 ? JSON.stringify(sources) : null;
         const toolsCalledStr = toolsCalled.join(', ') || null;
-
-        await db.query(
-            `INSERT INTO ai_messages (message_id, conversation_id, role, content, tool_name, sources, created_at) 
-             VALUES (?, ?, "model", ?, ?, ?, NOW())`,
-            [modelMsgId, currentConversationId, finalAnswer, toolsCalledStr, sourcesJson]
-        );
+        const connection = await db.getConnection();
+        try {
+            await connection.beginTransaction();
+            await connection.query(
+                'INSERT INTO ai_messages (message_id, conversation_id, role, content, created_at) VALUES (?, ?, "user", ?, NOW())',
+                [userMsgId, currentConversationId, message]
+            );
+            await connection.query(
+                `INSERT INTO ai_messages (message_id, conversation_id, role, content, tool_name, sources, created_at)
+                 VALUES (?, ?, "model", ?, ?, ?, NOW())`,
+                [modelMsgId, currentConversationId, finalAnswer, toolsCalledStr, sourcesJson]
+            );
+            await connection.query(
+                'UPDATE ai_conversations SET updated_at = NOW() WHERE conversation_id = ?',
+                [currentConversationId]
+            );
+            await connection.commit();
+        } catch (saveError) {
+            await connection.rollback();
+            throw saveError;
+        } finally {
+            connection.release();
+        }
 
         // 5. Ghi log giam sat vao bang ai_usage_logs
         await logUsage({
             userId,
             conversationId: currentConversationId,
-            modelName: process.env.GEMINI_MODEL || 'gemini-flash-latest',
+            modelName: usedModel,
             toolsCalled: toolsCalledStr,
             responseTimeMs,
             status: 'success'
@@ -180,12 +204,20 @@ async function chatWithLibrarianAI({ userId, userRole, message, conversation_id 
         await logUsage({
             userId,
             conversationId: currentConversationId,
-            modelName: process.env.GEMINI_MODEL || 'gemini-flash-latest',
+            modelName: usedModel,
             toolsCalled: toolsCalled.join(', ') || null,
             responseTimeMs: Date.now() - startTime,
-            status: err.message.includes('quá thời gian') ? 'timeout' : 'failed',
+            status: err.code === 'OPENROUTER_TIMEOUT' ? 'timeout' : 'failed',
             errorMessage: err.message
         });
+        if (createdNewConversation) {
+            await db.query(
+                'DELETE FROM ai_conversations WHERE conversation_id = ?',
+                [currentConversationId]
+            ).catch(cleanupError => {
+                console.error('[AI Conversation Cleanup Error]:', cleanupError.message);
+            });
+        }
         throw err;
     }
 }
@@ -278,10 +310,21 @@ async function getConversationDetail({ conversationId, userId, userRole }) {
 
     return {
         conversation: conv,
-        messages: messages.map(m => ({
-            ...m,
-            sources: m.sources ? JSON.parse(m.sources) : []
-        }))
+        messages: messages.map(m => {
+            let sources = [];
+            if (Array.isArray(m.sources)) {
+                sources = m.sources;
+            } else if (m.sources && typeof m.sources === 'object') {
+                sources = m.sources;
+            } else if (m.sources) {
+                try {
+                    sources = JSON.parse(m.sources);
+                } catch {
+                    sources = [];
+                }
+            }
+            return { ...m, sources };
+        })
     };
 }
 

@@ -1,30 +1,47 @@
 const db = require('../../config/db');
 
+const parseJSONField = (value, fallback = []) => {
+    if (!value) return fallback;
+    if (typeof value === 'object') return value;
+    try {
+        return JSON.parse(value);
+    } catch {
+        return fallback;
+    }
+};
+
 /**
  * 1. Tim kiem dau sach
  */
 async function searchBooks({ keyword, limit = 5 }) {
     const cleanLimit = Math.min(Math.max(1, parseInt(limit, 10) || 5), 10);
+    const cleanKeyword = String(keyword || '').trim();
+    if (!cleanKeyword) {
+        return { total_found: 0, books: [], message: 'Vui lòng cung cấp từ khóa tìm sách.' };
+    }
     const sql = `
         SELECT 
             br.bib_id,
             br.title,
-            br.author,
+            br.authors,
             br.isbn,
             br.publish_year,
-            p.publisher_name,
-            c.category_name
+            p.name AS publisher_name,
+            br.subject_headings
         FROM bibliographic_records br
         LEFT JOIN publishers p ON br.publisher_id = p.publisher_id
-        LEFT JOIN categories c ON br.category_id = c.category_id
-        WHERE br.title LIKE ? OR br.author LIKE ? OR br.isbn LIKE ?
+        WHERE br.title LIKE ? OR br.authors LIKE ? OR br.isbn LIKE ?
         LIMIT ?
     `;
-    const term = `%${keyword}%`;
+    const term = `%${cleanKeyword}%`;
     const [rows] = await db.query(sql, [term, term, term, cleanLimit]);
     return {
         total_found: rows.length,
-        books: rows
+        books: rows.map(row => ({
+            ...row,
+            authors: parseJSONField(row.authors),
+            subject_headings: parseJSONField(row.subject_headings)
+        }))
     };
 }
 
@@ -53,12 +70,14 @@ async function getBookAvailability({ title, isbn }) {
             bc.copy_id,
             bc.barcode,
             bc.status AS copy_status,
-            bc.condition_status,
-            s.shelf_name,
-            s.location AS shelf_location
+            bc.condition AS copy_condition,
+            s.floor,
+            s.section,
+            s.shelf,
+            s.position
         FROM bibliographic_records br
         JOIN book_copies bc ON br.bib_id = bc.bib_id
-        LEFT JOIN shelves s ON bc.shelf_id = s.shelf_id
+        LEFT JOIN shelf_locations s ON bc.location_id = s.location_id
         ${whereClause}
         LIMIT 20
     `;
@@ -80,9 +99,11 @@ async function getBookAvailability({ title, isbn }) {
         borrowed_count: borrowedCopies.length,
         available_locations: availableCopies.map(c => ({
             barcode: c.barcode,
-            condition: c.condition_status,
-            shelf: c.shelf_name || 'Chua xep vao ke',
-            location: c.shelf_location || 'Kho sach'
+            condition: c.copy_condition,
+            shelf: c.shelf || 'Chưa xếp vào kệ',
+            location: [c.floor, c.section, c.shelf, c.position]
+                .filter(Boolean)
+                .join(' - ') || 'Kho sách'
         }))
     };
 }
@@ -230,6 +251,10 @@ async function getActiveLoans({ reader_name, limit = 10 }) {
  * 6. Tra cuu tom tat ho so doc gia
  */
 async function getReaderSummary({ keyword }) {
+    const cleanKeyword = String(keyword || '').trim();
+    if (!cleanKeyword) {
+        return { matched_readers: [], message: 'Vui lòng cung cấp tên hoặc mã độc giả.' };
+    }
     const sql = `
         SELECT 
             r.reader_id,
@@ -258,11 +283,11 @@ async function getReaderSummary({ keyword }) {
         LIMIT 3
     `;
 
-    const term = `%${keyword.trim()}%`;
-    const [rows] = await db.query(sql, [keyword.trim(), term]);
+    const term = `%${cleanKeyword}%`;
+    const [rows] = await db.query(sql, [cleanKeyword, term]);
 
     if (rows.length === 0) {
-        return { message: `Khong tim thay thong tin doc gia nao voi tu khoa "${keyword}".` };
+        return { message: `Không tìm thấy thông tin độc giả nào với từ khóa "${cleanKeyword}".` };
     }
 
     return {
@@ -317,13 +342,13 @@ async function getPopularBooks({ limit = 5 }) {
         SELECT 
             br.bib_id,
             br.title,
-            br.author,
+            br.authors,
             br.isbn,
             COUNT(bt.tx_id) AS borrow_count
         FROM bibliographic_records br
         JOIN book_copies bc ON br.bib_id = bc.bib_id
         JOIN borrow_transactions bt ON bc.copy_id = bt.copy_id
-        GROUP BY br.bib_id, br.title, br.author, br.isbn
+        GROUP BY br.bib_id, br.title, br.authors, br.isbn
         ORDER BY borrow_count DESC
         LIMIT ?
     `;
@@ -331,7 +356,10 @@ async function getPopularBooks({ limit = 5 }) {
     const [rows] = await db.query(sql, [cleanLimit]);
 
     return {
-        popular_books: rows
+        popular_books: rows.map(row => ({
+            ...row,
+            authors: parseJSONField(row.authors)
+        }))
     };
 }
 
@@ -412,7 +440,7 @@ async function getExpiringReaderCards({ days = 30, limit = 10 }) {
     };
 }
 
-// Map cac ham de goi dong theo ten tool tra ve tu Gemini
+// Map cac ham de goi dong theo ten tool tra ve tu nha cung cap AI
 const toolsMap = {
     searchBooks,
     getBookAvailability,
@@ -426,7 +454,7 @@ const toolsMap = {
     getExpiringReaderCards
 };
 
-// Dinh nghia Function Declarations cho Gemini
+// Dinh nghia Function Declarations; provider se chuyen sang chuan OpenRouter
 const functionDeclarations = [
     {
         name: 'searchBooks',

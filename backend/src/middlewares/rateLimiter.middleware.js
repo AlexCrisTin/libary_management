@@ -38,7 +38,27 @@ const otpLimiter = rateLimit({
     }
 });
 
+/**
+ * 3. Giới hạn yêu cầu đến Trợ lý AI
+ * Áp dụng sau authMiddleware nên ưu tiên giới hạn theo tài khoản thủ thư.
+ */
+const aiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 15,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    keyGenerator: (req) => req.user.userId,
+    handler: (req, res) => {
+        return sendError(
+            res,
+            'Bạn đang gửi yêu cầu AI quá nhanh. Vui lòng đợi một phút rồi thử lại!',
+            429
+        );
+    }
+});
+
 module.exports = {
     loginLimiter,
-    otpLimiter
+    otpLimiter,
+    aiLimiter
 };

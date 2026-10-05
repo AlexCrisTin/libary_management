@@ -27,16 +27,31 @@ exports.chat = async (req, res, next) => {
     } catch (error) {
         console.error('[AI Chat Error]:', error.message);
 
-        // Xu ly rieng cac loi lien quan den Gemini Quota hoac API Key
-        if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('ResourceExhausted')) {
-            return sendError(res, 'Hạn mức sử dụng Gemini AI tạm thời đã hết hoặc bị giới hạn tần suất. Vui lòng thử lại sau ít phút!', 429);
+        if (error.code === 'OPENROUTER_INVALID_KEY') {
+            return sendError(res, error.message, 401);
         }
 
-        if (error.message.includes('GEMINI_API_KEY')) {
+        if (error.code === 'OPENROUTER_PAYMENT_REQUIRED') {
+            return sendError(res, error.message, 402);
+        }
+
+        if (error.code === 'OPENROUTER_MODEL_NOT_FOUND') {
+            return sendError(res, error.message, 502);
+        }
+
+        if (error.code === 'OPENROUTER_RATE_LIMITED') {
+            return sendError(res, error.message, 429);
+        }
+
+        if (error.code === 'OPENROUTER_KEY_MISSING') {
             return sendError(res, error.message, 500);
         }
 
-        return sendError(res, error.message || 'Lỗi xử lý Trợ lý AI', 400);
+        if (error.statusCode && error.statusCode >= 500) {
+            return sendError(res, error.message, error.statusCode);
+        }
+
+        return sendError(res, error.message || 'Lỗi xử lý Trợ lý AI', error.statusCode || 400);
     }
 };
 

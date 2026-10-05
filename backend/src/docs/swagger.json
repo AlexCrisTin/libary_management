@@ -36,7 +36,7 @@
     { "name": "Uploads", "description": "Tai len anh bia sach va anh dai dien doc gia" },
     { "name": "Dashboard", "description": "Thong ke tong quan so luong sach, doc gia, luot muon, doanh thu phat" },
     { "name": "Users", "description": "Quan ly tai khoan nguoi dung he thong va phan quyen" },
-    { "name": "AI Assistant", "description": "Tro ly ao AI Thu thu tich hop Google Gemini va Function Calling tra cuu du lieu" }
+    { "name": "AI Assistant", "description": "Tro ly ao AI Thu thu tich hop OpenRouter va Function Calling tra cuu du lieu" }
   ],
   "paths": {
     "/health": {
@@ -1442,7 +1442,7 @@
     "/api/ai/librarian/chat": {
       "post": {
         "tags": ["AI Assistant"],
-        "summary": "Chat voi Tro ly ao AI Thu thu (Google Gemini + Function Calling)",
+        "summary": "Chat voi Tro ly ao AI Thu thu (OpenRouter + Function Calling)",
         "description": "API tro ly ao danh rieng cho Thu thu va Admin. AI tu dong goi cac cong cu doc du lieu MySQL an toan de tra loi chinh xac ve sach, muon tra, qua han, thong ke.",
         "security": [{ "BearerAuth": [] }],
         "requestBody": {
@@ -1464,7 +1464,7 @@
           "200": { "description": "Tra loi tu AI kem nguon tham chieu va ma phien hoi thoai" },
           "400": { "description": "Thieu cau hoi hoac cau hoi qua dai" },
           "403": { "description": "Tu choi truy cap (Chi danh cho Thu thu va Admin)" },
-          "429": { "description": "Qua han muc Gemini API" }
+          "429": { "description": "Qua han muc OpenRouter API" }
         }
       }
     },
