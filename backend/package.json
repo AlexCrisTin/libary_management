@@ -5,7 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "db:setup": "node scripts/setup-database.js",
+    "db:schema": "node scripts/setup-database.js --schema-only",
+    "db:seed": "node scripts/setup-database.js --seed-only",
+    "db:reset": "node scripts/setup-database.js --reset"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
