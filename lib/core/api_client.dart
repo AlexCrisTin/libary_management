@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiException implements Exception {
   const ApiException(this.message, {this.statusCode});
@@ -40,12 +41,85 @@ class AppSession {
 class ApiClient {
   ApiClient._();
 
+  static const _baseUrlPreferenceKey = 'developer_api_base_url';
+  static String? _savedBaseUrl;
+
+  static Future<void> initialize() async {
+    final preferences = await SharedPreferences.getInstance();
+    final saved = preferences.getString(_baseUrlPreferenceKey)?.trim();
+    _savedBaseUrl = saved == null || saved.isEmpty ? null : saved;
+  }
+
   static String get baseUrl {
+    if (_savedBaseUrl case final saved?) return saved;
     const configured = String.fromEnvironment('API_BASE_URL');
     if (configured.isNotEmpty) return configured;
     return !kIsWeb && defaultTargetPlatform == TargetPlatform.android
         ? 'http://10.0.2.2:3000/api'
         : 'http://127.0.0.1:3000/api';
+  }
+
+  static String normalizeBaseUrl(String value) {
+    var candidate = value.trim();
+    if (candidate.isEmpty) {
+      throw const FormatException('Vui lòng nhập địa chỉ IP của máy chủ.');
+    }
+
+    final addedScheme = !candidate.contains('://');
+    if (addedScheme) candidate = 'http://$candidate';
+
+    var uri = Uri.tryParse(candidate);
+    if (uri == null || uri.host.isEmpty) {
+      throw const FormatException('Địa chỉ máy chủ không hợp lệ.');
+    }
+    if (uri.scheme != 'http' && uri.scheme != 'https') {
+      throw const FormatException('Địa chỉ phải sử dụng http hoặc https.');
+    }
+
+    var path = uri.path;
+    if (path.isEmpty || path == '/') {
+      path = '/api';
+    } else {
+      path = '/${path.split('/').where((part) => part.isNotEmpty).join('/')}';
+      if (!path.endsWith('/api')) path = '$path/api';
+    }
+
+    if (addedScheme && !uri.hasPort) {
+      uri = uri.replace(port: 3000);
+    }
+
+    return uri
+        .replace(path: path, queryParameters: null, fragment: null)
+        .toString()
+        .replaceFirst(RegExp(r'/$'), '');
+  }
+
+  static Future<String> saveBaseUrl(String value) async {
+    final normalized = normalizeBaseUrl(value);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_baseUrlPreferenceKey, normalized);
+    _savedBaseUrl = normalized;
+    return normalized;
+  }
+
+  static Future<void> resetBaseUrl() async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.remove(_baseUrlPreferenceKey);
+    _savedBaseUrl = null;
+  }
+
+  static Future<void> testServer(String value) async {
+    final normalized = normalizeBaseUrl(value);
+    final healthUri = Uri.parse('${Uri.parse(normalized).origin}/health');
+    final response = await http
+        .get(healthUri, headers: const {'Accept': 'application/json'})
+        .timeout(const Duration(seconds: 6));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        'Máy chủ không phản hồi bình thường (${response.statusCode}).',
+        statusCode: response.statusCode,
+      );
+    }
   }
 
   static Map<String, String> get _headers => {

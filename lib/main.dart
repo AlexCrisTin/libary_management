@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:libary_management/core/api_client.dart';
 import 'package:libary_management/login/begin.dart';
 
-void main() {
-  runApp(const MyApp()); 
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ApiClient.initialize();
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
