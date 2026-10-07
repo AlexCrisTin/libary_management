@@ -38,6 +38,16 @@ class _DetailBookState extends State<DetailBook> {
     }).length;
   }
 
+  List<String> get _availableLocations {
+    final locations = <String>{};
+    for (final copy in apiList(_book['copies'])) {
+      if (apiText(copy['status'], fallback: '') != 'available') continue;
+      final location = _shelfLocationLabel(copy);
+      if (location.isNotEmpty) locations.add(location);
+    }
+    return locations.toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -99,6 +109,9 @@ class _DetailBookState extends State<DetailBook> {
 
   Future<void> _borrowOrHold() async {
     if (_availableCopies > 0) {
+      final locationText = _availableLocations.isEmpty
+          ? '\n\nVị trí kệ chưa được cập nhật, vui lòng hỏi thủ thư.'
+          : '\n\nVị trí: ${_availableLocations.join('; ')}.';
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -112,7 +125,8 @@ class _DetailBookState extends State<DetailBook> {
           ),
           content: Text(
             'Hiện còn $_availableCopies bản trên kệ. '
-            'Bạn hãy đến quầy thủ thư để làm thủ tục mượn sách.',
+            'Bạn hãy đến quầy thủ thư để làm thủ tục mượn sách.'
+            '$locationText',
             style: const TextStyle(color: kBookTitle, height: 1.45),
           ),
           actions: [
@@ -216,6 +230,7 @@ class _DetailBookState extends State<DetailBook> {
                       description: apiText(_book['description']),
                       borrowedCopies: _borrowedCopies,
                       totalCopies: _totalCopies,
+                      copies: apiList(_book['copies']),
                     ),
                     const SizedBox(height: 24),
                     _SuggestedBooksSection(
@@ -382,6 +397,7 @@ class _BookInformationCard extends StatelessWidget {
     required this.description,
     required this.borrowedCopies,
     required this.totalCopies,
+    required this.copies,
   });
 
   final String title;
@@ -395,6 +411,7 @@ class _BookInformationCard extends StatelessWidget {
   final String description;
   final int borrowedCopies;
   final int totalCopies;
+  final List<Map<String, dynamic>> copies;
 
   @override
   Widget build(BuildContext context) {
@@ -488,6 +505,8 @@ class _BookInformationCard extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 14),
+          _ShelfLocations(copies: copies),
           const SizedBox(height: 10),
           Align(
             alignment: Alignment.centerLeft,
@@ -509,6 +528,120 @@ const _infoStyle = TextStyle(
   fontSize: 14,
   fontWeight: FontWeight.w700,
 );
+
+String _locationPart(String label, dynamic value) {
+  final text = apiText(value, fallback: '').trim();
+  if (text.isEmpty) return '';
+  if (text.toLowerCase().startsWith(label.toLowerCase())) return text;
+  return '$label $text';
+}
+
+String _shelfLocationLabel(Map<String, dynamic> copy) {
+  final parts = <String>[
+    _locationPart('Tầng', copy['floor']),
+    _locationPart('Khu', copy['section']),
+    _locationPart('Kệ', copy['shelf']),
+    _locationPart('Ngăn', copy['position']),
+  ].where((part) => part.isNotEmpty).toList();
+  return parts.join(' • ');
+}
+
+class _ShelfLocations extends StatelessWidget {
+  const _ShelfLocations({required this.copies});
+
+  final List<Map<String, dynamic>> copies;
+
+  @override
+  Widget build(BuildContext context) {
+    final groupedCopies = <String, List<Map<String, dynamic>>>{};
+    for (final copy in copies) {
+      final location = _shelfLocationLabel(copy);
+      if (location.isEmpty) continue;
+      groupedCopies.putIfAbsent(location, () => []).add(copy);
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .72),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.location_on_rounded, color: kBrownTitle, size: 22),
+              SizedBox(width: 7),
+              Text(
+                'Vị trí sách',
+                style: TextStyle(
+                  color: kBookTitle,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          if (groupedCopies.isEmpty)
+            Text(
+              'Chưa cập nhật vị trí kệ. Vui lòng hỏi thủ thư.',
+              style: _infoStyle.copyWith(
+                color: kMuted,
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          else
+            ...groupedCopies.entries.map((entry) {
+              final available = entry.value.where((copy) {
+                return apiText(copy['status'], fallback: '') == 'available';
+              }).length;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 7),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.only(top: 5, right: 8),
+                      decoration: BoxDecoration(
+                        color: available > 0 ? const Color(0xFF69B58E) : kMuted,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(entry.key, style: _infoStyle),
+                          const SizedBox(height: 2),
+                          Text(
+                            available > 0
+                                ? '$available bản có sẵn'
+                                : '${entry.value.length} bản hiện chưa có sẵn',
+                            style: TextStyle(
+                              color: available > 0
+                                  ? const Color(0xFF4F9B73)
+                                  : kMuted,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+}
 
 class _InfoLine extends StatelessWidget {
   const _InfoLine({required this.label, required this.value});
