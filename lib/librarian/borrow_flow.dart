@@ -249,7 +249,7 @@ class _BorrowFlowState extends State<BorrowFlow> {
         setState(() {
           _copies = _copies.skip(completed).toList();
           _activeLoans += completed;
-          _step = 2;
+          _step = 1;
         });
         _show(
           'Đã cho mượn $completed cuốn; các cuốn còn lại chưa được xử lý: $error',
@@ -284,23 +284,19 @@ class _BorrowFlowState extends State<BorrowFlow> {
         _show('Hãy thêm ít nhất một bản sao sách.');
         return;
       }
-      setState(() => _step = 2);
-      return;
-    }
-    if (_step == 2) {
       if (!_conditionsPassed) {
         _show('Có điều kiện chưa đạt, không thể tiếp tục.');
         return;
       }
-      setState(() => _step = 3);
+      setState(() => _step = 2);
       return;
     }
-    if (_step == 3) {
+    if (_step == 2) {
       if (_dueDays < 1) {
         _show('Hạn trả phải sau ngày mượn.');
         return;
       }
-      setState(() => _step = 4);
+      setState(() => _step = 3);
       return;
     }
     _submit();
@@ -318,101 +314,148 @@ class _BorrowFlowState extends State<BorrowFlow> {
     backgroundColor: Colors.white,
     body: Column(
       children: [
-        const LibTitleHeader(title: 'Lập phiếu mượn', showBack: true),
+        const _BorrowHeader(),
         Expanded(
-          child: Stepper(
-            currentStep: _step,
-            onStepTapped: (value) {
-              if (value <= _step) setState(() => _step = value);
-            },
-            controlsBuilder: (context, details) => Padding(
-              padding: const EdgeInsets.only(top: 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _submitting ? null : _continue,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _step == 4
-                            ? kLibGreen
-                            : kLibBrownTitle,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      icon: _submitting
-                          ? const SizedBox(
-                              width: 19,
-                              height: 19,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(14, 18, 14, 36),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 820),
+                child: Column(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Column(
+                        children: [
+                          _FlowProgress(
+                            currentStep: _step,
+                            onStepTapped: (value) {
+                              if (value <= _step) {
+                                setState(() => _step = value);
+                              }
+                            },
+                          ),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.fromLTRB(18, 22, 18, 30),
+                            color: kLibCardFill,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 220),
+                              layoutBuilder: (currentChild, previousChildren) =>
+                                  Stack(
+                                    alignment: Alignment.topLeft,
+                                    children: [
+                                      ...previousChildren,
+                                      if (currentChild != null) currentChild,
+                                    ],
+                                  ),
+                              child: KeyedSubtree(
+                                key: ValueKey(_step),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Text(
+                                      _stepTitle,
+                                      style: const TextStyle(
+                                        color: kLibBrownTitle,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    _stepContent(),
+                                  ],
+                                ),
                               ),
-                            )
-                          : Icon(
-                              _step == 4
-                                  ? Icons.check_circle_outline
-                                  : Icons.arrow_forward,
                             ),
-                      label: Text(
-                        _step == 4 ? 'Xác nhận lập phiếu' : 'Tiếp tục',
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  if (_step > 0 && _step < 4) ...[
-                    const SizedBox(width: 10),
-                    TextButton(
-                      onPressed: () => setState(() => _step--),
-                      child: const Text('Quay lại'),
-                    ),
+                    const SizedBox(height: 26),
+                    _actionButtons(),
                   ],
-                ],
+                ),
               ),
             ),
-            steps: [
-              Step(
-                title: const Text('Nhập mã độc giả'),
-                subtitle: const Text('Xác nhận thông tin và trạng thái thẻ'),
-                isActive: _step >= 0,
-                state: _reader == null
-                    ? StepState.indexed
-                    : _cardActive && _activeLoans < _maxBooks
-                    ? StepState.complete
-                    : StepState.error,
-                content: _readerStep(),
-              ),
-              Step(
-                title: const Text('Quét / nhập barcode sách'),
-                subtitle: Text('${_copies.length} bản sao trong phiếu'),
-                isActive: _step >= 1,
-                state: _copies.isEmpty ? StepState.indexed : StepState.complete,
-                content: _bookStep(),
-              ),
-              Step(
-                title: const Text('Kiểm tra điều kiện'),
-                subtitle: Text(
-                  _conditionsPassed ? 'Đủ điều kiện cho mượn' : 'Cần xử lý',
-                ),
-                isActive: _step >= 2,
-                state: _conditionsPassed ? StepState.complete : StepState.error,
-                content: _conditionStep(),
-              ),
-              Step(
-                title: const Text('Ngày mượn / hạn trả'),
-                subtitle: Text('Thời hạn $_dueDays ngày'),
-                isActive: _step >= 3,
-                state: _step > 3 ? StepState.complete : StepState.indexed,
-                content: _dateStep(),
-              ),
-              Step(
-                title: const Text('Xác nhận lập phiếu'),
-                subtitle: const Text('Kiểm tra lần cuối trước khi ghi nhận'),
-                isActive: _step >= 4,
-                content: _confirmationStep(),
-              ),
-            ],
           ),
         ),
       ],
     ),
+  );
+
+  String get _stepTitle => switch (_step) {
+    0 => 'Nhập mã độc giả',
+    1 => 'Quét / nhập barcode sách',
+    2 => 'Ngày mượn / hạn trả',
+    _ => 'Xác nhận thông tin',
+  };
+
+  Widget _stepContent() => switch (_step) {
+    0 => _readerStep(),
+    1 => _bookStep(),
+    2 => _dateStep(),
+    _ => _confirmationStep(),
+  };
+
+  Widget _actionButtons() => Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      if (_step > 0) ...[
+        SizedBox(
+          width: 126,
+          height: 54,
+          child: OutlinedButton(
+            onPressed: _submitting ? null : () => setState(() => _step--),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: kLibBrownTitle,
+              side: const BorderSide(color: kLibBeigeButton, width: 2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Quay lại',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+      ],
+      SizedBox(
+        width: _step == 3 ? 202 : 146,
+        height: 54,
+        child: ElevatedButton(
+          onPressed: _submitting ? null : _continue,
+          style: ElevatedButton.styleFrom(
+            elevation: 0,
+            backgroundColor: kLibGreen,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: kLibGreen.withValues(alpha: .55),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: _submitting
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2.5,
+                  ),
+                )
+              : Text(
+                  _step == 3 ? 'Xác nhận lập phiếu' : 'Tiếp theo',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+        ),
+      ),
+    ],
   );
 
   Widget _readerStep() => Column(
@@ -438,36 +481,71 @@ class _BorrowFlowState extends State<BorrowFlow> {
                 });
               },
               onSubmitted: (_) => _lookupReader(),
-              decoration: const InputDecoration(
-                labelText: 'Mã độc giả',
-                hintText: 'Ví dụ: RD-123456',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: 'Nhập mã độc giả, ví dụ LIB-2026-00001',
+                hintStyle: TextStyle(
+                  color: kLibBrownTitle.withValues(alpha: .42),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 17,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(28),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFD9D9D9),
+                    width: 3,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(28),
+                  borderSide: const BorderSide(
+                    color: kLibBeigeButton,
+                    width: 3,
+                  ),
+                ),
               ),
             ),
           ),
-          const SizedBox(width: 10),
-          IconButton.filled(
-            tooltip: 'Tra cứu độc giả',
-            onPressed: _lookingUpReader ? null : _lookupReader,
-            icon: _lookingUpReader
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Icon(Icons.search),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 58,
+            height: 58,
+            child: IconButton.filled(
+              tooltip: 'Tra cứu độc giả',
+              onPressed: _lookingUpReader ? null : _lookupReader,
+              style: IconButton.styleFrom(
+                backgroundColor: kLibBeigeSoft,
+                foregroundColor: kLibBrownTitle,
+              ),
+              icon: _lookingUpReader
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        color: kLibBrownTitle,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : const Icon(Icons.search_rounded, size: 32),
+            ),
           ),
         ],
       ),
       if (_reader != null) ...[
+        const SizedBox(height: 24),
+        const _SectionHeading('Thông tin độc giả'),
         const SizedBox(height: 14),
         _InfoCard(
           children: [
             _InfoLine('Họ và tên', _reader?['full_name']),
             _InfoLine('Mã độc giả', _reader?['reader_code']),
+            _InfoLine('Ngày sinh', apiDate(_reader?['birth_date'])),
+            _InfoLine('Số điện thoại', _reader?['phone']),
+            _InfoLine('Địa chỉ', _reader?['address']),
+            _InfoLine('Email', _reader?['email']),
             _InfoLine('Đang mượn', '$_activeLoans / $_maxBooks'),
             _InfoLine(
               'Trạng thái thẻ',
@@ -490,9 +568,28 @@ class _BorrowFlowState extends State<BorrowFlow> {
             child: TextField(
               controller: _barcode,
               onSubmitted: (_) => _addBarcode(),
-              decoration: const InputDecoration(
-                labelText: 'Barcode bản sao',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: 'Nhập barcode dán trên bản sao sách',
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 15,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFD9D9D9),
+                    width: 2,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: const BorderSide(
+                    color: kLibBeigeButton,
+                    width: 2,
+                  ),
+                ),
               ),
             ),
           ),
@@ -554,6 +651,10 @@ class _BorrowFlowState extends State<BorrowFlow> {
             style: const TextStyle(color: kLibBrownTitle),
           ),
         ),
+      const SizedBox(height: 20),
+      const _SectionHeading('Kiểm tra điều kiện'),
+      const SizedBox(height: 12),
+      _conditionStep(),
     ],
   );
 
@@ -621,6 +722,196 @@ class _BorrowFlowState extends State<BorrowFlow> {
   );
 }
 
+class _BorrowHeader extends StatelessWidget {
+  const _BorrowHeader();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.fromLTRB(8, 8, 8, 18),
+    decoration: const BoxDecoration(
+      color: kLibBeige,
+      borderRadius: BorderRadius.only(
+        bottomLeft: Radius.circular(12),
+        bottomRight: Radius.circular(12),
+      ),
+    ),
+    child: SafeArea(
+      bottom: false,
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: 'Quay lại',
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const Expanded(
+            child: Text(
+              'Lập phiếu mượn',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: kLibBrownTitle,
+                fontSize: 30,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 48),
+        ],
+      ),
+    ),
+  );
+}
+
+class _FlowProgress extends StatelessWidget {
+  const _FlowProgress({required this.currentStep, required this.onStepTapped});
+
+  final int currentStep;
+  final ValueChanged<int> onStepTapped;
+
+  static const _labels = [
+    'Nhập mã\nđộc giả',
+    'Sách',
+    'Ngày mượn\n/ trả',
+    'Xác nhận\nthông tin',
+  ];
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.fromLTRB(12, 16, 12, 15),
+    color: kLibBeigeButton,
+    child: LayoutBuilder(
+      builder: (context, constraints) => Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(
+              _labels.length,
+              (index) => Expanded(
+                child: InkWell(
+                  onTap: index <= currentStep
+                      ? () => onStepTapped(index)
+                      : null,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: Text(
+                      _labels[index],
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      style: TextStyle(
+                        color: index <= currentStep
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: .78),
+                        fontSize: 13,
+                        height: 1.1,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 30,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned(
+                  left: constraints.maxWidth / (_labels.length * 2),
+                  right: constraints.maxWidth / (_labels.length * 2),
+                  child: Container(
+                    height: 2,
+                    color: kLibBrownTitle.withValues(alpha: .28),
+                  ),
+                ),
+                Row(
+                  children: List.generate(
+                    _labels.length,
+                    (index) => Expanded(
+                      child: Center(
+                        child: InkWell(
+                          onTap: index <= currentStep
+                              ? () => onStepTapped(index)
+                              : null,
+                          customBorder: const CircleBorder(),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: index < currentStep
+                                  ? kLibGreen
+                                  : index == currentStep
+                                  ? Colors.white
+                                  : kLibBeigeSoft,
+                              border: index == currentStep
+                                  ? Border.all(color: kLibBrownTitle, width: 2)
+                                  : null,
+                            ),
+                            child: index < currentStep
+                                ? const Icon(
+                                    Icons.check_rounded,
+                                    color: Colors.white,
+                                    size: 19,
+                                  )
+                                : index == currentStep
+                                ? const Icon(
+                                    Icons.circle,
+                                    color: kLibBrownTitle,
+                                    size: 11,
+                                  )
+                                : null,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Text(
+        title,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: kLibBrownTitle,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      Container(
+        width: 150,
+        height: 1,
+        margin: const EdgeInsets.only(top: 8),
+        color: kLibBrownTitle.withValues(alpha: .45),
+      ),
+    ],
+  );
+}
+
 class _InfoCard extends StatelessWidget {
   const _InfoCard({required this.children});
   final List<Widget> children;
@@ -628,10 +919,11 @@ class _InfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(14),
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     decoration: BoxDecoration(
-      color: kLibCardFill,
+      color: Colors.white.withValues(alpha: .72),
       borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: kLibBeigeSoft),
     ),
     child: Column(children: children),
   );
