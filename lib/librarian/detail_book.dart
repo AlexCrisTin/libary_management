@@ -19,7 +19,9 @@ class DetailBook extends StatefulWidget {
 
 class _DetailBookState extends State<DetailBook> {
   Map<String, dynamic> _book = const {};
+  List<Map<String, dynamic>> _shelves = const [];
   bool _loading = true;
+  bool _loadingShelves = true;
   bool _submitting = false;
   String? _error;
 
@@ -37,6 +39,7 @@ class _DetailBookState extends State<DetailBook> {
   void initState() {
     super.initState();
     _load();
+    _loadShelves();
   }
 
   Future<void> _load() async {
@@ -52,6 +55,22 @@ class _DetailBookState extends State<DetailBook> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _loadShelves() async {
+    if (mounted) setState(() => _loadingShelves = true);
+    try {
+      final data = await ApiClient.get('/shelves');
+      if (mounted) setState(() => _shelves = apiList(data));
+    } catch (error) {
+      if (mounted) _showMessage('Không tải được danh sách kệ: $error');
+    } finally {
+      if (mounted) setState(() => _loadingShelves = false);
+    }
+  }
+
+  Future<void> _refresh() async {
+    await Future.wait([_load(), _loadShelves()]);
   }
 
   void _openTab(int index) {
@@ -236,50 +255,61 @@ class _DetailBookState extends State<DetailBook> {
     final barcode = TextEditingController();
     final price = TextEditingController();
     var condition = 'good';
+    var locationId = '';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Thêm bản sao sách'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: barcode,
-                decoration: const InputDecoration(
-                  labelText: 'Mã barcode (để trống sẽ tự tạo)',
-                  border: OutlineInputBorder(),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: barcode,
+                  decoration: const InputDecoration(
+                    labelText: 'Mã barcode (để trống sẽ tự tạo)',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: condition,
-                decoration: const InputDecoration(
-                  labelText: 'Tình trạng',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: condition,
+                  decoration: const InputDecoration(
+                    labelText: 'Tình trạng',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _copyConditions
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(_copyConditionLabel(value)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) =>
+                      setDialogState(() => condition = value ?? condition),
                 ),
-                items: _copyConditions
-                    .map(
-                      (value) => DropdownMenuItem(
-                        value: value,
-                        child: Text(_copyConditionLabel(value)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) =>
-                    setDialogState(() => condition = value ?? condition),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: price,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Giá nhập',
-                  suffixText: 'đ',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                _shelfDropdown(
+                  value: locationId,
+                  onChanged: (value) =>
+                      setDialogState(() => locationId = value ?? locationId),
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                TextField(
+                  controller: price,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Giá nhập',
+                    suffixText: 'đ',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -295,12 +325,14 @@ class _DetailBookState extends State<DetailBook> {
       ),
     );
     if (confirmed == true && mounted) {
+      setState(() => _submitting = true);
       try {
         await ApiClient.post(
           '/books/${widget.bookId}/copies',
           body: {
             'barcode': _nullable(barcode.text),
             'condition': condition,
+            'location_id': locationId.isEmpty ? null : locationId,
             'acquired_price': num.tryParse(price.text) ?? 0,
           },
         );
@@ -308,6 +340,8 @@ class _DetailBookState extends State<DetailBook> {
         await _load();
       } catch (error) {
         _showMessage(error.toString());
+      } finally {
+        if (mounted) setState(() => _submitting = false);
       }
     }
     barcode.dispose();
@@ -317,50 +351,66 @@ class _DetailBookState extends State<DetailBook> {
   Future<void> _editCopy(Map<String, dynamic> copy) async {
     var condition = apiText(copy['condition'], fallback: 'good');
     var status = apiText(copy['status'], fallback: 'available');
+    final currentLocationId = apiText(copy['location_id'], fallback: '');
+    var locationId =
+        _shelves.any(
+          (shelf) =>
+              apiText(shelf['location_id'], fallback: '') == currentLocationId,
+        )
+        ? currentLocationId
+        : '';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(apiText(copy['barcode'])),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                value: condition,
-                decoration: const InputDecoration(
-                  labelText: 'Tình trạng vật lý',
-                  border: OutlineInputBorder(),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: condition,
+                  decoration: const InputDecoration(
+                    labelText: 'Tình trạng vật lý',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _copyConditions
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(_copyConditionLabel(value)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) =>
+                      setDialogState(() => condition = value ?? condition),
                 ),
-                items: _copyConditions
-                    .map(
-                      (value) => DropdownMenuItem(
-                        value: value,
-                        child: Text(_copyConditionLabel(value)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) =>
-                    setDialogState(() => condition = value ?? condition),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: status,
-                decoration: const InputDecoration(
-                  labelText: 'Trạng thái lưu thông',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: status,
+                  decoration: const InputDecoration(
+                    labelText: 'Trạng thái lưu thông',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _copyStatuses
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(_copyStatusLabel(value)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) =>
+                      setDialogState(() => status = value ?? status),
                 ),
-                items: _copyStatuses
-                    .map(
-                      (value) => DropdownMenuItem(
-                        value: value,
-                        child: Text(_copyStatusLabel(value)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) =>
-                    setDialogState(() => status = value ?? status),
-              ),
-            ],
+                const SizedBox(height: 12),
+                _shelfDropdown(
+                  value: locationId,
+                  onChanged: (value) =>
+                      setDialogState(() => locationId = value ?? locationId),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -376,15 +426,27 @@ class _DetailBookState extends State<DetailBook> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    setState(() => _submitting = true);
     try {
       await ApiClient.put(
         '/books/copies/${copy['copy_id']}',
         body: {'condition': condition, 'status': status},
       );
+      if (locationId != currentLocationId) {
+        await ApiClient.put(
+          '/shelves/assign-book',
+          body: {
+            'copy_id': copy['copy_id'],
+            'location_id': locationId.isEmpty ? null : locationId,
+          },
+        );
+      }
       _showMessage('Đã cập nhật bản sao sách.');
       await _load();
     } catch (error) {
       _showMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -420,7 +482,7 @@ class _DetailBookState extends State<DetailBook> {
               isEmpty: _book.isEmpty,
               onRetry: _load,
               child: RefreshIndicator(
-                onRefresh: _load,
+                onRefresh: _refresh,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(18, 34, 18, 24),
@@ -481,6 +543,7 @@ class _DetailBookState extends State<DetailBook> {
                       copies: _copies,
                       onAdd: _addCopy,
                       onEdit: _editCopy,
+                      busy: _submitting,
                     ),
                   ],
                 ),
@@ -526,6 +589,38 @@ class _DetailBookState extends State<DetailBook> {
       ),
     );
   }
+
+  Widget _shelfDropdown({
+    required String value,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: 'Vị trí kệ',
+        border: const OutlineInputBorder(),
+        helperText: _loadingShelves
+            ? 'Đang tải danh sách kệ...'
+            : 'Có thể chọn “Chưa xếp kệ” để gỡ khỏi kệ hiện tại',
+      ),
+      items: [
+        const DropdownMenuItem(value: '', child: Text('Chưa xếp kệ')),
+        ..._shelves.map(
+          (shelf) => DropdownMenuItem(
+            value: apiText(shelf['location_id'], fallback: ''),
+            enabled: shelf['is_full'] != true,
+            child: Text(
+              _shelfLabel(shelf, showCapacity: true),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ],
+      onChanged: _loadingShelves ? null : onChanged,
+    );
+  }
 }
 
 const _copyConditions = ['new', 'good', 'fair', 'poor', 'damaged'];
@@ -555,97 +650,299 @@ String _copyStatusLabel(String value) => switch (value) {
   _ => value,
 };
 
+Color _copyStatusColor(String value) => switch (value) {
+  'available' => kLibGreen,
+  'borrowed' => kLibBeige,
+  'reserved' => const Color(0xFFE1B76B),
+  'lost' => kLibRed,
+  'processing' => kLibBrownTitle,
+  _ => kLibBrownTitle,
+};
+
+String _locationPart(String label, dynamic value) {
+  final text = apiText(value, fallback: '').trim();
+  if (text.isEmpty) return '';
+  if (text.toLowerCase().startsWith(label.toLowerCase())) return text;
+  return '$label $text';
+}
+
+String _shelfLabel(Map<String, dynamic> shelf, {bool showCapacity = false}) {
+  final location = <String>[
+    _locationPart('Tầng', shelf['floor']),
+    _locationPart('Khu', shelf['section']),
+    _locationPart('Kệ', shelf['shelf']),
+    _locationPart('Ngăn', shelf['position']),
+  ].where((part) => part.isNotEmpty).join(' • ');
+  if (!showCapacity) return location.isEmpty ? 'Chưa xếp kệ' : location;
+
+  final remaining = int.tryParse('${shelf['remaining_capacity'] ?? ''}');
+  final capacity = int.tryParse('${shelf['capacity'] ?? ''}');
+  final capacityText = remaining == null || capacity == null
+      ? ''
+      : ' — còn $remaining/$capacity chỗ';
+  return '${location.isEmpty ? 'Kệ chưa đặt tên' : location}$capacityText';
+}
+
+String _copyPrice(dynamic value) {
+  final price = num.tryParse('$value');
+  if (price == null || price <= 0) return 'Chưa cập nhật';
+  final digits = price.round().toString();
+  final result = StringBuffer();
+  for (var index = 0; index < digits.length; index++) {
+    if (index > 0 && (digits.length - index) % 3 == 0) result.write('.');
+    result.write(digits[index]);
+  }
+  return '$resultđ';
+}
+
 class _CopiesCard extends StatelessWidget {
   const _CopiesCard({
     required this.copies,
     required this.onAdd,
     required this.onEdit,
+    required this.busy,
   });
 
   final List<Map<String, dynamic>> copies;
   final VoidCallback onAdd;
   final ValueChanged<Map<String, dynamic>> onEdit;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final available = copies
+        .where((copy) => copy['status']?.toString() == 'available')
+        .length;
+    final borrowed = copies
+        .where((copy) => copy['status']?.toString() == 'borrowed')
+        .length;
+    final unavailable = copies.length - available - borrowed;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+      decoration: BoxDecoration(
+        color: kLibCardFill,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Quản lý từng bản sao',
+                  style: TextStyle(
+                    color: kLibBookTitle,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              IconButton.filled(
+                tooltip: 'Thêm bản sao',
+                onPressed: busy ? null : onAdd,
+                style: IconButton.styleFrom(
+                  backgroundColor: kLibBeigeButton,
+                  disabledBackgroundColor: kLibBeigeSoft,
+                ),
+                icon: busy
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.add, color: Colors.white),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _CopySummaryChip(
+                label: 'Tổng ${copies.length}',
+                color: kLibBeige,
+              ),
+              _CopySummaryChip(label: 'Có sẵn $available', color: kLibGreen),
+              _CopySummaryChip(
+                label: 'Đang mượn $borrowed',
+                color: kLibBeigeButton,
+              ),
+              if (unavailable > 0)
+                _CopySummaryChip(label: 'Khác $unavailable', color: kLibRed),
+            ],
+          ),
+          if (copies.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 28),
+              child: Center(
+                child: Text('Đầu sách này chưa có bản sao vật lý.'),
+              ),
+            )
+          else
+            ...copies.map(
+              (copy) => _CopyTile(
+                copy: copy,
+                enabled: !busy,
+                onEdit: () => onEdit(copy),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CopySummaryChip extends StatelessWidget {
+  const _CopySummaryChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
     decoration: BoxDecoration(
-      color: kLibCardFill,
-      borderRadius: BorderRadius.circular(16),
+      color: color.withValues(alpha: .35),
+      borderRadius: BorderRadius.circular(20),
     ),
-    child: Column(
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Quản lý từng bản sao',
-                style: TextStyle(
-                  color: kLibBookTitle,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            IconButton.filled(
-              tooltip: 'Thêm bản sao',
-              onPressed: onAdd,
-              style: IconButton.styleFrom(backgroundColor: kLibBeigeButton),
-              icon: const Icon(Icons.add, color: Colors.white),
-            ),
-          ],
-        ),
-        if (copies.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 22),
-            child: Text('Đầu sách này chưa có bản sao vật lý.'),
-          )
-        else
-          ...copies.map(
-            (copy) => Container(
-              margin: const EdgeInsets.only(top: 10),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.qr_code_rounded, color: kLibBrownTitle),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          apiText(copy['barcode']),
-                          style: const TextStyle(
-                            color: kLibBookTitle,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Text(
-                          '${_copyStatusLabel(apiText(copy['status'], fallback: ''))} • ${_copyConditionLabel(apiText(copy['condition'], fallback: ''))}',
-                        ),
-                        if (copy['shelf'] != null)
-                          Text(
-                            'Kệ: ${apiText(copy['floor'])} / ${apiText(copy['section'])} / ${apiText(copy['shelf'])}',
-                          ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Cập nhật bản sao',
-                    onPressed: () => onEdit(copy),
-                    icon: const Icon(Icons.edit_outlined),
-                  ),
-                ],
-              ),
-            ),
-          ),
-      ],
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: kLibBookTitle,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+      ),
     ),
   );
+}
+
+class _CopyTile extends StatelessWidget {
+  const _CopyTile({
+    required this.copy,
+    required this.enabled,
+    required this.onEdit,
+  });
+
+  final Map<String, dynamic> copy;
+  final bool enabled;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = apiText(copy['status'], fallback: '');
+    final condition = apiText(copy['condition'], fallback: '');
+    final location = _shelfLabel(copy);
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: const BoxDecoration(
+                  color: kLibBeigeSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.qr_code_rounded, color: kLibBrownTitle),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      apiText(copy['barcode']),
+                      style: const TextStyle(
+                        color: kLibBookTitle,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      'Mã bản sao: ${apiText(copy['copy_id'])}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Cập nhật bản sao',
+                onPressed: enabled ? onEdit : null,
+                icon: const Icon(Icons.edit_outlined, color: kLibBrownTitle),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: [
+              _CopySummaryChip(
+                label: _copyStatusLabel(status),
+                color: _copyStatusColor(status),
+              ),
+              _CopySummaryChip(
+                label: 'Tình trạng: ${_copyConditionLabel(condition)}',
+                color: kLibBeige,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.location_on_outlined,
+                color: kLibBrownTitle,
+                size: 19,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  location,
+                  style: const TextStyle(
+                    color: kLibBookTitle,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Ngày nhập: ${apiDate(copy['acquired_date'])}',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ),
+              Text(
+                'Giá: ${_copyPrice(copy['acquired_price'])}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _CoverCard extends StatelessWidget {
