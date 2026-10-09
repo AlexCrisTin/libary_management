@@ -69,7 +69,8 @@ class ChatFab extends StatelessWidget {
     return FloatingActionButton(
       backgroundColor: kBeigeSoft,
       onPressed: onPressed,
-      child: const Icon(Icons.smart_toy_outlined, color: kBookTitle),
+      tooltip: 'Tin nhắn',
+      child: const Icon(Icons.chat_bubble_outline_rounded, color: kBookTitle),
     );
   }
 }
