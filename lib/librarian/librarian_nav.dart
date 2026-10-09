@@ -28,14 +28,14 @@ class LibrarianBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 0, 4, 16),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: kLibBeigeSoft,
-          borderRadius: BorderRadius.circular(52),
+          borderRadius: BorderRadius.circular(30),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 18),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -46,7 +46,7 @@ class LibrarianBottomBar extends StatelessWidget {
                 onPressed: onScan,
                 icon: Icon(
                   Icons.camera_alt_rounded,
-                  size: 30,
+                  size: 28,
                   color: kLibBrownTitle.withValues(alpha: 0.6),
                 ),
               ),

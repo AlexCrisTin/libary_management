@@ -72,23 +72,17 @@ class _LibrarianShellState extends State<LibrarianShell> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: IndexedStack(index: _currentIndex, children: pages),
-      floatingActionButton: SizedBox(
-        width: 110,
-        height: 110,
-        child: FloatingActionButton(
-          heroTag: 'librarianMessages',
-          backgroundColor: kLibBeigeSoft,
-          elevation: 0,
-          shape: const CircleBorder(),
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const MessageAll()),
-          ),
-          child: const Icon(
-            Icons.more_horiz_rounded,
-            size: 42,
-            color: kLibBrownTitle,
-          ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'librarianMessages',
+        backgroundColor: kLibBeigeSoft,
+        tooltip: 'Tin nhắn',
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MessageAll()),
+        ),
+        child: const Icon(
+          Icons.chat_bubble_outline_rounded,
+          color: kLibBookTitle,
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
