@@ -304,28 +304,26 @@ class _ProfileState extends State<Profile> {
                       ),
                     ],
                   ),
-                  Transform.translate(
-                    offset: const Offset(0, -23),
-                    child: Center(
-                      child: SizedBox(
-                        width: 152,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: _logout,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFF26A6D),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(11),
-                            ),
+                  const SizedBox(height: 24),
+                  Center(
+                    child: SizedBox(
+                      width: 152,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: _logout,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF26A6D),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(11),
                           ),
-                          child: const Text(
-                            'Đăng xuất',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                            ),
+                        ),
+                        child: const Text(
+                          'Đăng xuất',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
