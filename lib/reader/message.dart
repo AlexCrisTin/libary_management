@@ -249,7 +249,10 @@ class _ReaderMessageBubble extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
         decoration: BoxDecoration(
-          color: mine ? kBeigeButton : kCardFill,
+          color: mine ? kBeigeButton : Colors.white,
+          border: mine
+              ? null
+              : Border.all(color: kBeigeButton.withValues(alpha: .55)),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
