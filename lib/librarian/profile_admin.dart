@@ -9,6 +9,107 @@ import 'user_management.dart';
 class ProfileAdmin extends StatelessWidget {
   const ProfileAdmin({super.key});
 
+  Future<void> _openSettings(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: kLibCardFill,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 4, 22, 26),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Cài đặt ứng dụng',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: kLibBrownTitle,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 18),
+              _AdminSettingRow(
+                icon: Icons.dns_rounded,
+                label: 'Máy chủ đang kết nối',
+                value: ApiClient.baseUrl,
+              ),
+              const Divider(height: 1),
+              _AdminSettingRow(
+                icon: Icons.admin_panel_settings_rounded,
+                label: 'Vai trò tài khoản',
+                value: _roleLabel(AppSession.user?['role']?.toString()),
+              ),
+              const SizedBox(height: 20),
+              Center(
+                child: SizedBox(
+                  width: 178,
+                  height: 48,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: kLibBrownTitle,
+                    ),
+                    onPressed: () async {
+                      try {
+                        await ApiClient.testServer(ApiClient.baseUrl);
+                        if (!sheetContext.mounted) return;
+                        ScaffoldMessenger.of(sheetContext)
+                          ..hideCurrentSnackBar()
+                          ..showSnackBar(
+                            const SnackBar(
+                              content: Text('Kết nối máy chủ bình thường.'),
+                            ),
+                          );
+                      } catch (error) {
+                        if (!sheetContext.mounted) return;
+                        ScaffoldMessenger.of(sheetContext)
+                          ..hideCurrentSnackBar()
+                          ..showSnackBar(
+                            SnackBar(content: Text(error.toString())),
+                          );
+                      }
+                    },
+                    icon: const Icon(Icons.wifi_tethering_rounded),
+                    label: const Text('Kiểm tra kết nối'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAbout(BuildContext context) {
+    showAboutDialog(
+      context: context,
+      applicationName: 'Readily',
+      applicationVersion: '1.0.0',
+      applicationIcon: const CircleAvatar(
+        backgroundColor: kLibBeigeSoft,
+        child: Icon(Icons.local_library_rounded, color: kLibBrownTitle),
+      ),
+      children: const [
+        Text(
+          'Ứng dụng quản lý thư viện hỗ trợ thủ thư quản lý sách, độc giả, '
+          'giao dịch mượn trả, thông báo và báo cáo thống kê.',
+        ),
+      ],
+    );
+  }
+
+  String _roleLabel(String? role) => switch (role) {
+    'admin' => 'Quản trị viên',
+    'librarian' => 'Thủ thư',
+    _ => apiText(role),
+  };
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -101,18 +202,20 @@ class ProfileAdmin extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const LibSectionCard(
+                LibSectionCard(
                   title: 'Cài đặt khác',
                   child: Column(
                     children: [
                       LibMenuRow(
                         label: 'Cài đặt',
-                        icon: Icons.settings_outlined,
+                        icon: Icons.settings_rounded,
+                        onTap: () => _openSettings(context),
                       ),
-                      Divider(height: 1),
+                      const Divider(height: 1),
                       LibMenuRow(
                         label: 'Thông tin khác',
-                        icon: Icons.info_outline,
+                        icon: Icons.info_rounded,
+                        onTap: () => _showAbout(context),
                       ),
                     ],
                   ),
@@ -141,6 +244,48 @@ class ProfileAdmin extends StatelessWidget {
                     ),
                   ),
                 ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminSettingRow extends StatelessWidget {
+  const _AdminSettingRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 13),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: kLibBrownTitle, size: 27),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: kLibBrownTitle,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(value, style: const TextStyle(color: kLibBookTitle)),
               ],
             ),
           ),
