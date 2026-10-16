@@ -120,6 +120,16 @@ CREATE TABLE IF NOT EXISTS book_copies (
     CONSTRAINT fk_copy_location FOREIGN KEY (location_id) REFERENCES shelf_locations(location_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS reader_bookmarks (
+    reader_id VARCHAR(36) NOT NULL,
+    bib_id VARCHAR(36) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (reader_id, bib_id),
+    KEY idx_reader_bookmarks_bib (bib_id),
+    CONSTRAINT fk_bookmark_reader FOREIGN KEY (reader_id) REFERENCES readers(reader_id) ON DELETE CASCADE,
+    CONSTRAINT fk_bookmark_bib FOREIGN KEY (bib_id) REFERENCES bibliographic_records(bib_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS reader_preferences (
     reader_id VARCHAR(36) NOT NULL,
     preferred_subjects JSON DEFAULT NULL,

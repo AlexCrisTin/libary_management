@@ -450,6 +450,44 @@ class _DetailBookState extends State<DetailBook> {
     }
   }
 
+  Future<void> _deleteCopy(Map<String, dynamic> copy) async {
+    final barcode = apiText(copy['barcode']);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa bản sao sách?'),
+        content: Text(
+          'Bạn có chắc muốn xóa bản sao $barcode?\n\n'
+          'Bản sao đã có lịch sử mượn/trả sẽ không thể xóa để bảo toàn dữ liệu.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: kLibRed),
+            child: const Text('Xóa bản sao'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _submitting = true);
+    try {
+      await ApiClient.delete('/books/copies/${copy['copy_id']}');
+      if (!mounted) return;
+      _showMessage('Đã xóa bản sao $barcode.');
+      await _load();
+    } catch (error) {
+      _showMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
@@ -543,6 +581,7 @@ class _DetailBookState extends State<DetailBook> {
                       copies: _copies,
                       onAdd: _addCopy,
                       onEdit: _editCopy,
+                      onDelete: _deleteCopy,
                       busy: _submitting,
                     ),
                   ],
@@ -700,12 +739,14 @@ class _CopiesCard extends StatelessWidget {
     required this.copies,
     required this.onAdd,
     required this.onEdit,
+    required this.onDelete,
     required this.busy,
   });
 
   final List<Map<String, dynamic>> copies;
   final VoidCallback onAdd;
   final ValueChanged<Map<String, dynamic>> onEdit;
+  final ValueChanged<Map<String, dynamic>> onDelete;
   final bool busy;
 
   @override
@@ -790,6 +831,7 @@ class _CopiesCard extends StatelessWidget {
                 copy: copy,
                 enabled: !busy,
                 onEdit: () => onEdit(copy),
+                onDelete: () => onDelete(copy),
               ),
             ),
         ],
@@ -827,11 +869,13 @@ class _CopyTile extends StatelessWidget {
     required this.copy,
     required this.enabled,
     required this.onEdit,
+    required this.onDelete,
   });
 
   final Map<String, dynamic> copy;
   final bool enabled;
   final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -885,6 +929,11 @@ class _CopyTile extends StatelessWidget {
                 tooltip: 'Cập nhật bản sao',
                 onPressed: enabled ? onEdit : null,
                 icon: const Icon(Icons.edit_outlined, color: kLibBrownTitle),
+              ),
+              IconButton(
+                tooltip: 'Xóa bản sao',
+                onPressed: enabled ? onDelete : null,
+                icon: const Icon(Icons.delete_outline_rounded, color: kLibRed),
               ),
             ],
           ),

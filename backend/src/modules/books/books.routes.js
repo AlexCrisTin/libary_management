@@ -10,11 +10,19 @@ router.get('/', booksController.searchBooks);
 // 2. Cập nhật tình trạng của một bản sao sách (Thủ thư kiểm kê)
 router.put('/copies/:copyId', authMiddleware, roleMiddleware('librarian', 'admin'), booksController.updateCopyCondition);
 
+// Xóa riêng một bản sao chưa được dùng trong giao dịch mượn/trả
+router.delete('/copies/:copyId', authMiddleware, roleMiddleware('librarian', 'admin'), booksController.deleteCopy);
+
 // 3. Quét trực tiếp Barcode/ISBN để tìm sách & vị trí kệ (Công khai)
 router.get('/scan/:code', booksController.scanBook);
 
 // 4. Tra cứu thông tin sách thật trên Internet qua ISBN (Google Books & Open Library)
 router.get('/lookup-isbn/:isbn', booksController.lookupIsbn);
+
+// Lưu/bỏ lưu sách theo tài khoản độc giả
+router.get('/:id/bookmark', authMiddleware, roleMiddleware('reader'), booksController.getBookmark);
+router.post('/:id/bookmark', authMiddleware, roleMiddleware('reader'), booksController.addBookmark);
+router.delete('/:id/bookmark', authMiddleware, roleMiddleware('reader'), booksController.removeBookmark);
 
 // 5. Xem chi tiết một cuốn sách (Công khai)
 router.get('/:id', booksController.getBookDetail);

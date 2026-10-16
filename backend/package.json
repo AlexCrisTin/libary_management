@@ -9,7 +9,8 @@
     "db:setup": "node scripts/setup-database.js",
     "db:schema": "node scripts/setup-database.js --schema-only",
     "db:seed": "node scripts/setup-database.js --seed-only",
-    "db:reset": "node scripts/setup-database.js --reset"
+    "db:reset": "node scripts/setup-database.js --reset",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

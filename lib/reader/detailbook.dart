@@ -19,6 +19,7 @@ class _DetailBookState extends State<DetailBook> {
   bool _loading = true;
   bool _submitting = false;
   bool _bookmarked = false;
+  bool _bookmarkLoading = false;
   bool _suggestionsLoading = false;
   List<Map<String, dynamic>> _suggestionPool = const [];
   List<Map<String, dynamic>> _suggestedBooks = const [];
@@ -71,7 +72,24 @@ class _DetailBookState extends State<DetailBook> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-    if (bookLoaded) await _loadSuggestions();
+    if (bookLoaded) {
+      await Future.wait([_loadBookmark(), _loadSuggestions()]);
+    }
+  }
+
+  Future<void> _loadBookmark() async {
+    if (!AppSession.isReader) return;
+    if (mounted) setState(() => _bookmarkLoading = true);
+    try {
+      final data = apiMap(
+        await ApiClient.get('/books/${widget.bookId}/bookmark'),
+      );
+      if (mounted) setState(() => _bookmarked = data['bookmarked'] == true);
+    } catch (_) {
+      // Chi tiết sách vẫn dùng được nếu riêng trạng thái lưu chưa tải được.
+    } finally {
+      if (mounted) setState(() => _bookmarkLoading = false);
+    }
   }
 
   Future<void> _loadSuggestions() async {
@@ -151,9 +169,24 @@ class _DetailBookState extends State<DetailBook> {
     }
   }
 
-  void _toggleBookmark() {
-    setState(() => _bookmarked = !_bookmarked);
-    _showMessage(_bookmarked ? 'Đã lưu sách.' : 'Đã bỏ lưu sách.');
+  Future<void> _toggleBookmark() async {
+    if (!AppSession.isReader || _bookmarkLoading) return;
+    final nextValue = !_bookmarked;
+    setState(() => _bookmarkLoading = true);
+    try {
+      if (nextValue) {
+        await ApiClient.post('/books/${widget.bookId}/bookmark');
+      } else {
+        await ApiClient.delete('/books/${widget.bookId}/bookmark');
+      }
+      if (!mounted) return;
+      setState(() => _bookmarked = nextValue);
+      _showMessage(nextValue ? 'Đã lưu sách.' : 'Đã bỏ lưu sách.');
+    } catch (error) {
+      _showMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _bookmarkLoading = false);
+    }
   }
 
   void _openTab(int index) {
@@ -195,7 +228,11 @@ class _DetailBookState extends State<DetailBook> {
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          _BookHeader(bookmarked: _bookmarked, onBookmark: _toggleBookmark),
+          _BookHeader(
+            bookmarked: _bookmarked,
+            bookmarkLoading: _bookmarkLoading,
+            onBookmark: _toggleBookmark,
+          ),
           Expanded(
             child: ApiStateView(
               loading: _loading,
@@ -264,9 +301,14 @@ class _DetailBookState extends State<DetailBook> {
 }
 
 class _BookHeader extends StatelessWidget {
-  const _BookHeader({required this.bookmarked, required this.onBookmark});
+  const _BookHeader({
+    required this.bookmarked,
+    required this.bookmarkLoading,
+    required this.onBookmark,
+  });
 
   final bool bookmarked;
+  final bool bookmarkLoading;
   final VoidCallback onBookmark;
 
   @override
@@ -297,14 +339,23 @@ class _BookHeader extends StatelessWidget {
           ),
           IconButton(
             tooltip: bookmarked ? 'Bỏ lưu sách' : 'Lưu sách',
-            onPressed: onBookmark,
-            icon: Icon(
-              bookmarked
-                  ? Icons.bookmark_rounded
-                  : Icons.bookmark_border_rounded,
-              color: Colors.white,
-              size: 34,
-            ),
+            onPressed: bookmarkLoading ? null : onBookmark,
+            icon: bookmarkLoading
+                ? const SizedBox(
+                    width: 25,
+                    height: 25,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : Icon(
+                    bookmarked
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                    color: Colors.white,
+                    size: 34,
+                  ),
           ),
         ],
       ),

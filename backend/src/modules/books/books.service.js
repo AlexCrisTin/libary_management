@@ -383,6 +383,53 @@ exports.updateCopyCondition = async (copyId, { condition, status, location_id })
 };
 
 /**
+ * Xóa một bản sao vật lý chưa từng phát sinh giao dịch.
+ * Bản sao đang mượn/đặt trước hoặc đã có lịch sử mượn phải được giữ lại để
+ * bảo toàn lịch sử lưu thông của thư viện.
+ */
+exports.deleteCopy = async (copyId) => {
+    const conn = await db.getConnection();
+    try {
+        await conn.beginTransaction();
+
+        const [copies] = await conn.query(
+            'SELECT copy_id, bib_id, barcode, status FROM book_copies WHERE copy_id = ? FOR UPDATE',
+            [copyId]
+        );
+        if (copies.length === 0) {
+            await conn.rollback();
+            return null;
+        }
+
+        const copy = copies[0];
+        if (copy.status === 'borrowed' || copy.status === 'reserved') {
+            const error = new Error('Không thể xóa bản sao đang được mượn hoặc đang giữ cho độc giả!');
+            error.code = 'COPY_IN_USE';
+            throw error;
+        }
+
+        const [transactions] = await conn.query(
+            'SELECT tx_id FROM borrow_transactions WHERE copy_id = ? LIMIT 1',
+            [copyId]
+        );
+        if (transactions.length > 0) {
+            const error = new Error('Không thể xóa bản sao đã có lịch sử mượn/trả. Hãy đổi trạng thái bản sao thay vì xóa!');
+            error.code = 'COPY_HAS_HISTORY';
+            throw error;
+        }
+
+        await conn.query('DELETE FROM book_copies WHERE copy_id = ?', [copyId]);
+        await conn.commit();
+        return copy;
+    } catch (error) {
+        await conn.rollback();
+        throw error;
+    } finally {
+        conn.release();
+    }
+};
+
+/**
  * 8. Thêm bản sao vật lý mới cho sách có sẵn
  */
 exports.addCopy = async (bibId, { barcode, condition = 'good', location_id = null, acquired_price = 0 }) => {
@@ -401,6 +448,45 @@ exports.addCopy = async (bibId, { barcode, condition = 'good', location_id = nul
         condition,
         status: 'available'
     };
+};
+
+/**
+ * Trạng thái lưu sách của một độc giả.
+ */
+exports.getBookmark = async ({ reader_id, bib_id }) => {
+    const [rows] = await db.query(
+        'SELECT 1 FROM reader_bookmarks WHERE reader_id = ? AND bib_id = ? LIMIT 1',
+        [reader_id, bib_id]
+    );
+    return rows.length > 0;
+};
+
+/**
+ * Lưu sách. INSERT IGNORE giúp thao tác có tính idempotent.
+ */
+exports.addBookmark = async ({ reader_id, bib_id }) => {
+    const [books] = await db.query(
+        'SELECT bib_id FROM bibliographic_records WHERE bib_id = ? LIMIT 1',
+        [bib_id]
+    );
+    if (books.length === 0) return null;
+
+    await db.query(
+        'INSERT IGNORE INTO reader_bookmarks (reader_id, bib_id) VALUES (?, ?)',
+        [reader_id, bib_id]
+    );
+    return { reader_id, bib_id, bookmarked: true };
+};
+
+/**
+ * Bỏ lưu sách. Xóa lặp lại vẫn được xem là thành công.
+ */
+exports.removeBookmark = async ({ reader_id, bib_id }) => {
+    await db.query(
+        'DELETE FROM reader_bookmarks WHERE reader_id = ? AND bib_id = ?',
+        [reader_id, bib_id]
+    );
+    return { reader_id, bib_id, bookmarked: false };
 };
 
 /**

@@ -135,6 +135,24 @@ exports.updateCopyCondition = async (req, res, next) => {
 };
 
 /**
+ * DELETE /api/books/copies/:copyId - Xóa riêng một bản sao chưa phát sinh giao dịch
+ */
+exports.deleteCopy = async (req, res, next) => {
+    try {
+        const deleted = await booksService.deleteCopy(req.params.copyId);
+        if (!deleted) {
+            return sendError(res, 'Không tìm thấy bản sao sách để xóa!', 404);
+        }
+        return sendSuccess(res, 'Xóa bản sao sách thành công', deleted);
+    } catch (error) {
+        if (error.code === 'COPY_IN_USE' || error.code === 'COPY_HAS_HISTORY') {
+            return sendError(res, error.message, 409);
+        }
+        next(error);
+    }
+};
+
+/**
  * 8. POST /api/books/:id/copies - Thêm bản sao vật lý mới cho đầu sách
  */
 exports.addBookCopy = async (req, res, next) => {
@@ -182,5 +200,42 @@ exports.lookupIsbn = async (req, res, next) => {
         return sendSuccess(res, 'Tra cứu thông tin sách thành công', result);
     } catch (error) {
         return sendError(res, error.message, 404);
+    }
+};
+
+exports.getBookmark = async (req, res, next) => {
+    try {
+        const bookmarked = await booksService.getBookmark({
+            reader_id: req.user.readerId,
+            bib_id: req.params.id
+        });
+        return sendSuccess(res, 'Lấy trạng thái lưu sách thành công', { bookmarked });
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.addBookmark = async (req, res, next) => {
+    try {
+        const result = await booksService.addBookmark({
+            reader_id: req.user.readerId,
+            bib_id: req.params.id
+        });
+        if (!result) return sendError(res, 'Không tìm thấy sách để lưu!', 404);
+        return sendSuccess(res, 'Đã lưu sách', result, 201);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.removeBookmark = async (req, res, next) => {
+    try {
+        const result = await booksService.removeBookmark({
+            reader_id: req.user.readerId,
+            bib_id: req.params.id
+        });
+        return sendSuccess(res, 'Đã bỏ lưu sách', result);
+    } catch (error) {
+        next(error);
     }
 };
