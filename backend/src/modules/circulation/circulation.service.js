@@ -750,7 +750,17 @@ exports.getActiveLoans = async ({ reader_id = '', keyword = '', status = '', pag
 /**
  * 5. Lấy lịch sử mượn trả (Loan History)
  */
-exports.getLoanHistory = async ({ reader_id = '', copy_id = '', status = '', from_date = '', to_date = '', page = 1, limit = 10 }) => {
+exports.getLoanHistory = async ({
+    reader_id = '',
+    copy_id = '',
+    status = '',
+    from_date = '',
+    to_date = '',
+    keyword = '',
+    has_fine = false,
+    page = 1,
+    limit = 10
+}) => {
     const offset = (page - 1) * limit;
     const params = [];
     const where = [];
@@ -780,9 +790,26 @@ exports.getLoanHistory = async ({ reader_id = '', copy_id = '', status = '', fro
         params.push(to_date);
     }
 
+    if (keyword.trim()) {
+        where.push('(r.full_name LIKE ? OR r.reader_code LIKE ? OR bc.barcode LIKE ? OR br.title LIKE ?)');
+        const kw = `%${keyword.trim()}%`;
+        params.push(kw, kw, kw, kw);
+    }
+
+    if (has_fine) {
+        where.push('bt.fine_amount > 0');
+    }
+
     const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 
-    const countSql = `SELECT COUNT(*) AS total FROM borrow_transactions bt ${whereClause}`;
+    const countSql = `
+        SELECT COUNT(*) AS total
+        FROM borrow_transactions bt
+        JOIN readers r ON bt.reader_id = r.reader_id
+        JOIN book_copies bc ON bt.copy_id = bc.copy_id
+        JOIN bibliographic_records br ON bc.bib_id = br.bib_id
+        ${whereClause}
+    `;
     const [countRows] = await db.query(countSql, params);
     const total = countRows[0].total;
 

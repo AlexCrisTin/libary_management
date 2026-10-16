@@ -3,6 +3,7 @@ import 'package:libary_management/core/api_client.dart';
 import 'package:libary_management/core/api_state.dart';
 
 import 'librarian_nav.dart';
+import 'librarian_pagination.dart';
 
 class UserManagement extends StatefulWidget {
   const UserManagement({super.key});
@@ -12,9 +13,15 @@ class UserManagement extends StatefulWidget {
 }
 
 class _UserManagementState extends State<UserManagement> {
+  static const _pageSize = 20;
+
   final _search = TextEditingController();
   List<Map<String, dynamic>> _items = const [];
   bool _loading = true;
+  int _page = 1;
+  int _totalPages = 1;
+  int _totalItems = 0;
+  int _requestVersion = 0;
   String? _error;
   String _role = '';
 
@@ -30,7 +37,9 @@ class _UserManagementState extends State<UserManagement> {
     super.dispose();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({int? page}) async {
+    final targetPage = page ?? _page;
+    final requestVersion = ++_requestVersion;
     setState(() {
       _loading = true;
       _error = null;
@@ -40,18 +49,35 @@ class _UserManagementState extends State<UserManagement> {
         await ApiClient.get(
           '/users',
           query: {
-            'limit': 100,
+            'page': targetPage,
+            'limit': _pageSize,
             'keyword': _search.text.trim(),
             if (_role.isNotEmpty) 'role': _role,
           },
         ),
       );
-      if (mounted) setState(() => _items = apiList(result['items']));
+      if (!mounted || requestVersion != _requestVersion) return;
+      final totalPages = int.tryParse('${result['totalPages']}') ?? 1;
+      setState(() {
+        _items = apiList(result['items']);
+        _page = int.tryParse('${result['page']}') ?? targetPage;
+        _totalPages = totalPages < 1 ? 1 : totalPages;
+        _totalItems = int.tryParse('${result['total']}') ?? _items.length;
+      });
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted && requestVersion == _requestVersion) {
+        setState(() => _error = error.toString());
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && requestVersion == _requestVersion) {
+        setState(() => _loading = false);
+      }
     }
+  }
+
+  Future<void> _reloadAfterDelete() async {
+    final targetPage = _items.length == 1 && _page > 1 ? _page - 1 : _page;
+    await _load(page: targetPage);
   }
 
   Future<void> _create() async {
@@ -118,7 +144,7 @@ class _UserManagementState extends State<UserManagement> {
           },
         );
         _show('Tạo tài khoản thành công.');
-        await _load();
+        await _load(page: 1);
       } catch (error) {
         _show(error.toString());
       }
@@ -237,7 +263,7 @@ class _UserManagementState extends State<UserManagement> {
     try {
       await ApiClient.delete('/users/${user['user_id']}');
       _show('Đã xóa tài khoản.');
-      await _load();
+      await _reloadAfterDelete();
     } catch (error) {
       _show(error.toString());
     }
@@ -279,15 +305,7 @@ class _UserManagementState extends State<UserManagement> {
     backgroundColor: Colors.white,
     body: Column(
       children: [
-        LibTitleHeader(
-          title: 'Quản lý tài khoản',
-          showBack: true,
-          trailing: IconButton(
-            tooltip: 'Tạo tài khoản',
-            onPressed: _create,
-            icon: const Icon(Icons.person_add_alt_1, color: Colors.white),
-          ),
-        ),
+        const LibTitleHeader(title: 'Quản lý tài khoản', showBack: true),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Row(
@@ -295,7 +313,7 @@ class _UserManagementState extends State<UserManagement> {
               Expanded(
                 child: TextField(
                   controller: _search,
-                  onSubmitted: (_) => _load(),
+                  onSubmitted: (_) => _load(page: 1),
                   decoration: const InputDecoration(
                     hintText: 'Tên, email, tài khoản...',
                     prefixIcon: Icon(Icons.search),
@@ -314,8 +332,40 @@ class _UserManagementState extends State<UserManagement> {
                 ],
                 onChanged: (value) {
                   setState(() => _role = value ?? '');
-                  _load();
+                  _load(page: 1);
                 },
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Row(
+            children: [
+              if (_error == null)
+                Expanded(
+                  child: LibrarianPaginationBar(
+                    margin: EdgeInsets.zero,
+                    page: _page,
+                    totalPages: _totalPages,
+                    totalItems: _totalItems,
+                    pageSize: _pageSize,
+                    onPrevious: !_loading && _page > 1
+                        ? () => _load(page: _page - 1)
+                        : null,
+                    onNext: !_loading && _page < _totalPages
+                        ? () => _load(page: _page + 1)
+                        : null,
+                  ),
+                )
+              else
+                const Spacer(),
+              const SizedBox(width: 8),
+              IconButton.filled(
+                tooltip: 'Tạo tài khoản',
+                onPressed: _create,
+                style: IconButton.styleFrom(backgroundColor: kLibBeigeButton),
+                icon: const Icon(Icons.person_add_alt_1),
               ),
             ],
           ),

@@ -5,6 +5,7 @@ import 'package:libary_management/core/api_state.dart';
 import 'detail_book.dart';
 import 'form_addbook.dart';
 import 'librarian_nav.dart';
+import 'librarian_pagination.dart';
 
 class BookManagement extends StatefulWidget {
   const BookManagement({super.key});
@@ -14,10 +15,16 @@ class BookManagement extends StatefulWidget {
 }
 
 class _BookManagementState extends State<BookManagement> {
+  static const _pageSize = 20;
+
   final _search = TextEditingController();
   List<Map<String, dynamic>> _books = const [];
   final Set<String> _deletingIds = <String>{};
   bool _loading = true;
+  int _page = 1;
+  int _totalPages = 1;
+  int _totalItems = 0;
+  int _requestVersion = 0;
   String? _error;
 
   @override
@@ -32,7 +39,9 @@ class _BookManagementState extends State<BookManagement> {
     super.dispose();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({int? page}) async {
+    final targetPage = page ?? _page;
+    final requestVersion = ++_requestVersion;
     setState(() {
       _loading = true;
       _error = null;
@@ -41,15 +50,35 @@ class _BookManagementState extends State<BookManagement> {
       final result = apiMap(
         await ApiClient.get(
           '/books',
-          query: {'keyword': _search.text.trim(), 'limit': 100},
+          query: {
+            'keyword': _search.text.trim(),
+            'page': targetPage,
+            'limit': _pageSize,
+          },
         ),
       );
-      if (mounted) setState(() => _books = apiList(result['items']));
+      if (!mounted || requestVersion != _requestVersion) return;
+      final totalPages = int.tryParse('${result['totalPages']}') ?? 1;
+      setState(() {
+        _books = apiList(result['items']);
+        _page = int.tryParse('${result['page']}') ?? targetPage;
+        _totalPages = totalPages < 1 ? 1 : totalPages;
+        _totalItems = int.tryParse('${result['total']}') ?? _books.length;
+      });
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted && requestVersion == _requestVersion) {
+        setState(() => _error = error.toString());
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && requestVersion == _requestVersion) {
+        setState(() => _loading = false);
+      }
     }
+  }
+
+  Future<void> _reloadAfterDelete() async {
+    final targetPage = _books.length == 1 && _page > 1 ? _page - 1 : _page;
+    await _load(page: targetPage);
   }
 
   Future<void> _deleteBook(Map<String, dynamic> book) async {
@@ -84,12 +113,10 @@ class _BookManagementState extends State<BookManagement> {
     try {
       await ApiClient.delete('/books/$id');
       if (!mounted) return;
-      setState(
-        () => _books = _books.where((item) => item['bib_id'] != id).toList(),
-      );
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Đã xóa sách “$title”.')));
+      await _reloadAfterDelete();
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -174,7 +201,7 @@ class _BookManagementState extends State<BookManagement> {
                   Expanded(
                     child: TextField(
                       controller: _search,
-                      onSubmitted: (_) => _load(),
+                      onSubmitted: (_) => _load(page: 1),
                       decoration: InputDecoration(
                         hintText: 'Tìm kiếm...',
                         prefixIcon: const Icon(Icons.search),
@@ -198,55 +225,68 @@ class _BookManagementState extends State<BookManagement> {
                     ),
                   ),
                   IconButton(
-                    onPressed: _load,
+                    onPressed: _loading ? null : () => _load(),
                     icon: const Icon(Icons.refresh, color: kLibBrownTitle),
                   ),
                 ],
               ),
             ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 11, bottom: 8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton.filled(
-                      tooltip: 'Xóa sách',
-                      style: IconButton.styleFrom(backgroundColor: kLibRed),
-                      onPressed: _books.isEmpty || _deletingIds.isNotEmpty
-                          ? null
-                          : _chooseBookToDelete,
-                      icon: _deletingIds.isNotEmpty
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.delete_outline),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton.filled(
-                      tooltip: 'Thêm sách',
-                      style: IconButton.styleFrom(
-                        backgroundColor: kLibBeigeButton,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(11, 0, 11, 8),
+              child: Row(
+                children: [
+                  if (_error == null)
+                    Expanded(
+                      child: LibrarianPaginationBar(
+                        margin: EdgeInsets.zero,
+                        page: _page,
+                        totalPages: _totalPages,
+                        totalItems: _totalItems,
+                        pageSize: _pageSize,
+                        onPrevious: !_loading && _page > 1
+                            ? () => _load(page: _page - 1)
+                            : null,
+                        onNext: !_loading && _page < _totalPages
+                            ? () => _load(page: _page + 1)
+                            : null,
                       ),
-                      onPressed: () async {
-                        final changed = await Navigator.push<bool>(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const FormAddBook(),
-                          ),
-                        );
-                        if (changed == true) _load();
-                      },
-                      icon: const Icon(Icons.add),
+                    )
+                  else
+                    const Spacer(),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    tooltip: 'Xóa sách',
+                    style: IconButton.styleFrom(backgroundColor: kLibRed),
+                    onPressed: _books.isEmpty || _deletingIds.isNotEmpty
+                        ? null
+                        : _chooseBookToDelete,
+                    icon: _deletingIds.isNotEmpty
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.delete_outline),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    tooltip: 'Thêm sách',
+                    style: IconButton.styleFrom(
+                      backgroundColor: kLibBeigeButton,
                     ),
-                  ],
-                ),
+                    onPressed: () async {
+                      final changed = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(builder: (_) => const FormAddBook()),
+                      );
+                      if (changed == true) _load(page: 1);
+                    },
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
               ),
             ),
             const _BookHeader(),

@@ -5,6 +5,7 @@ import 'package:libary_management/core/api_state.dart';
 import 'borrow_return_detail.dart';
 import 'borrow_flow.dart';
 import 'librarian_nav.dart';
+import 'librarian_pagination.dart';
 import 'renewal_requests.dart';
 
 class BorrowReturnBookManagement extends StatefulWidget {
@@ -16,10 +17,16 @@ class BorrowReturnBookManagement extends StatefulWidget {
 
 class _BorrowReturnBookManagementState
     extends State<BorrowReturnBookManagement> {
+  static const _pageSize = 20;
+
   final _search = TextEditingController();
   List<Map<String, dynamic>> _loans = const [];
   bool _showFines = false;
   bool _loading = true;
+  int _page = 1;
+  int _totalPages = 1;
+  int _totalItems = 0;
+  int _requestVersion = 0;
   String? _error;
   @override
   void initState() {
@@ -33,7 +40,9 @@ class _BorrowReturnBookManagementState
     super.dispose();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({int? page}) async {
+    final targetPage = page ?? _page;
+    final requestVersion = ++_requestVersion;
     setState(() {
       _loading = true;
       _error = null;
@@ -43,36 +52,33 @@ class _BorrowReturnBookManagementState
         await ApiClient.get(
           _showFines ? '/circulation/history' : '/circulation/active',
           query: {
-            if (!_showFines) 'keyword': _search.text.trim(),
-            'limit': 100,
+            'keyword': _search.text.trim(),
+            if (_showFines) 'has_fine': true,
+            'page': targetPage,
+            'limit': _pageSize,
           },
         ),
       );
-      var loans = apiList(result['data']);
-      if (_showFines) {
-        final keyword = _search.text.trim().toLowerCase();
-        loans = loans.where((loan) {
-          final fine = num.tryParse('${loan['fine_amount'] ?? 0}') ?? 0;
-          final matches =
-              keyword.isEmpty ||
-              apiText(
-                loan['reader_name'],
-                fallback: '',
-              ).toLowerCase().contains(keyword) ||
-              apiText(
-                loan['book_title'],
-                fallback: '',
-              ).toLowerCase().contains(keyword);
-          return fine > 0 && matches;
-        }).toList();
-      }
-      if (mounted) setState(() => _loans = loans);
+      if (!mounted || requestVersion != _requestVersion) return;
+      final totalPages = int.tryParse('${result['total_pages']}') ?? 1;
+      setState(() {
+        _loans = apiList(result['data']);
+        _page = int.tryParse('${result['page']}') ?? targetPage;
+        _totalPages = totalPages < 1 ? 1 : totalPages;
+        _totalItems = int.tryParse('${result['total']}') ?? _loans.length;
+      });
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted && requestVersion == _requestVersion) {
+        setState(() => _error = error.toString());
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && requestVersion == _requestVersion) {
+        setState(() => _loading = false);
+      }
     }
   }
+
+  void _searchFromFirstPage() => _load(page: 1);
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -119,7 +125,7 @@ class _BorrowReturnBookManagementState
                 Expanded(
                   child: TextField(
                     controller: _search,
-                    onSubmitted: (_) => _load(),
+                    onSubmitted: (_) => _searchFromFirstPage(),
                     decoration: InputDecoration(
                       hintText: 'Tìm kiếm...',
                       prefixIcon: const Icon(Icons.search),
@@ -130,7 +136,7 @@ class _BorrowReturnBookManagementState
                   ),
                 ),
                 IconButton(
-                  onPressed: _load,
+                  onPressed: _loading ? null : () => _load(),
                   icon: const Icon(Icons.refresh, color: kLibBrownTitle),
                 ),
               ],
@@ -154,10 +160,23 @@ class _BorrowReturnBookManagementState
               selected: {_showFines},
               onSelectionChanged: (value) {
                 setState(() => _showFines = value.first);
-                _load();
+                _load(page: 1);
               },
             ),
           ),
+          if (_error == null)
+            LibrarianPaginationBar(
+              page: _page,
+              totalPages: _totalPages,
+              totalItems: _totalItems,
+              pageSize: _pageSize,
+              onPrevious: !_loading && _page > 1
+                  ? () => _load(page: _page - 1)
+                  : null,
+              onNext: !_loading && _page < _totalPages
+                  ? () => _load(page: _page + 1)
+                  : null,
+            ),
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 11),
             height: 44,

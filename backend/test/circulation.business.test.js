@@ -82,3 +82,26 @@ test('không cho đặt trước khi vẫn còn bản sao sẵn sàng trên kệ
         /vẫn còn 1 cuốn sẵn sàng/
     );
 });
+
+test('lịch sử tiền phạt được tìm kiếm và phân trang ngay tại backend', async () => {
+    const calls = [];
+    fakeDb.query = async (sql, params) => {
+        calls.push({ sql, params });
+        if (sql.includes('COUNT(*) AS total')) return [[{ total: 41 }], []];
+        return [[{ tx_id: 'tx-21', fine_amount: 5000 }], []];
+    };
+
+    const result = await circulationService.getLoanHistory({
+        keyword: 'An',
+        has_fine: true,
+        page: 2,
+        limit: 20
+    });
+
+    assert.equal(result.page, 2);
+    assert.equal(result.total_pages, 3);
+    assert.equal(result.data.length, 1);
+    assert.ok(calls[0].sql.includes('bt.fine_amount > 0'));
+    assert.ok(calls[0].sql.includes('r.full_name LIKE ?'));
+    assert.deepEqual(calls[1].params.slice(-2), [20, 20]);
+});

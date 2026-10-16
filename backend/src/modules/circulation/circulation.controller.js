@@ -160,7 +160,7 @@ exports.getActiveLoans = async (req, res, next) => {
  */
 exports.getLoanHistory = async (req, res, next) => {
     try {
-        let { reader_id, copy_id, status, from_date, to_date, page, limit } = req.query;
+        let { reader_id, copy_id, status, from_date, to_date, keyword, has_fine, page, limit } = req.query;
 
         // Nếu người gọi là độc giả, chỉ cho phép xem lịch sử của chính họ
         if (req.user.role === 'reader') {
@@ -173,6 +173,8 @@ exports.getLoanHistory = async (req, res, next) => {
             status,
             from_date,
             to_date,
+            keyword,
+            has_fine: has_fine === 'true' || has_fine === '1',
             page: parseInt(page || 1, 10),
             limit: parseInt(limit || 10, 10)
         });
