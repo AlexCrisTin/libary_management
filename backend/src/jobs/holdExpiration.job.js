@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
+const { createJobScheduler } = require('./jobScheduler');
 
 async function reorderWaitingQueue(conn, bibId) {
     const [waiting] = await conn.query(
@@ -142,33 +143,31 @@ async function scanAndExpireHolds() {
     }
 }
 
-let schedulerTimer = null;
+const holdExpirationScheduler = createJobScheduler({
+    name: 'Hold Scheduler',
+    task: scanAndExpireHolds,
+    initialDelayMs: 6000,
+    onSuccess: (result) => {
+        if (result.waiting_expired || result.pickup_expired || result.promoted) {
+            console.log(
+                `[Hold Scheduler] Hết hạn chờ: ${result.waiting_expired}, ` +
+                `hết hạn nhận: ${result.pickup_expired}, chuyển lượt: ${result.promoted}.`
+            );
+        }
+    }
+});
 
 function startHoldExpirationScheduler(intervalMinutes = 15) {
-    const run = async () => {
-        try {
-            const result = await scanAndExpireHolds();
-            if (result.waiting_expired || result.pickup_expired || result.promoted) {
-                console.log(
-                    `[Hold Scheduler] Hết hạn chờ: ${result.waiting_expired}, ` +
-                    `hết hạn nhận: ${result.pickup_expired}, chuyển lượt: ${result.promoted}.`
-                );
-            }
-        } catch (error) {
-            console.error('[Hold Scheduler] Lỗi khi xử lý đăng ký chờ:', error.message);
-        }
-    };
-    setTimeout(run, 6000);
-    schedulerTimer = setInterval(run, intervalMinutes * 60 * 1000);
+    return holdExpirationScheduler.start(intervalMinutes);
 }
 
 function stopHoldExpirationScheduler() {
-    if (schedulerTimer) clearInterval(schedulerTimer);
-    schedulerTimer = null;
+    return holdExpirationScheduler.stop();
 }
 
 module.exports = {
     scanAndExpireHolds,
     startHoldExpirationScheduler,
-    stopHoldExpirationScheduler
+    stopHoldExpirationScheduler,
+    getHoldExpirationSchedulerStatus: holdExpirationScheduler.getStatus
 };

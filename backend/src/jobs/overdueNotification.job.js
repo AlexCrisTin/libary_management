@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
+const { createJobScheduler } = require('./jobScheduler');
 
 /**
  * Ham quet va tu dong tao thong bao cho sach qua han va sap den han
@@ -127,48 +128,28 @@ async function scanAndNotifyOverdue() {
     return summary;
 }
 
-let schedulerTimer = null;
+const overdueScheduler = createJobScheduler({
+    name: 'Overdue Scheduler',
+    task: scanAndNotifyOverdue,
+    initialDelayMs: 3000,
+    onSuccess: (result) => console.log(
+        `[Overdue Scheduler] Quá hạn: ${result.scanned_overdue} lượt ` +
+        `(${result.overdue_updated} cập nhật, ${result.overdue_notified} thông báo); ` +
+        `sắp hạn: ${result.scanned_due_soon} lượt (${result.due_soon_notified} thông báo).`
+    )
+});
 
-/**
- * Khoi dong bo hen gio quet tu dong dinh ky chay ngam
- * @param {number} intervalMinutes So phut giua cac lan quet (Mac dinh: 60 phut)
- */
 function startOverdueScheduler(intervalMinutes = 60) {
-    console.log(`[Scheduler] Khởi động tiến trình tự động quét sách quá hạn (Định kỳ: ${intervalMinutes} phút/lần)...`);
-
-    // Quet ngay 1 lan sau khi server khoi dong 3 giay
-    setTimeout(async () => {
-        try {
-            console.log('[Scheduler] Bắt đầu quét kiểm tra sách quá hạn & sắp đến hạn...');
-            const result = await scanAndNotifyOverdue();
-            console.log(`[Scheduler] Hoàn tất quét khởi động: Đã quét ${result.scanned_overdue} sách quá hạn (${result.overdue_updated} cập nhật status, ${result.overdue_notified} thông báo mới), ${result.scanned_due_soon} sách sắp hết hạn (${result.due_soon_notified} thông báo mới).`);
-        } catch (err) {
-            console.error('[Scheduler] Lỗi khi quét sách quá hạn lúc khởi động:', err.message);
-        }
-    }, 3000);
-
-    // Thiet lap chu ky dinh ky
-    schedulerTimer = setInterval(async () => {
-        try {
-            console.log('[Scheduler] Đang thực hiện quét sách quá hạn định kỳ...');
-            const result = await scanAndNotifyOverdue();
-            console.log(`[Scheduler] Hoàn tất quét định kỳ: ${result.overdue_notified} thông báo quá hạn mới, ${result.due_soon_notified} thông báo sắp hết hạn mới.`);
-        } catch (err) {
-            console.error('[Scheduler] Lỗi khi thực hiện quét định kỳ:', err.message);
-        }
-    }, intervalMinutes * 60 * 1000);
+    return overdueScheduler.start(intervalMinutes);
 }
 
 function stopOverdueScheduler() {
-    if (schedulerTimer) {
-        clearInterval(schedulerTimer);
-        schedulerTimer = null;
-        console.log('[Scheduler] Đã dừng tiến trình quét tự động.');
-    }
+    return overdueScheduler.stop();
 }
 
 module.exports = {
     scanAndNotifyOverdue,
     startOverdueScheduler,
-    stopOverdueScheduler
+    stopOverdueScheduler,
+    getOverdueSchedulerStatus: overdueScheduler.getStatus
 };

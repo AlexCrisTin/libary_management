@@ -1,5 +1,13 @@
 const db = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
+const { createJobScheduler } = require('./jobScheduler');
+
+const expirationReference = (readerId, expirationDate) => crypto
+    .createHash('sha256')
+    .update(`${readerId}:${new Date(expirationDate).toISOString().slice(0, 10)}`)
+    .digest('hex')
+    .slice(0, 36);
 
 async function scanAndNotifyCardExpiration() {
     const summary = { scanned: 0, notified: 0, expired_updated: 0 };
@@ -21,11 +29,13 @@ async function scanAndNotifyCardExpiration() {
         }
 
         const title = expired ? 'Thẻ thư viện đã hết hạn' : 'Thẻ thư viện sắp hết hạn';
+        const referenceId = expirationReference(reader.reader_id, reader.card_expired);
         const [existing] = await db.query(
             `SELECT notification_id FROM notifications
              WHERE reader_id = ? AND type = 'card_expired' AND title = ?
+               AND reference_id = ?
              LIMIT 1`,
-            [reader.reader_id, title]
+            [reader.reader_id, title, referenceId]
         );
         if (existing.length > 0) continue;
 
@@ -38,35 +48,34 @@ async function scanAndNotifyCardExpiration() {
             `INSERT INTO notifications
              (notification_id, reader_id, title, content, type, reference_id, is_read, created_at)
              VALUES (?, ?, ?, ?, 'card_expired', ?, 0, NOW())`,
-            [uuidv4(), reader.reader_id, title, content, reader.reader_id]
+            [uuidv4(), reader.reader_id, title, content, referenceId]
         );
         summary.notified++;
     }
     return summary;
 }
 
-let schedulerTimer = null;
+const cardExpirationScheduler = createJobScheduler({
+    name: 'Card Scheduler',
+    task: scanAndNotifyCardExpiration,
+    initialDelayMs: 4000,
+    onSuccess: (result) => console.log(
+        `[Card Scheduler] Đã quét ${result.scanned} thẻ, tạo ${result.notified} thông báo, ` +
+        `cập nhật ${result.expired_updated} thẻ hết hạn.`
+    )
+});
 
 function startCardExpirationScheduler(intervalMinutes = 60) {
-    const run = async () => {
-        try {
-            const result = await scanAndNotifyCardExpiration();
-            console.log(`[Card Scheduler] Đã quét ${result.scanned} thẻ, tạo ${result.notified} thông báo, cập nhật ${result.expired_updated} thẻ hết hạn.`);
-        } catch (error) {
-            console.error('[Card Scheduler] Lỗi khi quét hạn thẻ:', error.message);
-        }
-    };
-    setTimeout(run, 4000);
-    schedulerTimer = setInterval(run, intervalMinutes * 60 * 1000);
+    return cardExpirationScheduler.start(intervalMinutes);
 }
 
 function stopCardExpirationScheduler() {
-    if (schedulerTimer) clearInterval(schedulerTimer);
-    schedulerTimer = null;
+    return cardExpirationScheduler.stop();
 }
 
 module.exports = {
     scanAndNotifyCardExpiration,
     startCardExpirationScheduler,
-    stopCardExpirationScheduler
+    stopCardExpirationScheduler,
+    getCardExpirationSchedulerStatus: cardExpirationScheduler.getStatus
 };
