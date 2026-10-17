@@ -211,23 +211,7 @@ class _DashboardState extends State<Dashboard> {
                       );
                     },
                   ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'Truy cập nhanh',
-                    style: TextStyle(
-                      color: kLibBrownTitle,
-                      fontSize: 21,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _QuickActions(
-                    onOpenTab: widget.onOpenTab,
-                    onOpenReaderManagement: widget.onOpenReaderManagement,
-                    onOpenReport: widget.onOpenReport,
-                    onOpenMessages: widget.onOpenMessages,
-                    onOpenProfile: widget.onOpenProfile,
-                  ),
+                
                 ],
               ),
             ),
