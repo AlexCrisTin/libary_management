@@ -13,7 +13,10 @@ router.get('/unread-count', notificationsController.getUnreadCount);
 // 2. Đánh dấu tất cả thông báo là đã đọc (đặt trước route /:id)
 router.put('/read-all', notificationsController.markAllAsRead);
 
-// 3. Thủ thư / Admin xem chung thông báo của toàn bộ độc giả
+// 3. Trung tâm thông báo nghiệp vụ dành riêng cho Thủ thư / Admin
+router.get('/librarian', roleMiddleware('librarian', 'admin'), notificationsController.getLibrarianNotifications);
+
+// API cũ: xem luồng thông báo đã gửi cho toàn bộ độc giả
 router.get('/all', roleMiddleware('librarian', 'admin'), notificationsController.getAllNotifications);
 
 // 4. Lấy danh sách thông báo của độc giả

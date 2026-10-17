@@ -44,6 +44,22 @@ exports.getAllNotifications = async (req, res, next) => {
 };
 
 /**
+ * GET /api/notifications/librarian - Các việc đang cần thủ thư xử lý
+ */
+exports.getLibrarianNotifications = async (req, res, next) => {
+    try {
+        const { page, limit } = req.query;
+        const result = await notificationsService.getLibrarianNotifications({
+            page: parseInt(page || 1, 10),
+            limit: parseInt(limit || 100, 10)
+        });
+        return sendSuccess(res, 'Lấy thông báo thủ thư thành công', result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * 2. GET /api/notifications/unread-count - Đếm số lượng thông báo chưa đọc
  */
 exports.getUnreadCount = async (req, res, next) => {

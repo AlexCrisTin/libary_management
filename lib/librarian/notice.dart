@@ -29,7 +29,7 @@ class _NoticeState extends State<Notice> {
     });
     try {
       final result = apiMap(
-        await ApiClient.get('/notifications/all', query: {'limit': 200}),
+        await ApiClient.get('/notifications/librarian', query: {'limit': 200}),
       );
       if (mounted) setState(() => _notices = apiList(result['data']));
     } catch (error) {
@@ -44,14 +44,14 @@ class _NoticeState extends State<Notice> {
     backgroundColor: Colors.white,
     body: Column(
       children: [
-        const LibTitleHeader(title: 'Thông báo độc giả', showBack: true),
+        const LibTitleHeader(title: 'Thông báo', showBack: true),
         Expanded(
           child: ApiStateView(
             loading: _loading,
             error: _error,
             isEmpty: _notices.isEmpty,
             onRetry: _load,
-            emptyMessage: 'Chưa có thông báo độc giả',
+            emptyMessage: 'Không có công việc mới cần xử lý',
             child: RefreshIndicator(
               onRefresh: _load,
               child: ListView.separated(
@@ -77,15 +77,12 @@ class _AdminNoticeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final read =
-        notice['is_read'] == true ||
-        notice['is_read'] == 1 ||
-        notice['is_read']?.toString() == '1';
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: read ? kLibCardFill : kLibBeigeSoft,
+        color: kLibCardFill,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kLibBeigeButton.withValues(alpha: .55)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,8 +109,26 @@ class _AdminNoticeTile extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (!read)
-                      const CircleAvatar(radius: 4, backgroundColor: kLibRed),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _noticeColor(
+                          notice['type'],
+                        ).withValues(alpha: .14),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Cần xử lý',
+                        style: TextStyle(
+                          color: _noticeColor(notice['type']),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 5),
@@ -148,11 +163,19 @@ class _AdminNoticeTile extends StatelessWidget {
 }
 
 IconData _noticeIcon(dynamic type) => switch (type?.toString()) {
-  'due_soon' => Icons.schedule_rounded,
-  'overdue' => Icons.warning_amber_rounded,
-  'hold_available' => Icons.bookmark_added_rounded,
-  'card_expired' => Icons.credit_card_off_rounded,
+  'pickup_request' => Icons.event_available_rounded,
+  'renewal_request' => Icons.update_rounded,
+  'overdue_loan' => Icons.warning_amber_rounded,
+  'unread_message' => Icons.mark_chat_unread_rounded,
   _ => Icons.notifications_rounded,
+};
+
+Color _noticeColor(dynamic type) => switch (type?.toString()) {
+  'overdue_loan' => kLibRed,
+  'pickup_request' => const Color(0xFFE29A55),
+  'renewal_request' => const Color(0xFF588A73),
+  'unread_message' => kLibBrownTitle,
+  _ => kLibBrownTitle,
 };
 
 String _noticeTime(dynamic value) {

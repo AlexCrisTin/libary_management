@@ -25,10 +25,12 @@ class _BorrowFlowState extends State<BorrowFlow> {
 
   Map<String, dynamic>? _reader;
   List<Map<String, dynamic>> _copies = [];
+  List<Map<String, dynamic>> _pickupReservations = [];
   int _activeLoans = 0;
   int _step = 0;
   bool _lookingUpReader = false;
   bool _lookingUpBook = false;
+  bool _loadingPickupReservations = false;
   bool _submitting = false;
   final DateTime _borrowDate = _today();
   DateTime _dueDate = _today().add(const Duration(days: 14));
@@ -74,15 +76,11 @@ class _BorrowFlowState extends State<BorrowFlow> {
 
   bool get _withinLimit => _activeLoans + _copies.length <= _maxBooks;
 
-  bool get _allCopiesAvailable =>
-      _copies.every((copy) => copy['status']?.toString() == 'available');
-
-  bool get _conditionsPassed =>
-      _reader != null &&
-      _copies.isNotEmpty &&
-      _cardActive &&
-      _withinLimit &&
-      _allCopiesAvailable;
+  bool _isBorrowableCopy(Map<String, dynamic> copy) {
+    final status = copy['status']?.toString();
+    return status == 'available' ||
+        (status == 'reserved' && copy['_pickup_slot'] == true);
+  }
 
   int get _dueDays => _dueDate.difference(_borrowDate).inDays;
 
@@ -124,9 +122,16 @@ class _BorrowFlowState extends State<BorrowFlow> {
       setState(() {
         _reader = detail;
         _activeLoans = apiList(loans['data']).length;
-        if (readerChanged) _copies.clear();
+        if (readerChanged) {
+          _copies.clear();
+          _pickupReservations.clear();
+        }
         _step = 0;
       });
+      await _loadPickupReservations(
+        apiText(detail['reader_id'], fallback: ''),
+        apiText(detail['reader_code'], fallback: ''),
+      );
       if (_barcode.text.trim().isNotEmpty && _copies.isEmpty) {
         await _addBarcode();
       }
@@ -135,12 +140,91 @@ class _BorrowFlowState extends State<BorrowFlow> {
         setState(() {
           _reader = null;
           _activeLoans = 0;
+          _pickupReservations.clear();
         });
         _show(error.toString());
       }
     } finally {
       if (mounted) setState(() => _lookingUpReader = false);
     }
+  }
+
+  Future<void> _loadPickupReservations(
+    String readerId,
+    String readerCode,
+  ) async {
+    if (readerId.isEmpty) return;
+    setState(() => _loadingPickupReservations = true);
+    try {
+      final result = apiMap(
+        await ApiClient.get(
+          '/pickup-reservations',
+          query: {
+            'status': 'active',
+            if (readerCode.isNotEmpty) 'keyword': readerCode,
+            'limit': 100,
+          },
+        ),
+      );
+      if (mounted) {
+        final reservations = apiList(
+          result['data'],
+        ).where((slot) => slot['reader_id']?.toString() == readerId).toList();
+        setState(() => _pickupReservations = reservations);
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _pickupReservations = const []);
+        _show('Không tải được sách đã đặt slot: $error');
+      }
+    } finally {
+      if (mounted) setState(() => _loadingPickupReservations = false);
+    }
+  }
+
+  Map<String, dynamic>? _approvedSlotForCopy(Map<String, dynamic> copy) {
+    final copyId = apiText(copy['copy_id'], fallback: '');
+    final barcode = apiText(copy['barcode'], fallback: '').toLowerCase();
+    for (final slot in _pickupReservations) {
+      if (slot['status']?.toString() != 'approved') continue;
+      final sameId =
+          copyId.isNotEmpty && apiText(slot['copy_id'], fallback: '') == copyId;
+      final sameBarcode =
+          barcode.isNotEmpty &&
+          apiText(slot['barcode'], fallback: '').toLowerCase() == barcode;
+      if (sameId || sameBarcode) return slot;
+    }
+    return null;
+  }
+
+  void _addPickupReservation(Map<String, dynamic> slot) {
+    if (slot['status']?.toString() != 'approved') {
+      _show('Yêu cầu đặt slot này chưa được thủ thư duyệt.');
+      return;
+    }
+    final copyId = apiText(slot['copy_id'], fallback: '');
+    if (copyId.isEmpty) {
+      _show('Slot chưa được gán bản sao sách. Hãy tải lại và kiểm tra.');
+      return;
+    }
+    if (_copies.any((copy) => copy['copy_id']?.toString() == copyId)) {
+      _show('Sách đặt slot này đã có trong phiếu.');
+      return;
+    }
+    if (_activeLoans + _copies.length >= _maxBooks) {
+      _show('Độc giả đã đạt giới hạn $_maxBooks cuốn.');
+      return;
+    }
+    setState(() {
+      _copies.add({
+        'copy_id': copyId,
+        'barcode': slot['barcode'],
+        'status': 'reserved',
+        'book_title': slot['book_title'],
+        'reservation_id': slot['reservation_id'],
+        '_pickup_slot': true,
+      });
+    });
   }
 
   Future<void> _scanBarcode() async {
@@ -192,7 +276,10 @@ class _BorrowFlowState extends State<BorrowFlow> {
       }
       final copy = apiMap(result['copy']);
       final book = apiMap(result['book']);
-      if (copy['status']?.toString() != 'available') {
+      final pickupSlot = _approvedSlotForCopy(copy);
+      final status = copy['status']?.toString();
+      if (status != 'available' &&
+          !(status == 'reserved' && pickupSlot != null)) {
         throw ApiException(
           'Bản sao ${apiText(copy['barcode'])} không thể cho mượn '
           '(trạng thái: ${_statusText(copy['status'])}).',
@@ -200,7 +287,14 @@ class _BorrowFlowState extends State<BorrowFlow> {
       }
       if (!mounted) return;
       setState(() {
-        _copies.add({...copy, 'book_title': book['title']});
+        _copies.add({
+          ...copy,
+          'book_title': book['title'],
+          if (pickupSlot != null) ...{
+            'reservation_id': pickupSlot['reservation_id'],
+            '_pickup_slot': true,
+          },
+        });
         _barcode.clear();
       });
     } catch (error) {
@@ -222,8 +316,9 @@ class _BorrowFlowState extends State<BorrowFlow> {
   }
 
   Future<void> _submit() async {
-    if (!_conditionsPassed || _submitting) {
-      _show('Phiếu mượn chưa đáp ứng đủ điều kiện.');
+    final validationError = _validationError(requireCopies: true);
+    if (validationError != null || _submitting) {
+      if (validationError != null) _show(validationError);
       return;
     }
     setState(() => _submitting = true);
@@ -262,30 +357,44 @@ class _BorrowFlowState extends State<BorrowFlow> {
     }
   }
 
+  String? _validationError({required bool requireCopies}) {
+    if (_reader == null) return 'Hãy tra cứu và xác nhận độc giả trước.';
+    if (!_cardActive) return 'Thẻ độc giả không hoạt động hoặc đã hết hạn.';
+    if (_activeLoans >= _maxBooks) {
+      return 'Độc giả đã đạt giới hạn $_maxBooks cuốn.';
+    }
+    if (!requireCopies) return null;
+    if (_copies.isEmpty) return 'Hãy thêm ít nhất một bản sao sách.';
+    if (!_withinLimit) {
+      return 'Số sách trong phiếu vượt quá giới hạn $_maxBooks cuốn.';
+    }
+    for (final copy in _copies) {
+      if (!_isBorrowableCopy(copy)) {
+        return 'Bản sao ${apiText(copy['barcode'])} không thể cho mượn '
+            '(trạng thái: ${_statusText(copy['status'])}).';
+      }
+    }
+    return null;
+  }
+
   void _continue() {
     if (_step == 0) {
       if (_reader == null) {
         _lookupReader();
         return;
       }
-      if (!_cardActive) {
-        _show('Thẻ độc giả không hoạt động hoặc đã hết hạn.');
-        return;
-      }
-      if (_activeLoans >= _maxBooks) {
-        _show('Độc giả đã đạt giới hạn $_maxBooks cuốn.');
+      final error = _validationError(requireCopies: false);
+      if (error != null) {
+        _show(error);
         return;
       }
       setState(() => _step = 1);
       return;
     }
     if (_step == 1) {
-      if (_copies.isEmpty) {
-        _show('Hãy thêm ít nhất một bản sao sách.');
-        return;
-      }
-      if (!_conditionsPassed) {
-        _show('Có điều kiện chưa đạt, không thể tiếp tục.');
+      final error = _validationError(requireCopies: true);
+      if (error != null) {
+        _show(error);
         return;
       }
       setState(() => _step = 2);
@@ -477,6 +586,7 @@ class _BorrowFlowState extends State<BorrowFlow> {
                   _reader = null;
                   _activeLoans = 0;
                   _copies.clear();
+                  _pickupReservations.clear();
                   _step = 0;
                 });
               },
@@ -562,6 +672,60 @@ class _BorrowFlowState extends State<BorrowFlow> {
   Widget _bookStep() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
+      if (_loadingPickupReservations)
+        const Padding(
+          padding: EdgeInsets.only(bottom: 16),
+          child: LinearProgressIndicator(),
+        )
+      else if (_pickupReservations.isNotEmpty) ...[
+        const _SectionHeading('Sách độc giả đã đặt slot'),
+        const SizedBox(height: 12),
+        ..._pickupReservations.map((slot) {
+          final approved = slot['status']?.toString() == 'approved';
+          final copyId = apiText(slot['copy_id'], fallback: '');
+          final selected =
+              copyId.isNotEmpty &&
+              _copies.any((copy) => copy['copy_id']?.toString() == copyId);
+          return Card(
+            color: Colors.white.withValues(alpha: .78),
+            elevation: 0,
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: approved ? kLibGreen : kLibBeigeButton,
+                child: Icon(
+                  approved
+                      ? Icons.bookmark_added_rounded
+                      : Icons.hourglass_top_rounded,
+                  color: Colors.white,
+                ),
+              ),
+              title: Text(
+                apiText(slot['book_title']),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(
+                approved
+                    ? '${apiText(slot['barcode'])} • Giữ đến '
+                          '${_formatDateTime(slot['pickup_expires_at'])}'
+                    : 'Yêu cầu đang chờ thủ thư duyệt',
+              ),
+              trailing: approved
+                  ? FilledButton(
+                      onPressed: selected
+                          ? null
+                          : () => _addPickupReservation(slot),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: kLibBrownTitle,
+                      ),
+                      child: Text(selected ? 'Đã chọn' : 'Chọn'),
+                    )
+                  : const Chip(label: Text('Chờ duyệt')),
+            ),
+          );
+        }),
+        const SizedBox(height: 14),
+      ],
       Row(
         children: [
           Expanded(
@@ -632,8 +796,10 @@ class _BorrowFlowState extends State<BorrowFlow> {
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             subtitle: Text(
-              '${apiText(copy['barcode'])} • '
-              '${_conditionText(copy['condition'])} • Có sẵn',
+              copy['_pickup_slot'] == true
+                  ? '${apiText(copy['barcode'])} • Giữ theo slot'
+                  : '${apiText(copy['barcode'])} • '
+                        '${_conditionText(copy['condition'])} • Có sẵn',
             ),
             trailing: IconButton(
               tooltip: 'Bỏ khỏi phiếu',
@@ -651,31 +817,6 @@ class _BorrowFlowState extends State<BorrowFlow> {
             style: const TextStyle(color: kLibBrownTitle),
           ),
         ),
-      const SizedBox(height: 20),
-      const _SectionHeading('Kiểm tra điều kiện'),
-      const SizedBox(height: 12),
-      _conditionStep(),
-    ],
-  );
-
-  Widget _conditionStep() => _InfoCard(
-    children: [
-      _CheckLine(
-        label: 'Thẻ độc giả đang hoạt động và còn hạn',
-        passed: _cardActive,
-      ),
-      _CheckLine(
-        label: 'Số sách sau khi mượn không vượt quá $_maxBooks',
-        passed: _withinLimit,
-      ),
-      _CheckLine(
-        label: 'Đã chọn ít nhất một bản sao',
-        passed: _copies.isNotEmpty,
-      ),
-      _CheckLine(
-        label: 'Tất cả bản sao có trạng thái available',
-        passed: _allCopiesAvailable && _copies.isNotEmpty,
-      ),
     ],
   );
 
@@ -969,23 +1110,6 @@ class _InfoLine extends StatelessWidget {
   );
 }
 
-class _CheckLine extends StatelessWidget {
-  const _CheckLine({required this.label, required this.passed});
-  final String label;
-  final bool passed;
-
-  @override
-  Widget build(BuildContext context) => ListTile(
-    contentPadding: EdgeInsets.zero,
-    dense: true,
-    leading: Icon(
-      passed ? Icons.check_circle : Icons.cancel,
-      color: passed ? kLibGreen : kLibRed,
-    ),
-    title: Text(label),
-  );
-}
-
 class _DateTile extends StatelessWidget {
   const _DateTile({
     required this.label,
@@ -1015,6 +1139,15 @@ class _DateTile extends StatelessWidget {
 String _formatDate(DateTime date) =>
     '${date.day.toString().padLeft(2, '0')}/'
     '${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+String _formatDateTime(dynamic value) {
+  final date = DateTime.tryParse(value?.toString() ?? '')?.toLocal();
+  if (date == null) return '—';
+  return '${date.day.toString().padLeft(2, '0')}/'
+      '${date.month.toString().padLeft(2, '0')}/${date.year} '
+      '${date.hour.toString().padLeft(2, '0')}:'
+      '${date.minute.toString().padLeft(2, '0')}';
+}
 
 String _statusText(dynamic value) => switch (value?.toString()) {
   'available' => 'Có sẵn',

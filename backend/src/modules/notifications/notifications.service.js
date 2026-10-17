@@ -108,6 +108,110 @@ exports.getAllNotifications = async ({ page = 1, limit = 100 }) => {
 };
 
 /**
+ * Các thông báo nghiệp vụ dành cho thủ thư/admin.
+ *
+ * Đây là một luồng công việc động, không dùng bảng `notifications` vì bảng đó
+ * lưu thông báo đã gửi riêng cho độc giả. Khi một yêu cầu được xử lý hoặc tin
+ * nhắn được đọc, mục tương ứng sẽ tự biến mất khỏi danh sách này.
+ */
+exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
+    const normalizedPage = Math.max(1, Number(page) || 1);
+    const normalizedLimit = Math.min(200, Math.max(1, Number(limit) || 100));
+    const offset = (normalizedPage - 1) * normalizedLimit;
+    const feedSql = `
+        SELECT
+            CONCAT('pickup:', pr.reservation_id) AS notification_id,
+            pr.reservation_id AS reference_id,
+            'pickup_request' AS type,
+            'Yêu cầu đặt slot mới' AS title,
+            CONCAT('Độc giả ', r.full_name, ' muốn giữ sách "', br.title, '" để đến nhận.') AS content,
+            pr.requested_at AS created_at,
+            r.reader_id,
+            r.full_name AS reader_name,
+            r.reader_code
+        FROM pickup_reservations pr
+        JOIN readers r ON r.reader_id = pr.reader_id
+        JOIN bibliographic_records br ON br.bib_id = pr.bib_id
+        WHERE pr.status = 'pending'
+
+        UNION ALL
+
+        SELECT
+            CONCAT('renewal:', rr.request_id) AS notification_id,
+            rr.request_id AS reference_id,
+            'renewal_request' AS type,
+            'Yêu cầu gia hạn mới' AS title,
+            CONCAT('Độc giả ', r.full_name, ' xin gia hạn sách "', br.title,
+                   '" thêm ', rr.requested_days, ' ngày.') AS content,
+            rr.created_at AS created_at,
+            r.reader_id,
+            r.full_name AS reader_name,
+            r.reader_code
+        FROM renewal_requests rr
+        JOIN readers r ON r.reader_id = rr.reader_id
+        JOIN borrow_transactions bt ON bt.tx_id = rr.tx_id
+        JOIN book_copies bc ON bc.copy_id = bt.copy_id
+        JOIN bibliographic_records br ON br.bib_id = bc.bib_id
+        WHERE rr.status = 'pending'
+
+        UNION ALL
+
+        SELECT
+            CONCAT('overdue:', bt.tx_id) AS notification_id,
+            bt.tx_id AS reference_id,
+            'overdue_loan' AS type,
+            'Sách đang quá hạn' AS title,
+            CONCAT('Sách "', br.title, '" của ', r.full_name, ' đã quá hạn ',
+                   DATEDIFF(CURDATE(), bt.due_date), ' ngày.') AS content,
+            TIMESTAMP(bt.due_date) AS created_at,
+            r.reader_id,
+            r.full_name AS reader_name,
+            r.reader_code
+        FROM borrow_transactions bt
+        JOIN readers r ON r.reader_id = bt.reader_id
+        JOIN book_copies bc ON bc.copy_id = bt.copy_id
+        JOIN bibliographic_records br ON br.bib_id = bc.bib_id
+        WHERE bt.status IN ('borrowed', 'overdue') AND bt.due_date < CURDATE()
+
+        UNION ALL
+
+        SELECT
+            CONCAT('message:', r.reader_id) AS notification_id,
+            r.reader_id AS reference_id,
+            'unread_message' AS type,
+            'Tin nhắn độc giả chưa đọc' AS title,
+            CONCAT(COUNT(cm.message_id), ' tin nhắn chưa đọc từ ', r.full_name, '.') AS content,
+            MAX(cm.created_at) AS created_at,
+            r.reader_id,
+            r.full_name AS reader_name,
+            r.reader_code
+        FROM chat_messages cm
+        JOIN readers r ON r.reader_id = cm.reader_id
+        WHERE cm.sender_role = 'reader' AND cm.is_read = 0
+        GROUP BY r.reader_id, r.full_name, r.reader_code
+    `;
+
+    const [countRows] = await db.query(
+        `SELECT COUNT(*) AS total FROM (${feedSql}) librarian_feed`
+    );
+    const total = Number(countRows[0].total) || 0;
+    const [rows] = await db.query(
+        `SELECT * FROM (${feedSql}) librarian_feed
+         ORDER BY created_at DESC, notification_id ASC
+         LIMIT ? OFFSET ?`,
+        [normalizedLimit, offset]
+    );
+
+    return {
+        total,
+        page: normalizedPage,
+        limit: normalizedLimit,
+        total_pages: Math.max(1, Math.ceil(total / normalizedLimit)),
+        data: rows
+    };
+};
+
+/**
  * 3. Đếm số lượng thông báo chưa đọc (để hiển thị badge chấm đỏ trên app)
  */
 exports.getUnreadCount = async ({ reader_id }) => {
