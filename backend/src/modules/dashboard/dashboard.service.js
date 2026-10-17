@@ -30,7 +30,8 @@ exports.getStatistics = async ({ days = 7 }) => {
         [returnRows],
         [catalogRows],
         [topBooksRows],
-        [topReadersRows]
+        [topReadersRows],
+        [dueSoonRows]
     ] = await Promise.all([
         db.query(`
             SELECT
@@ -82,6 +83,23 @@ exports.getStatistics = async ({ days = 7 }) => {
             GROUP BY r.reader_id, r.full_name, r.reader_code
             ORDER BY borrow_count DESC, r.full_name ASC
             LIMIT 5
+        `),
+        db.query(`
+            SELECT bt.tx_id, bt.due_date, bt.status,
+                   DATEDIFF(bt.due_date, CURDATE()) AS days_until_due,
+                   r.reader_id, r.full_name, r.reader_code,
+                   br.bib_id, br.title, bc.barcode
+            FROM borrow_transactions bt
+            JOIN readers r ON r.reader_id = bt.reader_id
+            JOIN book_copies bc ON bc.copy_id = bt.copy_id
+            JOIN bibliographic_records br ON br.bib_id = bc.bib_id
+            WHERE bt.status IN ('borrowed', 'overdue')
+              AND bt.due_date <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+            ORDER BY
+                CASE WHEN bt.due_date < CURDATE() THEN 0 ELSE 1 END ASC,
+                bt.due_date ASC,
+                r.full_name ASC
+            LIMIT 10
         `)
     ]);
 
@@ -145,6 +163,19 @@ exports.getStatistics = async ({ days = 7 }) => {
             full_name: row.full_name,
             reader_code: row.reader_code,
             borrow_count: Number(row.borrow_count) || 0
+        })),
+        due_soon_loans: dueSoonRows.map((row) => ({
+            tx_id: row.tx_id,
+            due_date: normalizeDate(row.due_date),
+            status: row.status,
+            days_until_due: Number(row.days_until_due) || 0,
+            is_overdue: Number(row.days_until_due) < 0,
+            reader_id: row.reader_id,
+            full_name: row.full_name,
+            reader_code: row.reader_code,
+            bib_id: row.bib_id,
+            title: row.title,
+            barcode: row.barcode
         }))
     };
 };

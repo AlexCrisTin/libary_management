@@ -43,6 +43,8 @@ class _DashboardState extends State<Dashboard> {
   List<Map<String, dynamic>> get _topBooks => apiList(_statistics['top_books']);
   List<Map<String, dynamic>> get _topReaders =>
       apiList(_statistics['top_readers']);
+  List<Map<String, dynamic>> get _dueSoonLoans =>
+      apiList(_statistics['due_soon_loans']);
 
   @override
   void initState() {
@@ -168,6 +170,11 @@ class _DashboardState extends State<Dashboard> {
                         widget.onOpenBorrowReturn?.call('overdue'),
                     onOpenReaders: widget.onOpenReaderManagement,
                     onOpenBooks: () => widget.onOpenTab?.call(1),
+                  ),
+                  const SizedBox(height: 14),
+                  _DueSoonLoans(
+                    items: _dueSoonLoans,
+                    onOpen: (status) => widget.onOpenBorrowReturn?.call(status),
                   ),
                   const SizedBox(height: 14),
                   _DashboardSection(
@@ -489,6 +496,138 @@ class _DashboardSection extends StatelessWidget {
           child,
         ],
       ),
+    );
+  }
+}
+
+class _DueSoonLoans extends StatelessWidget {
+  const _DueSoonLoans({required this.items, required this.onOpen});
+
+  final List<Map<String, dynamic>> items;
+  final ValueChanged<String> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return _DashboardSection(
+      title: 'Sắp đến hạn / quá hạn',
+      subtitle: 'Quá hạn & 7 ngày tới',
+      child: items.isEmpty
+          ? const _EmptyDashboardData(
+              message: 'Không có lượt mượn cần nhắc trả',
+            )
+          : Column(
+              children: List.generate(items.length, (index) {
+                final item = items[index];
+                final days = int.tryParse('${item['days_until_due']}') ?? 0;
+                final overdue = item['is_overdue'] == true || days < 0;
+                final statusText = overdue
+                    ? 'Quá hạn ${days.abs()} ngày'
+                    : days == 0
+                    ? 'Hạn trả hôm nay'
+                    : days == 1
+                    ? 'Còn 1 ngày'
+                    : 'Còn $days ngày';
+                final statusColor = overdue
+                    ? kLibRed
+                    : days <= 2
+                    ? const Color(0xFFE29A55)
+                    : kLibGreen;
+                return Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => onOpen(overdue ? 'overdue' : 'borrowed'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        border: index == items.length - 1
+                            ? null
+                            : const Border(
+                                bottom: BorderSide(color: Color(0xFFEEEEEE)),
+                              ),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: statusColor.withValues(alpha: .14),
+                            child: Icon(
+                              overdue
+                                  ? Icons.warning_amber_rounded
+                                  : Icons.schedule_rounded,
+                              color: statusColor,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  apiText(item['full_name']),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFF39445B),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${apiText(item['reader_code'])} • ${apiText(item['title'])}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFF777777),
+                                    fontSize: 10,
+                                  ),
+                                ),
+                                Text(
+                                  'Hạn trả: ${apiDate(item['due_date'])}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF999999),
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            constraints: const BoxConstraints(minWidth: 84),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: .14),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              statusText,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: statusColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            color: kLibBrownTitle,
+                            size: 21,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
     );
   }
 }
