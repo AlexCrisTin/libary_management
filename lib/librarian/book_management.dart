@@ -25,7 +25,11 @@ class _BookManagementState extends State<BookManagement> {
   int _totalPages = 1;
   int _totalItems = 0;
   int _requestVersion = 0;
+  String _subject = '';
+  String _copyStatus = '';
   String? _error;
+
+  bool get _hasFilters => _subject.isNotEmpty || _copyStatus.isNotEmpty;
 
   @override
   void initState() {
@@ -52,6 +56,8 @@ class _BookManagementState extends State<BookManagement> {
           '/books',
           query: {
             'keyword': _search.text.trim(),
+            'subject': _subject,
+            'copy_status': _copyStatus,
             'page': targetPage,
             'limit': _pageSize,
           },
@@ -186,6 +192,118 @@ class _BookManagementState extends State<BookManagement> {
     if (selected != null && mounted) await _deleteBook(selected);
   }
 
+  Future<void> _openFilters() async {
+    final subjectController = TextEditingController(text: _subject);
+    var copyStatus = _copyStatus;
+    final applied = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: kLibCardFill,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            22,
+            4,
+            22,
+            24 + MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Lọc danh sách sách',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: kLibBrownTitle,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 18),
+              TextField(
+                controller: subjectController,
+                textInputAction: TextInputAction.next,
+                decoration: _filterDecoration(
+                  label: 'Thể loại / chủ đề',
+                  hint: 'Ví dụ: Công nghệ, Giáo dục...',
+                  icon: Icons.category_outlined,
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: copyStatus,
+                decoration: _filterDecoration(
+                  label: 'Tình trạng sách',
+                  icon: Icons.inventory_2_outlined,
+                ),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('Tất cả')),
+                  DropdownMenuItem(value: 'available', child: Text('Còn sách')),
+                  DropdownMenuItem(value: 'borrowed', child: Text('Đang mượn')),
+                  DropdownMenuItem(
+                    value: 'unavailable',
+                    child: Text('Hết sách'),
+                  ),
+                ],
+                onChanged: (value) =>
+                    setSheetState(() => copyStatus = value ?? ''),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        subjectController.clear();
+                        setSheetState(() => copyStatus = '');
+                      },
+                      child: const Text('Đặt lại'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: kLibBrownTitle,
+                      ),
+                      onPressed: () => Navigator.pop(sheetContext, true),
+                      icon: const Icon(Icons.filter_alt_rounded),
+                      label: const Text('Áp dụng'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (applied == true && mounted) {
+      setState(() {
+        _subject = subjectController.text.trim();
+        _copyStatus = copyStatus;
+      });
+      await _load(page: 1);
+    }
+    subjectController.dispose();
+  }
+
+  Future<void> _removeSubjectFilter() async {
+    setState(() => _subject = '');
+    await _load(page: 1);
+  }
+
+  Future<void> _removeStatusFilter() async {
+    setState(() => _copyStatus = '');
+    await _load(page: 1);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -228,9 +346,48 @@ class _BookManagementState extends State<BookManagement> {
                     onPressed: _loading ? null : () => _load(),
                     icon: const Icon(Icons.refresh, color: kLibBrownTitle),
                   ),
+                  Badge(
+                    isLabelVisible: _hasFilters,
+                    backgroundColor: kLibRed,
+                    child: IconButton.filledTonal(
+                      tooltip: 'Lọc sách',
+                      onPressed: _loading ? null : _openFilters,
+                      icon: const Icon(
+                        Icons.tune_rounded,
+                        color: kLibBrownTitle,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
+            if (_hasFilters)
+              SizedBox(
+                height: 43,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(11, 0, 11, 7),
+                  children: [
+                    if (_subject.isNotEmpty)
+                      InputChip(
+                        avatar: const Icon(Icons.category_outlined, size: 18),
+                        label: Text('Thể loại: $_subject'),
+                        onDeleted: _loading ? null : _removeSubjectFilter,
+                      ),
+                    if (_subject.isNotEmpty && _copyStatus.isNotEmpty)
+                      const SizedBox(width: 8),
+                    if (_copyStatus.isNotEmpty)
+                      InputChip(
+                        avatar: const Icon(
+                          Icons.inventory_2_outlined,
+                          size: 18,
+                        ),
+                        label: Text(_copyStatusLabel(_copyStatus)),
+                        onDeleted: _loading ? null : _removeStatusFilter,
+                      ),
+                  ],
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(11, 0, 11, 8),
               child: Row(
@@ -296,7 +453,9 @@ class _BookManagementState extends State<BookManagement> {
                 error: _error,
                 isEmpty: _books.isEmpty,
                 onRetry: _load,
-                emptyMessage: 'Chưa có sách trong hệ thống',
+                emptyMessage: _hasFilters
+                    ? 'Không có sách phù hợp bộ lọc'
+                    : 'Chưa có sách trong hệ thống',
                 child: RefreshIndicator(
                   onRefresh: _load,
                   child: ListView.separated(
@@ -380,7 +539,13 @@ class _BookRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final available = int.tryParse('${book['available_copies'] ?? 0}') ?? 0;
+    final borrowed = int.tryParse('${book['borrowed_copies'] ?? 0}') ?? 0;
     final total = int.tryParse('${book['total_copies'] ?? 0}') ?? 0;
+    final statusLabel = available > 0
+        ? 'Còn'
+        : borrowed > 0
+        ? 'Đang mượn'
+        : 'Hết';
     const style = TextStyle(
       color: kLibBookTitle,
       fontSize: 13,
@@ -399,10 +564,16 @@ class _BookRow extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: available > 0
                       ? const Color(0xFFC2E2B5)
+                      : borrowed > 0
+                      ? const Color(0xFFFFE0B2)
                       : const Color(0xFFFFCDD2),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(available > 0 ? 'Còn' : 'Hết', style: style),
+                child: Text(
+                  statusLabel,
+                  textAlign: TextAlign.center,
+                  style: style,
+                ),
               ),
             ),
           ),
@@ -425,3 +596,28 @@ class _BookRow extends StatelessWidget {
     );
   }
 }
+
+InputDecoration _filterDecoration({
+  required String label,
+  required IconData icon,
+  String? hint,
+}) {
+  return InputDecoration(
+    labelText: label,
+    hintText: hint,
+    prefixIcon: Icon(icon, color: kLibBrownTitle),
+    filled: true,
+    fillColor: Colors.white,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide.none,
+    ),
+  );
+}
+
+String _copyStatusLabel(String status) => switch (status) {
+  'available' => 'Tình trạng: Còn sách',
+  'borrowed' => 'Tình trạng: Đang mượn',
+  'unavailable' => 'Tình trạng: Hết sách',
+  _ => 'Tình trạng: Tất cả',
+};

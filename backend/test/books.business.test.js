@@ -103,3 +103,46 @@ test('lưu và bỏ lưu sách là thao tác idempotent theo độc giả', asyn
     assert.ok(calls.some(({ sql }) => sql.includes('INSERT IGNORE INTO reader_bookmarks')));
     assert.ok(calls.some(({ sql }) => sql.includes('DELETE FROM reader_bookmarks')));
 });
+
+test('lọc sách đang mượn ở máy chủ và giữ đúng dữ liệu phân trang', async () => {
+    const calls = [];
+    fakeDb.query = async (sql, params) => {
+        calls.push({ sql, params });
+        if (sql.includes('COUNT(*) AS total')) return [[{ total: 1 }], []];
+        return [[{
+            bib_id: 'book-1',
+            title: 'Clean Code',
+            authors: '[]',
+            subject_headings: '["Công nghệ"]',
+            total_copies: '3',
+            available_copies: '1',
+            borrowed_copies: '2'
+        }], []];
+    };
+
+    const result = await booksService.searchBooks({
+        subject: 'Công nghệ',
+        copy_status: 'borrowed',
+        page: 1,
+        limit: 20
+    });
+
+    assert.equal(result.total, 1);
+    assert.equal(result.items[0].borrowed_copies, 2);
+    assert.ok(calls.every(({ sql }) => sql.includes("status_copy.status = 'borrowed'")));
+    assert.ok(calls.every(({ sql }) => sql.includes('subject_headings LIKE ?')));
+});
+
+test('lọc sách hết khi không còn bản sao khả dụng', async () => {
+    const calls = [];
+    fakeDb.query = async (sql) => {
+        calls.push(sql);
+        if (sql.includes('COUNT(*) AS total')) return [[{ total: 0 }], []];
+        return [[], []];
+    };
+
+    await booksService.searchBooks({ copy_status: 'unavailable', page: 1, limit: 20 });
+
+    assert.ok(calls.every((sql) => sql.includes('NOT EXISTS')));
+    assert.ok(calls.every((sql) => sql.includes("status_copy.status = 'available'")));
+});

@@ -24,6 +24,7 @@ exports.searchBooks = async ({
     ddc_class = '',
     author = '',
     subject = '',
+    copy_status = '',
     language = '',
     publish_year = '',
     page = 1,
@@ -54,6 +55,26 @@ exports.searchBooks = async ({
     if (subject.trim()) {
         whereConditions.push('b.subject_headings LIKE ?');
         params.push(`%${subject.trim()}%`);
+    }
+
+    const normalizedCopyStatus = copy_status.trim().toLowerCase();
+    if (normalizedCopyStatus) {
+        if (!['available', 'borrowed', 'unavailable'].includes(normalizedCopyStatus)) {
+            throw new Error('Tình trạng sách cần lọc không hợp lệ!');
+        }
+        if (normalizedCopyStatus === 'unavailable') {
+            whereConditions.push(`NOT EXISTS (
+                SELECT 1 FROM book_copies status_copy
+                WHERE status_copy.bib_id = b.bib_id
+                  AND status_copy.status = 'available'
+            )`);
+        } else {
+            whereConditions.push(`EXISTS (
+                SELECT 1 FROM book_copies status_copy
+                WHERE status_copy.bib_id = b.bib_id
+                  AND status_copy.status = '${normalizedCopyStatus}'
+            )`);
+        }
     }
 
     if (language.trim()) {
@@ -97,7 +118,8 @@ exports.searchBooks = async ({
             b.cover_url,
             b.created_at,
             COUNT(c.copy_id) AS total_copies,
-            SUM(CASE WHEN c.status = 'available' THEN 1 ELSE 0 END) AS available_copies
+            SUM(CASE WHEN c.status = 'available' THEN 1 ELSE 0 END) AS available_copies,
+            SUM(CASE WHEN c.status = 'borrowed' THEN 1 ELSE 0 END) AS borrowed_copies
         FROM bibliographic_records b
         LEFT JOIN book_copies c ON b.bib_id = c.bib_id
         ${whereClause}
@@ -113,7 +135,8 @@ exports.searchBooks = async ({
         authors: parseJSONField(book.authors),
         subject_headings: parseJSONField(book.subject_headings),
         total_copies: Number(book.total_copies) || 0,
-        available_copies: Number(book.available_copies) || 0
+        available_copies: Number(book.available_copies) || 0,
+        borrowed_copies: Number(book.borrowed_copies) || 0
     }));
 
     return {
