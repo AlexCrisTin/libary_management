@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:libary_management/login/login.dart';
 import 'package:libary_management/core/api_client.dart';
+import 'package:libary_management/shared/library_map.dart';
 
 import 'librarian_nav.dart';
 import 'profile_admin_detail.dart';
@@ -199,6 +200,18 @@ class ProfileAdmin extends StatelessWidget {
                         ),
                       ],
                     ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                LibSectionCard(
+                  title: 'Thư viện',
+                  child: LibMenuRow(
+                    label: 'Sơ đồ thư viện',
+                    icon: Icons.map_rounded,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LibraryMapPage()),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),

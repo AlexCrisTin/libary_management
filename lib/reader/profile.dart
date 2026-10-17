@@ -8,6 +8,7 @@ import 'package:libary_management/reader/history.dart';
 import 'package:libary_management/reader/holds.dart';
 import 'package:libary_management/reader/profile_detail.dart';
 import 'package:libary_management/reader/reader_nav.dart';
+import 'package:libary_management/shared/library_map.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -280,6 +281,11 @@ class _ProfileState extends State<Profile> {
                         label: 'Sách đã đặt trước',
                         icon: Icons.bookmark_rounded,
                         onTap: () => _open(const ReaderHolds()),
+                      ),
+                      _ProfileMenuRow(
+                        label: 'Sơ đồ thư viện',
+                        icon: Icons.map_rounded,
+                        onTap: () => _open(const LibraryMapPage()),
                       ),
                       _ProfileMenuRow(
                         label: 'Thẻ thư viện',
