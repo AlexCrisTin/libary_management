@@ -41,6 +41,10 @@ class _BorrowReturnBookManagementState
   int _totalItems = 0;
   int _requestVersion = 0;
   String? _error;
+
+  bool get _hasActiveFilter =>
+      _view != _ManagementView.loans || _loanStatus.isNotEmpty;
+
   @override
   void initState() {
     super.initState();
@@ -131,10 +135,148 @@ class _BorrowReturnBookManagementState
 
   void _searchFromFirstPage() => _load(page: 1);
 
-  void _changeLoanStatus(String status) {
-    if (_loanStatus == status || _loading) return;
-    setState(() => _loanStatus = status);
-    _load(page: 1);
+  Future<void> _openFilters() async {
+    var selectedView = _view;
+    var selectedLoanStatus = _loanStatus;
+    final applied = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: kLibCardFill,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Bộ lọc quản lý',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: kLibBrownTitle,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Nhóm dữ liệu',
+                  style: TextStyle(
+                    color: kLibBrownTitle,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _FilterChoice(
+                      label: 'Đang mượn',
+                      icon: Icons.menu_book_rounded,
+                      selected: selectedView == _ManagementView.loans,
+                      onTap: () => setSheetState(
+                        () => selectedView = _ManagementView.loans,
+                      ),
+                    ),
+                    _FilterChoice(
+                      label: 'Tiền phạt',
+                      icon: Icons.payments_outlined,
+                      selected: selectedView == _ManagementView.fines,
+                      onTap: () => setSheetState(
+                        () => selectedView = _ManagementView.fines,
+                      ),
+                    ),
+                    _FilterChoice(
+                      label: 'Đặt slot',
+                      icon: Icons.event_available_rounded,
+                      selected: selectedView == _ManagementView.pickupSlots,
+                      onTap: () => setSheetState(
+                        () => selectedView = _ManagementView.pickupSlots,
+                      ),
+                    ),
+                  ],
+                ),
+                if (selectedView == _ManagementView.loans) ...[
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Trạng thái mượn',
+                    style: TextStyle(
+                      color: kLibBrownTitle,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _FilterChoice(
+                        label: 'Tất cả',
+                        selected: selectedLoanStatus.isEmpty,
+                        onTap: () =>
+                            setSheetState(() => selectedLoanStatus = ''),
+                      ),
+                      _FilterChoice(
+                        label: 'Đang mượn',
+                        selected: selectedLoanStatus == 'borrowed',
+                        onTap: () => setSheetState(
+                          () => selectedLoanStatus = 'borrowed',
+                        ),
+                      ),
+                      _FilterChoice(
+                        label: 'Quá hạn',
+                        selected: selectedLoanStatus == 'overdue',
+                        color: kLibRed,
+                        onTap: () =>
+                            setSheetState(() => selectedLoanStatus = 'overdue'),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => setSheetState(() {
+                          selectedView = _ManagementView.loans;
+                          selectedLoanStatus = '';
+                        }),
+                        child: const Text('Đặt lại'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: kLibBrownTitle,
+                        ),
+                        onPressed: () => Navigator.pop(sheetContext, true),
+                        icon: const Icon(Icons.filter_alt_rounded),
+                        label: const Text('Áp dụng'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (applied != true || !mounted) return;
+    if (selectedView == _view && selectedLoanStatus == _loanStatus) return;
+    setState(() {
+      _view = selectedView;
+      _loanStatus = selectedLoanStatus;
+    });
+    await _load(page: 1);
   }
 
   Future<void> _approveSlot(Map<String, dynamic> slot) async {
@@ -326,66 +468,18 @@ class _BorrowReturnBookManagementState
                   onPressed: _loading ? null : () => _load(),
                   icon: const Icon(Icons.refresh, color: kLibBrownTitle),
                 ),
+                Badge(
+                  isLabelVisible: _hasActiveFilter,
+                  backgroundColor: kLibRed,
+                  child: IconButton.filledTonal(
+                    tooltip: 'Bộ lọc',
+                    onPressed: _loading ? null : _openFilters,
+                    icon: const Icon(Icons.tune_rounded, color: kLibBrownTitle),
+                  ),
+                ),
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(11, 0, 11, 10),
-            child: SegmentedButton<_ManagementView>(
-              segments: const [
-                ButtonSegment(
-                  value: _ManagementView.loans,
-                  icon: Icon(Icons.menu_book_rounded),
-                  label: Text('Đang mượn'),
-                ),
-                ButtonSegment(
-                  value: _ManagementView.fines,
-                  icon: Icon(Icons.payments_outlined),
-                  label: Text('Tiền phạt'),
-                ),
-                ButtonSegment(
-                  value: _ManagementView.pickupSlots,
-                  icon: Icon(Icons.event_available_rounded),
-                  label: Text('Đặt slot'),
-                ),
-              ],
-              selected: {_view},
-              showSelectedIcon: false,
-              onSelectionChanged: (value) {
-                setState(() => _view = value.first);
-                _load(page: 1);
-              },
-            ),
-          ),
-          if (_view == _ManagementView.loans)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(11, 0, 11, 10),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 7,
-                  children: [
-                    _LoanStatusChip(
-                      label: 'Tất cả',
-                      selected: _loanStatus.isEmpty,
-                      onTap: () => _changeLoanStatus(''),
-                    ),
-                    _LoanStatusChip(
-                      label: 'Đang mượn',
-                      selected: _loanStatus == 'borrowed',
-                      onTap: () => _changeLoanStatus('borrowed'),
-                    ),
-                    _LoanStatusChip(
-                      label: 'Quá hạn',
-                      selected: _loanStatus == 'overdue',
-                      color: kLibRed,
-                      onTap: () => _changeLoanStatus('overdue'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           if (_error == null)
             LibrarianPaginationBar(
               page: _page,
@@ -522,22 +616,31 @@ class _ManagementTableHeader extends StatelessWidget {
   }
 }
 
-class _LoanStatusChip extends StatelessWidget {
-  const _LoanStatusChip({
+class _FilterChoice extends StatelessWidget {
+  const _FilterChoice({
     required this.label,
     required this.selected,
     required this.onTap,
     this.color = kLibBrownTitle,
+    this.icon,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
   final Color color;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     return ChoiceChip(
+      avatar: icon == null
+          ? null
+          : Icon(
+              icon,
+              size: 17,
+              color: selected ? Colors.white : kLibBrownTitle,
+            ),
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
