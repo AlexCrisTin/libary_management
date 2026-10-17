@@ -128,9 +128,9 @@ class _DetailBookState extends State<DetailBook> {
   Future<void> _borrowOrHold() async {
     if (_availableCopies > 0) {
       final locationText = _availableLocations.isEmpty
-          ? '\n\nVị trí kệ chưa được cập nhật, vui lòng hỏi thủ thư.'
-          : '\n\nVị trí: ${_availableLocations.join('; ')}.';
-      await showDialog<void>(
+          ? 'Vị trí kệ chưa được cập nhật.'
+          : 'Vị trí hiện tại: ${_availableLocations.join('; ')}.';
+      final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           backgroundColor: kCardFill,
@@ -138,23 +138,42 @@ class _DetailBookState extends State<DetailBook> {
             borderRadius: BorderRadius.circular(18),
           ),
           title: const Text(
-            'Sách đang có sẵn',
+            'Đặt slot nhận sách?',
             style: TextStyle(color: kBrownTitle, fontWeight: FontWeight.w700),
           ),
           content: Text(
             'Hiện còn $_availableCopies bản trên kệ. '
-            'Bạn hãy đến quầy thủ thư để làm thủ tục mượn sách.'
+            'Yêu cầu sẽ được gửi đến thủ thư. Sau khi được duyệt, một bản sách '
+            'sẽ được giữ riêng cho bạn đến thời hạn thủ thư xác nhận.\n\n'
             '$locationText',
             style: const TextStyle(color: kBookTitle, height: 1.45),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Đóng'),
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Để sau'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: FilledButton.styleFrom(backgroundColor: kBrownTitle),
+              child: const Text('Gửi yêu cầu'),
             ),
           ],
         ),
       );
+      if (confirmed != true || !mounted) return;
+      setState(() => _submitting = true);
+      try {
+        await ApiClient.post(
+          '/pickup-reservations',
+          body: {'bib_id': widget.bookId},
+        );
+        _showMessage('Đã gửi yêu cầu đặt slot đến thủ thư.');
+      } catch (error) {
+        _showMessage(error.toString());
+      } finally {
+        if (mounted) setState(() => _submitting = false);
+      }
       return;
     }
 
@@ -420,7 +439,7 @@ class _BookPresentation extends StatelessWidget {
                         ),
                       )
                     : Text(
-                        available ? 'Mượn' : 'Đặt trước',
+                        available ? 'Đặt slot' : 'Đặt trước',
                         style: const TextStyle(
                           fontSize: 19,
                           fontWeight: FontWeight.w700,

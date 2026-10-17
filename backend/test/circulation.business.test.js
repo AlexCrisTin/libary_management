@@ -67,6 +67,43 @@ test('chặn mượn khi độc giả đã đạt giới hạn số sách', asyn
     );
 });
 
+test('không cho mượn bản sách đang giữ theo slot của độc giả khác', async () => {
+    let queryIndex = 0;
+    fakeDb.query = async () => {
+        queryIndex += 1;
+        if (queryIndex === 1) {
+            return [[{
+                reader_id: 'reader-1',
+                status: 'active',
+                card_expired: null,
+                max_books: 5
+            }], []];
+        }
+        if (queryIndex === 2) return [[{ active_count: 0 }], []];
+        if (queryIndex === 3) {
+            return [[{
+                copy_id: 'copy-1',
+                bib_id: 'book-1',
+                status: 'reserved',
+                title: 'Sách thử nghiệm'
+            }], []];
+        }
+        if (queryIndex === 4) {
+            return [[{
+                reservation_id: 'reservation-1',
+                reader_id: 'reader-2',
+                pickup_expires_at: new Date(Date.now() + 60 * 60 * 1000)
+            }], []];
+        }
+        throw new Error('Không được truy vấn hàng chờ khi bản sách thuộc slot khác');
+    };
+
+    await assert.rejects(
+        circulationService.borrowBook({ reader_id: 'reader-1', copy_id: 'copy-1' }),
+        /slot của độc giả khác/
+    );
+});
+
 test('không cho đặt trước khi vẫn còn bản sao sẵn sàng trên kệ', async () => {
     const responses = [
         [[{ reader_id: 'reader-1', status: 'active', card_expired: null }], []],

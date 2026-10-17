@@ -15,7 +15,7 @@ npm run db:setup
 Lệnh này sẽ:
 
 - tạo database nếu chưa tồn tại;
-- tạo đủ 19 bảng;
+- tạo đủ 20 bảng;
 - thêm dữ liệu demo nếu database đang trống;
 - kiểm tra lại toàn bộ bảng sau khi cài.
 

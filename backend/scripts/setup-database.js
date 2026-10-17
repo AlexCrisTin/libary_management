@@ -42,7 +42,7 @@ const seedPath = path.join(backendRoot, 'database', 'seed.sql');
 const expectedTables = [
     'users', 'readers', 'reader_preferences', 'publishers', 'categories',
     'shelf_locations', 'bibliographic_records', 'book_copies', 'reader_bookmarks',
-    'borrow_transactions', 'renewal_requests', 'holds', 'notifications',
+    'borrow_transactions', 'renewal_requests', 'holds', 'pickup_reservations', 'notifications',
     'chat_messages', 'password_resets', 'token_blacklist',
     'ai_conversations', 'ai_messages', 'ai_usage_logs'
 ];

@@ -29,7 +29,22 @@ class _ReaderHoldsState extends State<ReaderHolds> {
       _error = null;
     });
     try {
-      final items = apiList(await ApiClient.get('/holds/my-holds'));
+      final responses = await Future.wait([
+        ApiClient.get('/holds/my-holds'),
+        ApiClient.get('/pickup-reservations/my-reservations'),
+      ]);
+      final queueHolds = apiList(
+        responses[0],
+      ).map((item) => {...item, '_reservation_kind': 'queue'}).toList();
+      final pickupSlots = apiList(
+        responses[1],
+      ).map((item) => {...item, '_reservation_kind': 'pickup'}).toList();
+      final items = [...queueHolds, ...pickupSlots]
+        ..sort((a, b) {
+          final aDate = DateTime.tryParse('${a['requested_at']}');
+          final bDate = DateTime.tryParse('${b['requested_at']}');
+          return (bDate ?? DateTime(1970)).compareTo(aDate ?? DateTime(1970));
+        });
       if (mounted) setState(() => _items = items);
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -39,7 +54,11 @@ class _ReaderHoldsState extends State<ReaderHolds> {
   }
 
   Future<void> _cancel(Map<String, dynamic> item) async {
-    final id = apiText(item['hold_id'], fallback: '');
+    final pickup = item['_reservation_kind'] == 'pickup';
+    final id = apiText(
+      pickup ? item['reservation_id'] : item['hold_id'],
+      fallback: '',
+    );
     if (id.isEmpty) return;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -64,7 +83,9 @@ class _ReaderHoldsState extends State<ReaderHolds> {
 
     setState(() => _cancellingId = id);
     try {
-      await ApiClient.put('/holds/$id/cancel');
+      await ApiClient.put(
+        pickup ? '/pickup-reservations/$id/cancel' : '/holds/$id/cancel',
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Đã hủy yêu cầu đặt trước.')),
@@ -107,7 +128,10 @@ class _ReaderHoldsState extends State<ReaderHolds> {
                 itemBuilder: (_, index) => _HoldCard(
                   item: _items[index],
                   cancelling:
-                      _cancellingId == _items[index]['hold_id']?.toString(),
+                      _cancellingId ==
+                      (_items[index]['reservation_id'] ??
+                              _items[index]['hold_id'])
+                          ?.toString(),
                   onCancel: () => _cancel(_items[index]),
                 ),
               ),
@@ -133,7 +157,10 @@ class _HoldCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = item['status']?.toString() ?? '';
-    final active = status == 'waiting' || status == 'notified';
+    final pickup = item['_reservation_kind'] == 'pickup';
+    final active = pickup
+        ? status == 'pending' || status == 'approved'
+        : status == 'waiting' || status == 'notified';
     final cover = item['cover_url']?.toString() ?? '';
     final bytes = decodeDataImage(cover);
     return Container(
@@ -177,10 +204,18 @@ class _HoldCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text('ISBN: ${apiText(item['isbn'])}'),
                 Text('Ngày đặt: ${apiDate(item['requested_at'])}'),
-                if (status == 'waiting')
+                if (!pickup && status == 'waiting')
                   Text('Vị trí chờ: ${apiText(item['queue_position'])}'),
-                if (status == 'notified')
+                if (!pickup && status == 'notified')
                   Text('Giữ đến: ${apiDate(item['expires_at'])}'),
+                if (pickup && status == 'pending')
+                  const Text('Đang chờ thủ thư xác nhận slot'),
+                if (pickup && status == 'approved') ...[
+                  Text('Nhận trước: ${_dateTime(item['pickup_expires_at'])}'),
+                  Text('Mã bản sách: ${apiText(item['barcode'])}'),
+                ],
+                if (pickup && status == 'rejected')
+                  Text('Lý do: ${apiText(item['rejection_reason'])}'),
                 const SizedBox(height: 9),
                 Row(
                   children: [
@@ -224,6 +259,9 @@ class _StatusChip extends StatelessWidget {
     final (label, color) = switch (status) {
       'waiting' => ('Đang chờ', kBeigeButton),
       'notified' => ('Có thể nhận', const Color(0xFF82D1A8)),
+      'pending' => ('Chờ duyệt slot', kBeigeButton),
+      'approved' => ('Đã giữ sách', const Color(0xFF82D1A8)),
+      'rejected' => ('Bị từ chối', const Color(0xFFD18282)),
       'fulfilled' => ('Đã nhận', const Color(0xFF82D1A8)),
       'cancelled' => ('Đã hủy', const Color(0xFFD18282)),
       'expired' => ('Hết hạn', const Color(0xFFD18282)),
@@ -245,4 +283,12 @@ class _StatusChip extends StatelessWidget {
       ),
     );
   }
+}
+
+String _dateTime(dynamic value) {
+  final date = DateTime.tryParse(value?.toString() ?? '')?.toLocal();
+  if (date == null) return '—';
+  String two(int number) => number.toString().padLeft(2, '0');
+  return '${two(date.hour)}:${two(date.minute)} '
+      '${two(date.day)}/${two(date.month)}/${date.year}';
 }

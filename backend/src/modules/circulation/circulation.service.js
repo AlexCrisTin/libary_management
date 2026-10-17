@@ -95,14 +95,31 @@ exports.borrowBook = async ({ reader_id, reader_code, copy_id, barcode, due_days
 
     // Nếu sách đang ở trạng thái 'reserved' (giữ trước) -> Phải đúng độc giả này đặt
     if (copy.status === 'reserved') {
-        const [holds] = await db.query(
-            `SELECT * FROM holds 
-             WHERE bib_id = ? AND reader_id = ? AND status IN ('waiting', 'notified') 
+        const [pickupReservations] = await db.query(
+            `SELECT reservation_id, reader_id, pickup_expires_at
+             FROM pickup_reservations
+             WHERE copy_id = ? AND status = 'approved'
              LIMIT 1`,
-            [copy.bib_id, reader.reader_id]
+            [copy.copy_id]
         );
-        if (holds.length === 0) {
-            throw new Error('Cuốn sách này đang được giữ ưu tiên cho độc giả khác đặt trước!');
+        if (pickupReservations.length > 0) {
+            const pickup = pickupReservations[0];
+            if (new Date(pickup.pickup_expires_at).getTime() <= Date.now()) {
+                throw new Error('Slot nhận sách này đã hết hạn, vui lòng tải lại trạng thái bản sách!');
+            }
+            if (pickup.reader_id !== reader.reader_id) {
+                throw new Error('Cuốn sách này đang được giữ theo slot của độc giả khác!');
+            }
+        } else {
+            const [holds] = await db.query(
+                `SELECT * FROM holds
+                 WHERE bib_id = ? AND reader_id = ? AND status IN ('waiting', 'notified')
+                 LIMIT 1`,
+                [copy.bib_id, reader.reader_id]
+            );
+            if (holds.length === 0) {
+                throw new Error('Cuốn sách này đang được giữ ưu tiên cho độc giả khác đặt trước!');
+            }
         }
     }
 
@@ -162,6 +179,14 @@ exports.borrowBook = async ({ reader_id, reader_code, copy_id, barcode, due_days
                 );
             }
         }
+
+        // Nếu đây là bản sao được duyệt đặt slot, hoàn tất yêu cầu khi lập phiếu mượn.
+        await conn.query(
+            `UPDATE pickup_reservations
+             SET status = 'fulfilled'
+             WHERE copy_id = ? AND reader_id = ? AND status = 'approved'`,
+            [copy.copy_id, reader.reader_id]
+        );
 
         await conn.commit();
 

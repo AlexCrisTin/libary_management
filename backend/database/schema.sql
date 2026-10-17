@@ -209,6 +209,28 @@ CREATE TABLE IF NOT EXISTS holds (
     CONSTRAINT fk_hold_bib FOREIGN KEY (bib_id) REFERENCES bibliographic_records(bib_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS pickup_reservations (
+    reservation_id VARCHAR(36) NOT NULL,
+    reader_id VARCHAR(36) NOT NULL,
+    bib_id VARCHAR(36) NOT NULL,
+    copy_id VARCHAR(36) DEFAULT NULL,
+    requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('pending', 'approved', 'rejected', 'cancelled', 'fulfilled', 'expired') NOT NULL DEFAULT 'pending',
+    pickup_expires_at DATETIME DEFAULT NULL,
+    processed_by VARCHAR(36) DEFAULT NULL,
+    processed_at DATETIME DEFAULT NULL,
+    rejection_reason VARCHAR(500) DEFAULT NULL,
+    PRIMARY KEY (reservation_id),
+    KEY idx_pickup_reader_status (reader_id, status),
+    KEY idx_pickup_bib_status (bib_id, status),
+    KEY idx_pickup_expiry (status, pickup_expires_at),
+    KEY idx_pickup_copy (copy_id),
+    CONSTRAINT fk_pickup_reader FOREIGN KEY (reader_id) REFERENCES readers(reader_id) ON DELETE CASCADE,
+    CONSTRAINT fk_pickup_bib FOREIGN KEY (bib_id) REFERENCES bibliographic_records(bib_id) ON DELETE CASCADE,
+    CONSTRAINT fk_pickup_copy FOREIGN KEY (copy_id) REFERENCES book_copies(copy_id) ON DELETE SET NULL,
+    CONSTRAINT fk_pickup_processor FOREIGN KEY (processed_by) REFERENCES users(user_id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS notifications (
     notification_id VARCHAR(36) NOT NULL,
     reader_id VARCHAR(36) NOT NULL,
