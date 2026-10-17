@@ -292,14 +292,8 @@ class _SubjectBookCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authors = book['authors'] is List
-        ? (book['authors'] as List).map((value) => value.toString()).join(', ')
-        : apiText(book['authors']);
-    final subjects = book['subject_headings'] is List
-        ? (book['subject_headings'] as List)
-              .map((value) => value.toString())
-              .join(', ')
-        : apiText(book['subject_headings']);
+    final authors = apiText(book['authors']);
+    final subjects = apiText(book['subject_headings']);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(

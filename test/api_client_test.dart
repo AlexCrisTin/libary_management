@@ -30,4 +30,29 @@ void main() {
 
     expect(ApiClient.baseUrl, 'http://10.0.0.8:3000/api');
   });
+
+  test('chỉ hiển thị tên khi tác giả là object JSON', () {
+    expect(apiText({'name': 'Nguyễn Văn A', 'role': 'author'}), 'Nguyễn Văn A');
+  });
+
+  test('chuẩn hóa danh sách tác giả ở cả dạng object và chuỗi', () {
+    expect(
+      apiText([
+        {'name': 'Nguyễn Văn A', 'role': 'author'},
+        'Trần Thị B',
+      ]),
+      'Nguyễn Văn A, Trần Thị B',
+    );
+  });
+
+  test('đọc được trường JSON đang lưu dưới dạng chuỗi', () {
+    expect(
+      apiText('[{"name":"Nguyễn Văn A","role":"author"}]'),
+      'Nguyễn Văn A',
+    );
+  });
+
+  test('không in nguyên object không có trường hiển thị', () {
+    expect(apiText({'role': 'author'}), '—');
+  });
 }

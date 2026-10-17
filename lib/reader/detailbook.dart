@@ -260,15 +260,11 @@ class _DetailBookState extends State<DetailBook> {
   }
 
   String _authors() {
-    final authors = _book['authors'];
-    if (authors is List) return authors.map(apiText).join(', ');
-    return apiText(authors);
+    return apiText(_book['authors']);
   }
 
   String _subjects() {
-    final subjects = _book['subject_headings'];
-    if (subjects is List) return subjects.map(apiText).join(', ');
-    return apiText(subjects);
+    return apiText(_book['subject_headings']);
   }
 
   @override
@@ -863,10 +859,7 @@ class _SuggestedBookCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authors = book['authors'];
-    final authorText = authors is List
-        ? authors.map(apiText).join(', ')
-        : apiText(authors);
+    final authorText = apiText(book['authors']);
     final available = int.tryParse('${book['available_copies'] ?? 0}') ?? 0;
     return Material(
       color: Colors.white,

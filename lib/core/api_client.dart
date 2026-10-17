@@ -241,8 +241,74 @@ Map<String, dynamic> _map(dynamic value) {
 }
 
 String apiText(dynamic value, {String fallback = '—'}) {
-  final text = value?.toString().trim() ?? '';
-  return text.isEmpty || text == 'null' ? fallback : text;
+  final values = _apiTextValues(value);
+  final uniqueValues = <String>[];
+  for (final item in values) {
+    final text = item.trim();
+    if (text.isEmpty || text == 'null' || uniqueValues.contains(text)) continue;
+    uniqueValues.add(text);
+  }
+  return uniqueValues.isEmpty ? fallback : uniqueValues.join(', ');
+}
+
+/// Chuyển dữ liệu API thành chữ hiển thị mà không làm lộ cấu trúc JSON.
+///
+/// Một số nguồn ISBN trả tác giả dưới dạng `{name, role}` trong khi dữ liệu
+/// nhập tay chỉ là chuỗi. Hàm này hỗ trợ đồng thời chuỗi, JSON string, danh
+/// sách và object, nhưng chỉ lấy các trường có ý nghĩa với người dùng.
+List<String> _apiTextValues(dynamic value) {
+  if (value == null) return const [];
+
+  if (value is String) {
+    final text = value.trim();
+    if (text.isEmpty || text == 'null') return const [];
+    final looksLikeJson =
+        (text.startsWith('[') && text.endsWith(']')) ||
+        (text.startsWith('{') && text.endsWith('}'));
+    if (looksLikeJson) {
+      try {
+        final decoded = jsonDecode(text);
+        if (decoded is! String) return _apiTextValues(decoded);
+      } catch (_) {
+        // Không phải JSON hợp lệ thì giữ nguyên nội dung chuỗi.
+      }
+    }
+    return [text];
+  }
+
+  if (value is Iterable) {
+    return value.expand(_apiTextValues).toList();
+  }
+
+  if (value is Map) {
+    final map = value.map((key, item) => MapEntry(key.toString(), item));
+    const displayKeys = [
+      'name',
+      'display_name',
+      'full_name',
+      'title',
+      'label',
+      'author_name',
+      'book_title',
+      'reader_name',
+      'subject',
+      'publisher_name',
+      'language',
+      'value',
+      'text',
+    ];
+    for (final key in displayKeys) {
+      final result = _apiTextValues(map[key]);
+      if (result.isNotEmpty) return result;
+    }
+
+    final firstName = _apiTextValues(map['first_name']).join(' ');
+    final lastName = _apiTextValues(map['last_name']).join(' ');
+    final fullName = '$firstName $lastName'.trim();
+    return fullName.isEmpty ? const [] : [fullName];
+  }
+
+  return [value.toString()];
 }
 
 String apiDate(dynamic value) {

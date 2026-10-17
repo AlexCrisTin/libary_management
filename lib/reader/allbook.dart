@@ -596,21 +596,13 @@ class _ResultMeta extends StatelessWidget {
 
 List<String> _subjectNames(Map<String, dynamic> book) {
   final subjects = book['subject_headings'];
-  if (subjects is! List) return const [];
-  return subjects
-      .map((value) => value.toString().trim())
+  final values = subjects is List ? subjects : [subjects];
+  return values
+      .map((value) => apiText(value, fallback: '').trim())
       .where((value) => value.isNotEmpty)
       .toList();
 }
 
 String _authorNames(Map<String, dynamic> book) {
-  final authors = book['authors'];
-  if (authors is! List) return apiText(authors);
-  return authors
-      .map((value) {
-        if (value is Map) return value['name']?.toString().trim() ?? '';
-        return value.toString().trim();
-      })
-      .where((value) => value.isNotEmpty)
-      .join(', ');
+  return apiText(book['authors']);
 }
