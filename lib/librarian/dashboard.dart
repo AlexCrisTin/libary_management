@@ -211,7 +211,6 @@ class _DashboardState extends State<Dashboard> {
                       );
                     },
                   ),
-                
                 ],
               ),
             ),
@@ -429,56 +428,75 @@ class _DashboardSection extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.child,
+    this.onTap,
   });
 
   final String title;
   final String subtitle;
   final Widget child;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: Color(0xFFEEEEEE)),
         borderRadius: BorderRadius.circular(13),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: Color(0xFF39445B),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        color: Color(0xFF39445B),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-                decoration: BoxDecoration(
-                  color: kLibCardFill,
-                  borderRadius: BorderRadius.circular(7),
-                ),
-                child: Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: Color(0xFF777777),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: kLibCardFill,
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Color(0xFF777777),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                ),
+                  if (onTap != null) ...[
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: kLibBrownTitle,
+                      size: 22,
+                    ),
+                  ],
+                ],
               ),
+              const SizedBox(height: 14),
+              child,
             ],
           ),
-          const SizedBox(height: 14),
-          child,
-        ],
+        ),
       ),
     );
   }
@@ -495,6 +513,7 @@ class _DueSoonLoans extends StatelessWidget {
     return _DashboardSection(
       title: 'Sắp đến hạn / quá hạn',
       subtitle: 'Quá hạn & 7 ngày tới',
+      onTap: () => onOpen('attention'),
       child: items.isEmpty
           ? const _EmptyDashboardData(
               message: 'Không có lượt mượn cần nhắc trả',
@@ -987,10 +1006,6 @@ class _EmptyDashboardData extends StatelessWidget {
     ),
   );
 }
-
- 
-  
-
 
 String _number(dynamic value) {
   final number = num.tryParse('${value ?? 0}') ?? 0;

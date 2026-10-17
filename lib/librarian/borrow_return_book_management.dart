@@ -235,6 +235,14 @@ class _BorrowReturnBookManagementState
                         onTap: () =>
                             setSheetState(() => selectedLoanStatus = 'overdue'),
                       ),
+                      _FilterChoice(
+                        label: 'Sắp hạn / quá hạn',
+                        selected: selectedLoanStatus == 'attention',
+                        color: const Color(0xFFE29A55),
+                        onTap: () => setSheetState(
+                          () => selectedLoanStatus = 'attention',
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -509,6 +517,8 @@ class _BorrowReturnBookManagementState
                   'Không có giao dịch phát sinh tiền phạt',
                 _ManagementView.pickupSlots =>
                   'Không có yêu cầu đặt slot đang hoạt động',
+                _ when _loanStatus == 'attention' =>
+                  'Không có lượt mượn sắp đến hạn hoặc quá hạn',
                 _ => 'Không có lượt mượn đang hoạt động',
               },
               child: RefreshIndicator(

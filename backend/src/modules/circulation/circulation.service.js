@@ -693,6 +693,10 @@ exports.getActiveLoans = async ({ reader_id = '', keyword = '', status = '', pag
         // Khớp trực tiếp với số liệu dashboard, kể cả khi scheduler chưa kịp
         // đổi trạng thái giao dịch từ borrowed sang overdue.
         where.push('bt.due_date < CURDATE()');
+    } else if (status === 'attention') {
+        // Cùng phạm vi với mục "Sắp đến hạn / quá hạn" trên dashboard:
+        // toàn bộ lượt đã quá hạn và các lượt sẽ hết hạn trong 7 ngày tới.
+        where.push('bt.due_date <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)');
     } else if (status) {
         where.push('bt.status = ?');
         params.push(status);

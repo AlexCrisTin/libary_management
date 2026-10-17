@@ -193,3 +193,25 @@ test('lọc quá hạn dùng ngày trả để khớp số liệu dashboard', as
     assert.ok(calls[0].sql.includes('bt.due_date < CURDATE()'));
     assert.equal(calls[0].params.includes('overdue'), false);
 });
+
+test('lọc sắp hạn và quá hạn dùng cùng phạm vi 7 ngày với dashboard', async () => {
+    const calls = [];
+    fakeDb.query = async (sql, params) => {
+        calls.push({ sql, params });
+        if (sql.includes('COUNT(*) AS total')) return [[{ total: 2 }], []];
+        return [[
+            { tx_id: 'tx-overdue', due_date: '2020-01-01', days_difference: 2 },
+            { tx_id: 'tx-due-soon', due_date: '2030-01-01', days_difference: -3 }
+        ], []];
+    };
+
+    const result = await circulationService.getActiveLoans({
+        status: 'attention',
+        page: 1,
+        limit: 20
+    });
+
+    assert.equal(result.total, 2);
+    assert.ok(calls[0].sql.includes('bt.due_date <= DATE_ADD(CURDATE(), INTERVAL 7 DAY)'));
+    assert.equal(calls[0].params.includes('attention'), false);
+});
