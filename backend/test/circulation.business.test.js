@@ -120,6 +120,32 @@ test('không cho đặt trước khi vẫn còn bản sao sẵn sàng trên kệ
     );
 });
 
+test('đăng ký chờ sách có hiệu lực 14 ngày', async () => {
+    const calls = [];
+    const responses = [
+        [[{ reader_id: 'reader-1', status: 'active', card_expired: null }], []],
+        [[{ bib_id: 'book-1', title: 'Sách thử nghiệm' }], []],
+        [[], []],
+        [[], []],
+        [[{ total_copies: 2, available_copies: 0 }], []],
+        [[{ next_position: 1 }], []],
+        [{ affectedRows: 1 }, []]
+    ];
+    fakeDb.query = async (sql, params) => {
+        calls.push({ sql, params });
+        return responses.shift();
+    };
+
+    const result = await holdsService.createHold({
+        reader_id: 'reader-1',
+        bib_id: 'book-1'
+    });
+
+    assert.equal(result.status, 'waiting');
+    assert.equal(result.valid_days, 14);
+    assert.ok(calls.some(({ sql }) => sql.includes('DATE_ADD(NOW(), INTERVAL 14 DAY)')));
+});
+
 test('lịch sử tiền phạt được tìm kiếm và phân trang ngay tại backend', async () => {
     const calls = [];
     fakeDb.query = async (sql, params) => {
@@ -141,4 +167,29 @@ test('lịch sử tiền phạt được tìm kiếm và phân trang ngay tại 
     assert.ok(calls[0].sql.includes('bt.fine_amount > 0'));
     assert.ok(calls[0].sql.includes('r.full_name LIKE ?'));
     assert.deepEqual(calls[1].params.slice(-2), [20, 20]);
+});
+
+test('lọc quá hạn dùng ngày trả để khớp số liệu dashboard', async () => {
+    const calls = [];
+    fakeDb.query = async (sql, params) => {
+        calls.push({ sql, params });
+        if (sql.includes('COUNT(*) AS total')) return [[{ total: 1 }], []];
+        return [[{
+            tx_id: 'tx-overdue',
+            status: 'borrowed',
+            due_date: '2020-01-01',
+            days_difference: 5
+        }], []];
+    };
+
+    const result = await circulationService.getActiveLoans({
+        status: 'overdue',
+        page: 1,
+        limit: 20
+    });
+
+    assert.equal(result.total, 1);
+    assert.equal(result.data[0].is_overdue, true);
+    assert.ok(calls[0].sql.includes('bt.due_date < CURDATE()'));
+    assert.equal(calls[0].params.includes('overdue'), false);
 });

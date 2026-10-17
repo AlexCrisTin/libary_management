@@ -108,7 +108,7 @@ class _ReaderHoldsState extends State<ReaderHolds> {
     body: Column(
       children: [
         const TitleHeader(
-          title: 'Sách đã đặt trước',
+          title: 'Đăng ký sách',
           showBack: true,
           color: Colors.white,
         ),
@@ -118,7 +118,7 @@ class _ReaderHoldsState extends State<ReaderHolds> {
             error: _error,
             isEmpty: _items.isEmpty,
             onRetry: _load,
-            emptyMessage: 'Bạn chưa đặt trước sách nào',
+            emptyMessage: 'Bạn chưa có đăng ký sách nào',
             child: RefreshIndicator(
               onRefresh: _load,
               child: ListView.separated(
@@ -205,7 +205,10 @@ class _HoldCard extends StatelessWidget {
                 Text('ISBN: ${apiText(item['isbn'])}'),
                 Text('Ngày đặt: ${apiDate(item['requested_at'])}'),
                 if (!pickup && status == 'waiting')
-                  Text('Vị trí chờ: ${apiText(item['queue_position'])}'),
+                  Text(
+                    'Vị trí chờ: ${apiText(item['queue_position'])} • '
+                    'Hiệu lực đến: ${apiDate(item['expires_at'])}',
+                  ),
                 if (!pickup && status == 'notified')
                   Text('Giữ đến: ${apiDate(item['expires_at'])}'),
                 if (pickup && status == 'pending')

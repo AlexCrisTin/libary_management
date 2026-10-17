@@ -23,6 +23,8 @@ class LibrarianShell extends StatefulWidget {
 
 class _LibrarianShellState extends State<LibrarianShell> {
   late int _currentIndex;
+  String _borrowReturnStatus = '';
+  int _borrowReturnRequest = 0;
 
   /// Pages matched to the 5 bottom-nav tabs:
   ///  0 → Dashboard
@@ -40,12 +42,21 @@ class _LibrarianShellState extends State<LibrarianShell> {
     setState(() => _currentIndex = index);
   }
 
+  void _openBorrowReturn(String status) {
+    setState(() {
+      _borrowReturnStatus = status;
+      _borrowReturnRequest++;
+      _currentIndex = 3;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = [
       _DashboardPage(
         onOpenTab: _onTabSelected,
         onOpenReaderManagement: () => _onTabSelected(4),
+        onOpenBorrowReturn: _openBorrowReturn,
         onOpenReport: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const Report()),
@@ -65,7 +76,10 @@ class _LibrarianShellState extends State<LibrarianShell> {
       ),
       const _BookManagementPage(),
       const SizedBox.shrink(),
-      const _BorrowReturnPage(),
+      _BorrowReturnPage(
+        initialLoanStatus: _borrowReturnStatus,
+        navigationRequest: _borrowReturnRequest,
+      ),
       const _ReaderManagementPage(),
     ];
 
@@ -106,6 +120,7 @@ class _DashboardPage extends StatelessWidget {
   const _DashboardPage({
     required this.onOpenTab,
     required this.onOpenReaderManagement,
+    required this.onOpenBorrowReturn,
     required this.onOpenReport,
     required this.onOpenMessages,
     required this.onOpenProfile,
@@ -114,6 +129,7 @@ class _DashboardPage extends StatelessWidget {
 
   final ValueChanged<int> onOpenTab;
   final VoidCallback onOpenReaderManagement;
+  final ValueChanged<String> onOpenBorrowReturn;
   final VoidCallback onOpenReport;
   final VoidCallback onOpenMessages;
   final VoidCallback onOpenProfile;
@@ -123,6 +139,7 @@ class _DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) => Dashboard(
     onOpenTab: onOpenTab,
     onOpenReaderManagement: onOpenReaderManagement,
+    onOpenBorrowReturn: onOpenBorrowReturn,
     onOpenReport: onOpenReport,
     onOpenMessages: onOpenMessages,
     onOpenProfile: onOpenProfile,
@@ -137,9 +154,19 @@ class _BookManagementPage extends StatelessWidget {
 }
 
 class _BorrowReturnPage extends StatelessWidget {
-  const _BorrowReturnPage();
+  const _BorrowReturnPage({
+    required this.initialLoanStatus,
+    required this.navigationRequest,
+  });
+
+  final String initialLoanStatus;
+  final int navigationRequest;
+
   @override
-  Widget build(BuildContext context) => const BorrowReturnBookManagement();
+  Widget build(BuildContext context) => BorrowReturnBookManagement(
+    initialLoanStatus: initialLoanStatus,
+    navigationRequest: navigationRequest,
+  );
 }
 
 class _ReaderManagementPage extends StatelessWidget {

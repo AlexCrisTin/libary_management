@@ -11,7 +11,15 @@ import 'renewal_requests.dart';
 enum _ManagementView { loans, fines, pickupSlots }
 
 class BorrowReturnBookManagement extends StatefulWidget {
-  const BorrowReturnBookManagement({super.key});
+  const BorrowReturnBookManagement({
+    super.key,
+    this.initialLoanStatus = '',
+    this.navigationRequest = 0,
+  });
+
+  final String initialLoanStatus;
+  final int navigationRequest;
+
   @override
   State<BorrowReturnBookManagement> createState() =>
       _BorrowReturnBookManagementState();
@@ -25,6 +33,7 @@ class _BorrowReturnBookManagementState
   List<Map<String, dynamic>> _loans = const [];
   List<Map<String, dynamic>> _pickupSlots = const [];
   _ManagementView _view = _ManagementView.loans;
+  late String _loanStatus;
   bool _loading = true;
   String? _processingSlotId;
   int _page = 1;
@@ -35,7 +44,18 @@ class _BorrowReturnBookManagementState
   @override
   void initState() {
     super.initState();
+    _loanStatus = widget.initialLoanStatus;
     _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant BorrowReturnBookManagement oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.navigationRequest == widget.navigationRequest) return;
+    _view = _ManagementView.loans;
+    _loanStatus = widget.initialLoanStatus;
+    _search.clear();
+    _load(page: 1);
   }
 
   @override
@@ -82,6 +102,8 @@ class _BorrowReturnBookManagementState
               : '/circulation/active',
           query: {
             'keyword': _search.text.trim(),
+            if (_view == _ManagementView.loans && _loanStatus.isNotEmpty)
+              'status': _loanStatus,
             if (_view == _ManagementView.fines) 'has_fine': true,
             'page': targetPage,
             'limit': _pageSize,
@@ -108,6 +130,12 @@ class _BorrowReturnBookManagementState
   }
 
   void _searchFromFirstPage() => _load(page: 1);
+
+  void _changeLoanStatus(String status) {
+    if (_loanStatus == status || _loading) return;
+    setState(() => _loanStatus = status);
+    _load(page: 1);
+  }
 
   Future<void> _approveSlot(Map<String, dynamic> slot) async {
     final id = apiText(slot['reservation_id'], fallback: '');
@@ -329,6 +357,35 @@ class _BorrowReturnBookManagementState
               },
             ),
           ),
+          if (_view == _ManagementView.loans)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(11, 0, 11, 10),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 7,
+                  children: [
+                    _LoanStatusChip(
+                      label: 'Tất cả',
+                      selected: _loanStatus.isEmpty,
+                      onTap: () => _changeLoanStatus(''),
+                    ),
+                    _LoanStatusChip(
+                      label: 'Đang mượn',
+                      selected: _loanStatus == 'borrowed',
+                      onTap: () => _changeLoanStatus('borrowed'),
+                    ),
+                    _LoanStatusChip(
+                      label: 'Quá hạn',
+                      selected: _loanStatus == 'overdue',
+                      color: kLibRed,
+                      onTap: () => _changeLoanStatus('overdue'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (_error == null)
             LibrarianPaginationBar(
               page: _page,
@@ -461,6 +518,39 @@ class _ManagementTableHeader extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _LoanStatusChip extends StatelessWidget {
+  const _LoanStatusChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.color = kLibBrownTitle,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      showCheckmark: false,
+      selectedColor: color,
+      backgroundColor: kLibCardFill,
+      side: BorderSide(color: selected ? color : kLibBeigeButton),
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : kLibBrownTitle,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+      ),
+      visualDensity: VisualDensity.compact,
     );
   }
 }
@@ -623,14 +713,16 @@ class _LoanRow extends StatelessWidget {
       fontSize: 11,
       fontWeight: FontWeight.w700,
     );
-    Widget cell(String text, int flex) => Expanded(
+    final overdue = loan['is_overdue'] == true || loan['status'] == 'overdue';
+    final overdueDays = int.tryParse('${loan['overdue_days']}') ?? 0;
+    Widget cell(String text, int flex, {Color? color}) => Expanded(
       flex: flex,
       child: Text(
         text,
         textAlign: TextAlign.center,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
-        style: style,
+        style: style.copyWith(color: color),
       ),
     );
     return Padding(
@@ -640,7 +732,13 @@ class _LoanRow extends StatelessWidget {
           cell(apiText(loan['reader_name']), 2),
           cell(apiText(loan['book_title']), 2),
           cell(apiDate(loan['borrow_date']), 2),
-          cell(apiDate(loan['due_date']), 2),
+          cell(
+            overdue
+                ? '${apiDate(loan['due_date'])}\nQuá $overdueDays ngày'
+                : apiDate(loan['due_date']),
+            2,
+            color: overdue ? kLibRed : null,
+          ),
           Expanded(
             flex: 2,
             child: Center(

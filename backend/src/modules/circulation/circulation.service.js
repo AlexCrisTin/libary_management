@@ -300,7 +300,8 @@ exports.returnBook = async ({ barcode, copy_id, tx_id, returned_to, condition, f
         // Kiểm tra xem đầu sách này có ai đang đặt trước trong hàng đợi (holds) không
         const [waitingHolds] = await conn.query(
             `SELECT * FROM holds 
-             WHERE bib_id = ? AND status = 'waiting' 
+             WHERE bib_id = ? AND status = 'waiting'
+               AND (expires_at IS NULL OR expires_at > NOW())
              ORDER BY queue_position ASC, requested_at ASC 
              LIMIT 1`,
             [tx.bib_id]
@@ -688,7 +689,11 @@ exports.getActiveLoans = async ({ reader_id = '', keyword = '', status = '', pag
         params.push(reader_id);
     }
 
-    if (status) {
+    if (status === 'overdue') {
+        // Khớp trực tiếp với số liệu dashboard, kể cả khi scheduler chưa kịp
+        // đổi trạng thái giao dịch từ borrowed sang overdue.
+        where.push('bt.due_date < CURDATE()');
+    } else if (status) {
         where.push('bt.status = ?');
         params.push(status);
     }

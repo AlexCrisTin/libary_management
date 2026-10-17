@@ -177,10 +177,40 @@ class _DetailBookState extends State<DetailBook> {
       return;
     }
 
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: kCardFill,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text(
+          'Báo khi có sách?',
+          style: TextStyle(color: kBrownTitle, fontWeight: FontWeight.w700),
+        ),
+        content: const Text(
+          'Hiện tất cả bản sách đều đang được mượn hoặc giữ trước. '
+          'Đăng ký của bạn có hiệu lực trong 14 ngày. Nếu sách được trả trong '
+          'thời gian này, hệ thống sẽ thông báo và giữ sách tại quầy cho bạn '
+          'trong 3 ngày.',
+          style: TextStyle(color: kBookTitle, height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Để sau'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: kBrownTitle),
+            child: const Text('Đăng ký'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
     setState(() => _submitting = true);
     try {
       await ApiClient.post('/holds', body: {'bib_id': widget.bookId});
-      _showMessage('Đặt trước sách thành công.');
+      _showMessage('Đã đăng ký báo khi có sách, hiệu lực trong 14 ngày.');
     } catch (error) {
       _showMessage(error.toString());
     } finally {
@@ -439,7 +469,7 @@ class _BookPresentation extends StatelessWidget {
                         ),
                       )
                     : Text(
-                        available ? 'Đặt slot' : 'Đặt trước',
+                        available ? 'Đặt slot' : 'Báo khi có',
                         style: const TextStyle(
                           fontSize: 19,
                           fontWeight: FontWeight.w700,

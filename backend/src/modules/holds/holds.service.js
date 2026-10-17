@@ -37,7 +37,9 @@ exports.createHold = async ({ reader_id, bib_id }) => {
     const [existingHolds] = await db.query(
         `SELECT hold_id, status, queue_position 
          FROM holds 
-         WHERE bib_id = ? AND reader_id = ? AND status IN ('waiting', 'notified')`,
+         WHERE bib_id = ? AND reader_id = ?
+           AND status IN ('waiting', 'notified')
+           AND (expires_at IS NULL OR expires_at > NOW())`,
         [bib_id, reader_id]
     );
     if (existingHolds.length > 0) {
@@ -83,7 +85,8 @@ exports.createHold = async ({ reader_id, bib_id }) => {
     const [queueRow] = await db.query(
         `SELECT COALESCE(MAX(queue_position), 0) + 1 AS next_position 
          FROM holds 
-         WHERE bib_id = ? AND status = 'waiting'`,
+         WHERE bib_id = ? AND status = 'waiting'
+           AND (expires_at IS NULL OR expires_at > NOW())`,
         [bib_id]
     );
     const nextPosition = queueRow[0].next_position;
@@ -92,8 +95,9 @@ exports.createHold = async ({ reader_id, bib_id }) => {
 
     // 7. Tạo bản ghi đặt trước
     await db.query(
-        `INSERT INTO holds (hold_id, reader_id, bib_id, status, queue_position)
-         VALUES (?, ?, ?, 'waiting', ?)`,
+        `INSERT INTO holds
+         (hold_id, reader_id, bib_id, status, queue_position, expires_at)
+         VALUES (?, ?, ?, 'waiting', ?, DATE_ADD(NOW(), INTERVAL 14 DAY))`,
         [holdId, reader_id, bib_id, nextPosition]
     );
 
@@ -104,6 +108,7 @@ exports.createHold = async ({ reader_id, bib_id }) => {
         book_title: book.title,
         queue_position: nextPosition,
         status: 'waiting',
+        valid_days: 14,
         requested_at: new Date()
     };
 };
@@ -163,14 +168,16 @@ exports.getAllHolds = async ({ bib_id = '', reader_id = '', status = '', page = 
 
     if (status && status !== 'all') {
         if (status === 'active') {
-            where.push("h.status IN ('waiting', 'notified')");
+            where.push(`((h.status = 'waiting' AND (h.expires_at IS NULL OR h.expires_at > NOW()))
+                        OR (h.status = 'notified' AND h.expires_at > NOW()))`);
         } else {
             where.push('h.status = ?');
             params.push(status);
         }
     } else if (!status) {
         // Mặc định: Chỉ hiển thị những người đang trong hàng chờ hoặc đang được giữ sách (loại bỏ người đã mượn hoặc hủy)
-        where.push("h.status IN ('waiting', 'notified')");
+        where.push(`((h.status = 'waiting' AND (h.expires_at IS NULL OR h.expires_at > NOW()))
+                    OR (h.status = 'notified' AND h.expires_at > NOW()))`);
     }
 
     const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
@@ -260,7 +267,8 @@ exports.cancelHold = async ({ hold_id, reader_id, user_role }) => {
             // Kiểm tra xem có người tiếp theo trong hàng chờ (waiting) không
             const [nextWaiting] = await conn.query(
                 `SELECT * FROM holds 
-                 WHERE bib_id = ? AND status = 'waiting' 
+                 WHERE bib_id = ? AND status = 'waiting'
+                   AND (expires_at IS NULL OR expires_at > NOW())
                  ORDER BY queue_position ASC, requested_at ASC 
                  LIMIT 1`,
                 [hold.bib_id]
@@ -276,6 +284,19 @@ exports.cancelHold = async ({ hold_id, reader_id, user_role }) => {
                     [nextHold.hold_id]
                 );
 
+                await conn.query(
+                    `INSERT INTO notifications
+                     (notification_id, reader_id, title, content, type, reference_id, is_read, created_at)
+                     VALUES (?, ?, ?, ?, 'hold_available', ?, 0, NOW())`,
+                    [
+                        uuidv4(),
+                        nextHold.reader_id,
+                        'Sách bạn đăng ký đã có sẵn',
+                        'Sách đã được giữ tại quầy cho bạn. Vui lòng đến nhận trong vòng 3 ngày.',
+                        nextHold.hold_id
+                    ]
+                );
+
                 // Đôn các người xếp sau tiếp tục lên 1 bậc
                 await conn.query(
                     `UPDATE holds 
@@ -286,9 +307,13 @@ exports.cancelHold = async ({ hold_id, reader_id, user_role }) => {
             } else {
                 // Không còn ai chờ -> Chuyển bản sách reserved trở lại available
                 await conn.query(
-                    `UPDATE book_copies 
-                     SET status = 'available' 
-                     WHERE bib_id = ? AND status = 'reserved' 
+                    `UPDATE book_copies bc
+                     SET status = 'available'
+                     WHERE bc.bib_id = ? AND bc.status = 'reserved'
+                       AND NOT EXISTS (
+                           SELECT 1 FROM pickup_reservations pr
+                           WHERE pr.copy_id = bc.copy_id AND pr.status = 'approved'
+                       )
                      LIMIT 1`,
                     [hold.bib_id]
                 );

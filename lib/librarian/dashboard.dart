@@ -11,6 +11,7 @@ class Dashboard extends StatefulWidget {
     super.key,
     this.onOpenTab,
     this.onOpenReaderManagement,
+    this.onOpenBorrowReturn,
     this.onOpenReport,
     this.onOpenMessages,
     this.onOpenProfile,
@@ -19,6 +20,7 @@ class Dashboard extends StatefulWidget {
 
   final ValueChanged<int>? onOpenTab;
   final VoidCallback? onOpenReaderManagement;
+  final ValueChanged<String>? onOpenBorrowReturn;
   final VoidCallback? onOpenReport;
   final VoidCallback? onOpenMessages;
   final VoidCallback? onOpenProfile;
@@ -158,7 +160,15 @@ class _DashboardState extends State<Dashboard> {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  _SummaryGrid(summary: _summary),
+                  _SummaryGrid(
+                    summary: _summary,
+                    onOpenActiveLoans: () =>
+                        widget.onOpenBorrowReturn?.call(''),
+                    onOpenOverdueLoans: () =>
+                        widget.onOpenBorrowReturn?.call('overdue'),
+                    onOpenReaders: widget.onOpenReaderManagement,
+                    onOpenBooks: () => widget.onOpenTab?.call(1),
+                  ),
                   const SizedBox(height: 14),
                   _DashboardSection(
                     title: 'Xu hướng mượn / trả',
@@ -257,9 +267,19 @@ class _PeriodDropdown extends StatelessWidget {
 }
 
 class _SummaryGrid extends StatelessWidget {
-  const _SummaryGrid({required this.summary});
+  const _SummaryGrid({
+    required this.summary,
+    required this.onOpenActiveLoans,
+    required this.onOpenOverdueLoans,
+    required this.onOpenReaders,
+    required this.onOpenBooks,
+  });
 
   final Map<String, dynamic> summary;
+  final VoidCallback onOpenActiveLoans;
+  final VoidCallback onOpenOverdueLoans;
+  final VoidCallback? onOpenReaders;
+  final VoidCallback onOpenBooks;
 
   @override
   Widget build(BuildContext context) {
@@ -270,6 +290,7 @@ class _SummaryGrid extends StatelessWidget {
         note: 'lượt đang hoạt động',
         icon: Icons.menu_book_rounded,
         color: const Color(0xFF475673),
+        onTap: onOpenActiveLoans,
       ),
       _SummaryData(
         label: 'Lượt quá hạn',
@@ -277,6 +298,7 @@ class _SummaryGrid extends StatelessWidget {
         note: 'cần xử lý',
         icon: Icons.schedule_rounded,
         color: kLibRed,
+        onTap: onOpenOverdueLoans,
       ),
       _SummaryData(
         label: 'Tổng độc giả',
@@ -284,6 +306,7 @@ class _SummaryGrid extends StatelessWidget {
         note: 'hồ sơ độc giả',
         icon: Icons.groups_rounded,
         color: kLibBrownTitle,
+        onTap: onOpenReaders,
       ),
       _SummaryData(
         label: 'Tổng đầu sách',
@@ -291,6 +314,7 @@ class _SummaryGrid extends StatelessWidget {
         note: '${_number(summary['total_copies'])} bản sao',
         icon: Icons.auto_stories_rounded,
         color: const Color(0xFF6E7E65),
+        onTap: onOpenBooks,
       ),
     ];
     return LayoutBuilder(
@@ -320,6 +344,7 @@ class _SummaryData {
     required this.note,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   final String label;
@@ -327,6 +352,7 @@ class _SummaryData {
   final String note;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
 }
 
 class _SummaryCard extends StatelessWidget {
@@ -336,53 +362,72 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
+    return Semantics(
+      button: data.onTap != null,
+      label: '${data.label}: ${data.value}. Mở danh sách chi tiết',
+      child: Material(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFEEEEEE)),
-        borderRadius: BorderRadius.circular(13),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 13,
-                backgroundColor: data.color,
-                child: Icon(data.icon, color: Colors.white, size: 14),
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Text(
-                  data.label,
-                  maxLines: 2,
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(color: Color(0xFFEEEEEE)),
+          borderRadius: BorderRadius.circular(13),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: data.onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 13,
+                      backgroundColor: data.color,
+                      child: Icon(data.icon, color: Colors.white, size: 14),
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        data.label,
+                        maxLines: 2,
+                        style: const TextStyle(
+                          color: Color(0xFF4D4D4D),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (data.onTap != null)
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 17,
+                        color: data.color.withValues(alpha: .75),
+                      ),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  data.value,
                   style: const TextStyle(
-                    color: Color(0xFF4D4D4D),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF26334C),
+                    fontSize: 23,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          Text(
-            data.value,
-            style: const TextStyle(
-              color: Color(0xFF26334C),
-              fontSize: 23,
-              fontWeight: FontWeight.w700,
+                Text(
+                  data.note,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF9A9A9A),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
             ),
           ),
-          Text(
-            data.note,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Color(0xFF9A9A9A), fontSize: 10),
-          ),
-        ],
+        ),
       ),
     );
   }
