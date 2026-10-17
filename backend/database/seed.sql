@@ -9,8 +9,8 @@ START TRANSACTION;
 INSERT IGNORE INTO users
     (user_id, username, email, full_name, phone, password_hash, role, is_active)
 VALUES
-    ('00000000-0000-4000-8000-000000000001', 'admin', 'admin@library.local', 'Quản trị viên', '0900000001', '$2a$10$e6eDovwkN2CAWCXwDG6qiu9nK8zq54Ap6UnDeY1qD6ovTfoi52rZq', 'admin', 1),
-    ('00000000-0000-4000-8000-000000000002', 'librarian', 'librarian@library.local', 'Thủ thư Demo', '0900000002', '$2a$10$FgWEN.m/zFld/iQxUoUYpOZCX4cIMCNUjmR7u6OGg9J4MiX0sI/sm', 'librarian', 1),
+    ('00000000-0000-4000-8000-000000000001', 'admin', 'admin@library.local', 'Thủ thư Demo 1', '0900000001', '$2a$12$eGnmi91TWXsj.1Apo.PHkuYpLKAhFpes9Y7jZxDhi5/6Q9flNLahO', 'librarian', 1),
+    ('00000000-0000-4000-8000-000000000002', 'librarian', 'librarian@library.local', 'Thủ thư Demo 2', '0900000002', '$$2a$12$eGnmi91TWXsj.1Apo.PHkuYpLKAhFpes9Y7jZxDhi5/6Q9flNLahO', 'librarian', 1),
     ('00000000-0000-4000-8000-000000000003', 'reader.an', 'an@library.local', 'Trần Ngọc An', '0900000003', '$2a$10$8hq/ofqdmuFVaKRaYS7KmuMDso.jlMpGWDrs4jG/JF/1I/t5W/d7y', 'reader', 1),
     ('00000000-0000-4000-8000-000000000004', 'reader.minh', 'minh@library.local', 'Nguyễn Minh', '0900000004', '$2a$10$8hq/ofqdmuFVaKRaYS7KmuMDso.jlMpGWDrs4jG/JF/1I/t5W/d7y', 'reader', 1);
 
