@@ -14,10 +14,12 @@ class BorrowReturnBookManagement extends StatefulWidget {
   const BorrowReturnBookManagement({
     super.key,
     this.initialLoanStatus = '',
+    this.initialSection = 'loans',
     this.navigationRequest = 0,
   });
 
   final String initialLoanStatus;
+  final String initialSection;
   final int navigationRequest;
 
   @override
@@ -32,7 +34,7 @@ class _BorrowReturnBookManagementState
   final _search = TextEditingController();
   List<Map<String, dynamic>> _loans = const [];
   List<Map<String, dynamic>> _pickupSlots = const [];
-  _ManagementView _view = _ManagementView.loans;
+  late _ManagementView _view;
   late String _loanStatus;
   bool _loading = true;
   String? _processingSlotId;
@@ -48,6 +50,11 @@ class _BorrowReturnBookManagementState
   @override
   void initState() {
     super.initState();
+    _view = switch (widget.initialSection) {
+      'fines' => _ManagementView.fines,
+      'pickupSlots' => _ManagementView.pickupSlots,
+      _ => _ManagementView.loans,
+    };
     _loanStatus = widget.initialLoanStatus;
     _load();
   }

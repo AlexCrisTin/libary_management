@@ -137,6 +137,25 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
         UNION ALL
 
         SELECT
+            CONCAT('hold:', h.hold_id) AS notification_id,
+            h.hold_id AS reference_id,
+            'hold_request' AS type,
+            'Đăng ký chờ sách mới' AS title,
+            CONCAT('Độc giả ', r.full_name, ' đăng ký chờ sách "', br.title,
+                   '" (vị trí ', COALESCE(h.queue_position, 1), ' trong hàng chờ).') AS content,
+            h.requested_at AS created_at,
+            r.reader_id,
+            r.full_name AS reader_name,
+            r.reader_code
+        FROM holds h
+        JOIN readers r ON r.reader_id = h.reader_id
+        JOIN bibliographic_records br ON br.bib_id = h.bib_id
+        WHERE h.status = 'waiting'
+          AND (h.expires_at IS NULL OR h.expires_at > NOW())
+
+        UNION ALL
+
+        SELECT
             CONCAT('renewal:', rr.request_id) AS notification_id,
             rr.request_id AS reference_id,
             'renewal_request' AS type,
@@ -172,6 +191,40 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
         JOIN book_copies bc ON bc.copy_id = bt.copy_id
         JOIN bibliographic_records br ON br.bib_id = bc.bib_id
         WHERE bt.status IN ('borrowed', 'overdue') AND bt.due_date < CURDATE()
+
+        UNION ALL
+
+        SELECT
+            CONCAT('fine:', bt.tx_id) AS notification_id,
+            bt.tx_id AS reference_id,
+            'unpaid_fine' AS type,
+            'Khoản phạt chưa thu' AS title,
+            CONCAT('Độc giả ', r.full_name, ' còn khoản phạt ',
+                   FORMAT(
+                       GREATEST(
+                           COALESCE(bt.fine_amount, 0),
+                           CASE
+                               WHEN bt.return_date IS NOT NULL AND bt.return_date > bt.due_date
+                               THEN DATEDIFF(bt.return_date, bt.due_date) * 2000
+                               ELSE 0
+                           END
+                       ),
+                       0
+                   ), ' VNĐ cho sách "', br.title, '".') AS content,
+            COALESCE(bt.reported_at, TIMESTAMP(bt.return_date), TIMESTAMP(bt.due_date)) AS created_at,
+            r.reader_id,
+            r.full_name AS reader_name,
+            r.reader_code
+        FROM borrow_transactions bt
+        JOIN readers r ON r.reader_id = bt.reader_id
+        JOIN book_copies bc ON bc.copy_id = bt.copy_id
+        JOIN bibliographic_records br ON br.bib_id = bc.bib_id
+        WHERE bt.fine_paid = 0
+          AND bt.status NOT IN ('borrowed', 'overdue')
+          AND (
+              bt.fine_amount > 0 OR
+              (bt.return_date IS NOT NULL AND bt.return_date > bt.due_date)
+          )
 
         UNION ALL
 
