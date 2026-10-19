@@ -17,6 +17,8 @@ class BorrowReturnDetail extends StatefulWidget {
 
 class _BorrowReturnDetailState extends State<BorrowReturnDetail> {
   bool _loading = false;
+  bool _finePaidLocally = false;
+
   Future<void> _renew(String tx) async {
     var days = 7;
     final selected = await showDialog<int>(
@@ -81,10 +83,10 @@ class _BorrowReturnDetailState extends State<BorrowReturnDetail> {
     try {
       await ApiClient.put('/circulation/$tx/pay-fine');
       if (!mounted) return;
+      setState(() => _finePaidLocally = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Đã xác nhận thu tiền phạt.')),
       );
-      Navigator.pop(context, true);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -166,6 +168,7 @@ class _BorrowReturnDetailState extends State<BorrowReturnDetail> {
     final tx = apiText(loan['tx_id'], fallback: '');
     final fineAmount = num.tryParse('${loan['fine_amount'] ?? 0}') ?? 0;
     final finePaid =
+        _finePaidLocally ||
         loan['fine_paid'] == true ||
         loan['fine_paid'] == 1 ||
         loan['fine_paid']?.toString() == '1';

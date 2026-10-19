@@ -53,8 +53,7 @@ class _NoticeState extends State<Notice> {
             onRetry: _load,
             emptyMessage: 'Không có công việc mới cần xử lý',
             child: RefreshIndicator(
-              onRefresh: _load,
-              child: ListView.separated(
+              onRefresh: _load, child: ListView.separated(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
                 itemCount: _notices.length,
