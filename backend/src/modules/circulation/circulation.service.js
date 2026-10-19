@@ -1,6 +1,36 @@
 const db = require('../../config/db');
 const { v4: uuidv4 } = require('uuid');
 
+const OVERDUE_FINE_PER_DAY = 2000;
+
+/**
+ * Khoản phạt có thể thu ở thời điểm hiện tại.
+ * Giao dịch đang quá hạn được tính trực tiếp theo ngày của MySQL để
+ * không phụ thuộc scheduler và không bị lệch múi giờ giữa Node/MySQL.
+ */
+const payableFineSql = (alias = 'bt') => `
+    CASE
+        WHEN ${alias}.fine_paid = 0
+         AND (
+             (
+                 ${alias}.return_date IS NULL
+                 AND ${alias}.status IN ('borrowed', 'overdue')
+                 AND ${alias}.due_date < CURDATE()
+             ) OR (
+                 ${alias}.return_date IS NOT NULL
+                 AND ${alias}.return_date > ${alias}.due_date
+             )
+         )
+        THEN GREATEST(
+            COALESCE(${alias}.fine_amount, 0),
+            DATEDIFF(
+                COALESCE(${alias}.return_date, CURDATE()),
+                ${alias}.due_date
+            ) * ${OVERDUE_FINE_PER_DAY}
+        )
+        ELSE COALESCE(${alias}.fine_amount, 0)
+    END`;
+
 const normalizeExtendDays = (value) => {
     const days = Number(value);
     if (!Number.isInteger(days) || days < 1 || days > 7) {
@@ -732,7 +762,7 @@ exports.getActiveLoans = async ({ reader_id = '', keyword = '', status = '', pag
             bt.due_date,
             bt.renewed_count,
             bt.status,
-            bt.fine_amount,
+            ${payableFineSql('bt')} AS fine_amount,
             bt.fine_paid,
             (SELECT rr.status
              FROM renewal_requests rr
@@ -831,7 +861,20 @@ exports.getLoanHistory = async ({
     }
 
     if (has_fine) {
-        where.push('bt.fine_amount > 0');
+        where.push(`(
+            bt.fine_amount > 0 OR (
+                bt.fine_paid = 0 AND (
+                    (
+                        bt.return_date IS NULL
+                        AND bt.status IN ('borrowed', 'overdue')
+                        AND bt.due_date < CURDATE()
+                    ) OR (
+                        bt.return_date IS NOT NULL
+                        AND bt.return_date > bt.due_date
+                    )
+                )
+            )
+        )`);
     }
 
     const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
@@ -850,6 +893,7 @@ exports.getLoanHistory = async ({
     const sql = `
         SELECT 
             bt.*,
+            ${payableFineSql('bt')} AS payable_fine_amount,
             r.full_name AS reader_name,
             r.reader_code,
             bc.barcode,
@@ -871,12 +915,17 @@ exports.getLoanHistory = async ({
 
     const [rows] = await db.query(sql, [...params, Number(limit), Number(offset)]);
 
+    const items = rows.map(({ payable_fine_amount, ...item }) => ({
+        ...item,
+        fine_amount: payable_fine_amount
+    }));
+
     return {
         total,
         page,
         limit,
         total_pages: Math.ceil(total / limit),
-        data: rows
+        data: items
     };
 };
 
@@ -884,24 +933,38 @@ exports.getLoanHistory = async ({
  * 6. Thu tiền phạt quá hạn (Pay Fine)
  */
 exports.payFine = async ({ tx_id }) => {
-    const [rows] = await db.query('SELECT * FROM borrow_transactions WHERE tx_id = ?', [tx_id]);
+    const [rows] = await db.query(
+        `SELECT bt.*, ${payableFineSql('bt')} AS payable_fine_amount
+         FROM borrow_transactions bt
+         WHERE bt.tx_id = ?`,
+        [tx_id]
+    );
     if (rows.length === 0) {
         throw new Error('Không tìm thấy giao dịch này!');
     }
 
     const tx = rows[0];
-    if (Number(tx.fine_amount) <= 0) {
+    const payableFine = Number(tx.payable_fine_amount);
+    if (payableFine <= 0) {
         throw new Error('Giao dịch này không có tiền phạt cần thanh toán!');
     }
-    if (tx.fine_paid === 1) {
+    if (Number(tx.fine_paid) === 1) {
         throw new Error('Tiền phạt của giao dịch này đã được thanh toán trước đó!');
     }
 
-    await db.query('UPDATE borrow_transactions SET fine_paid = 1 WHERE tx_id = ?', [tx_id]);
+    const [updateResult] = await db.query(
+        `UPDATE borrow_transactions
+         SET fine_amount = ?, fine_paid = 1
+         WHERE tx_id = ? AND fine_paid = 0`,
+        [payableFine, tx_id]
+    );
+    if (updateResult.affectedRows === 0) {
+        throw new Error('Tiền phạt của giao dịch này đã được thanh toán trước đó!');
+    }
 
     return {
         tx_id,
-        fine_amount: tx.fine_amount,
+        fine_amount: payableFine,
         fine_paid: true,
         message: 'Đã thanh toán tiền phạt thành công'
     };

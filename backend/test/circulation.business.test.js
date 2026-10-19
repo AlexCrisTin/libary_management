@@ -151,7 +151,7 @@ test('lịch sử tiền phạt được tìm kiếm và phân trang ngay tại 
     fakeDb.query = async (sql, params) => {
         calls.push({ sql, params });
         if (sql.includes('COUNT(*) AS total')) return [[{ total: 41 }], []];
-        return [[{ tx_id: 'tx-21', fine_amount: 5000 }], []];
+        return [[{ tx_id: 'tx-21', fine_amount: 0, payable_fine_amount: 5000 }], []];
     };
 
     const result = await circulationService.getLoanHistory({
@@ -164,9 +164,39 @@ test('lịch sử tiền phạt được tìm kiếm và phân trang ngay tại 
     assert.equal(result.page, 2);
     assert.equal(result.total_pages, 3);
     assert.equal(result.data.length, 1);
+    assert.equal(result.data[0].fine_amount, 5000);
     assert.ok(calls[0].sql.includes('bt.fine_amount > 0'));
+    assert.ok(calls[0].sql.includes('bt.due_date < CURDATE()'));
+    assert.ok(calls[0].sql.includes('bt.return_date > bt.due_date'));
     assert.ok(calls[0].sql.includes('r.full_name LIKE ?'));
     assert.deepEqual(calls[1].params.slice(-2), [20, 20]);
+});
+
+test('thu được 2.000đ cho giao dịch thực tế quá hạn một ngày', async () => {
+    const calls = [];
+    fakeDb.query = async (sql, params) => {
+        calls.push({ sql, params });
+        if (sql.includes('SELECT bt.*')) {
+            return [[{
+                tx_id: 'tx-one-day-late',
+                status: 'overdue',
+                fine_amount: 0,
+                fine_paid: 0,
+                payable_fine_amount: 2000
+            }], []];
+        }
+        return [{ affectedRows: 1 }, []];
+    };
+
+    const result = await circulationService.payFine({
+        tx_id: 'tx-one-day-late'
+    });
+
+    assert.equal(result.fine_amount, 2000);
+    assert.equal(result.fine_paid, true);
+    assert.ok(calls[0].sql.includes('COALESCE(bt.return_date, CURDATE())'));
+    assert.ok(calls[0].sql.includes('* 2000'));
+    assert.deepEqual(calls[1].params, [2000, 'tx-one-day-late']);
 });
 
 test('lọc quá hạn dùng ngày trả để khớp số liệu dashboard', async () => {
