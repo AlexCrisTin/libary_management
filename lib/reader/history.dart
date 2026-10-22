@@ -21,11 +21,9 @@ class _HistoryState extends State<History> {
 
   List<Map<String, dynamic>> get _visibleItems {
     if (_selectedTab == _HistoryTab.returned) {
-      return _items
-          .where((item) => item['status']?.toString() == 'returned')
-          .toList();
+      return _items.where(_isReturned).toList();
     }
-    return _items;
+    return _items.where((item) => !_isReturned(item)).toList();
   }
 
   @override
@@ -94,7 +92,6 @@ class _HistoryState extends State<History> {
                   ),
                   const SizedBox(height: 24),
                   Container(
-                    constraints: const BoxConstraints(minHeight: 440),
                     padding: const EdgeInsets.fromLTRB(14, 20, 14, 24),
                     decoration: BoxDecoration(
                       color: kCardFill,
@@ -206,9 +203,10 @@ class _HistoryCard extends StatelessWidget {
         ),
         const SizedBox(width: 14),
         Expanded(
-          child: SizedBox(
-            height: 158,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 158),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
@@ -232,7 +230,7 @@ class _HistoryCard extends StatelessWidget {
                       : 'Hạn trả: ${apiDate(item['due_date'])}',
                   style: _dateStyle,
                 ),
-                const Spacer(),
+                const SizedBox(height: 12),
                 if (returned)
                   Align(
                     alignment: Alignment.centerRight,
@@ -326,3 +324,6 @@ const _dateStyle = TextStyle(
   fontWeight: FontWeight.w600,
   height: 1.45,
 );
+
+bool _isReturned(Map<String, dynamic> item) =>
+    item['status']?.toString().trim().toLowerCase() == 'returned';
