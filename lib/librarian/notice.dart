@@ -6,6 +6,7 @@ import 'package:libary_management/core/api_state.dart';
 
 import 'borrow_return_book_management.dart';
 import 'librarian_nav.dart';
+import 'librarian_pagination.dart';
 import 'message_detail.dart';
 import 'renewal_requests.dart';
 
@@ -17,9 +18,14 @@ class Notice extends StatefulWidget {
 }
 
 class _NoticeState extends State<Notice> {
+  static const _pageSize = 10;
+
   List<Map<String, dynamic>> _notices = const [];
   bool _loading = true;
   bool _fetching = false;
+  int _page = 1;
+  int _totalPages = 1;
+  int _totalItems = 0;
   String? _error;
   Timer? _refreshTimer;
 
@@ -39,9 +45,10 @@ class _NoticeState extends State<Notice> {
     super.dispose();
   }
 
-  Future<void> _load({bool showLoading = true}) async {
+  Future<void> _load({bool showLoading = true, int? page}) async {
     if (_fetching) return;
     _fetching = true;
+    var targetPage = page ?? _page;
     if (showLoading) {
       setState(() {
         _loading = true;
@@ -49,12 +56,26 @@ class _NoticeState extends State<Notice> {
       });
     }
     try {
-      final result = apiMap(
-        await ApiClient.get('/notifications/librarian', query: {'limit': 200}),
-      );
+      var result = await _fetchPage(targetPage);
+      var totalPages = _positiveInt(result['total_pages']);
+
+      // Một tác vụ có thể vừa được xử lý ở màn hình khác khiến trang cuối
+      // không còn tồn tại. Khi đó tự quay về trang cuối hợp lệ.
+      if (targetPage > totalPages) {
+        targetPage = totalPages;
+        result = await _fetchPage(targetPage);
+        totalPages = _positiveInt(result['total_pages']);
+      }
+
       if (mounted) {
         setState(() {
           _notices = apiList(result['data']);
+          _page = _positiveInt(result['page'], fallback: targetPage);
+          _totalPages = totalPages;
+          _totalItems = _nonNegativeInt(
+            result['total'],
+            fallback: _notices.length,
+          );
           _error = null;
         });
       }
@@ -67,6 +88,13 @@ class _NoticeState extends State<Notice> {
       if (mounted && showLoading) setState(() => _loading = false);
     }
   }
+
+  Future<Map<String, dynamic>> _fetchPage(int page) async => apiMap(
+    await ApiClient.get(
+      '/notifications/librarian',
+      query: {'page': page, 'limit': _pageSize},
+    ),
+  );
 
   Future<void> _openNotice(Map<String, dynamic> notice) async {
     final type = notice['type']?.toString();
@@ -108,6 +136,20 @@ class _NoticeState extends State<Notice> {
     body: Column(
       children: [
         const LibTitleHeader(title: 'Thông báo', showBack: true),
+        if (_error == null)
+          LibrarianPaginationBar(
+            page: _page,
+            totalPages: _totalPages,
+            totalItems: _totalItems,
+            pageSize: _pageSize,
+            margin: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+            onPrevious: !_loading && !_fetching && _page > 1
+                ? () => _load(page: _page - 1)
+                : null,
+            onNext: !_loading && !_fetching && _page < _totalPages
+                ? () => _load(page: _page + 1)
+                : null,
+          ),
         Expanded(
           child: ApiStateView(
             loading: _loading,
@@ -276,4 +318,14 @@ String _noticeTime(dynamic value) {
       '${date.month.toString().padLeft(2, '0')}/${date.year} '
       '${date.hour.toString().padLeft(2, '0')}:'
       '${date.minute.toString().padLeft(2, '0')}';
+}
+
+int _positiveInt(dynamic value, {int fallback = 1}) {
+  final parsed = int.tryParse(value?.toString() ?? '');
+  return parsed == null || parsed < 1 ? fallback : parsed;
+}
+
+int _nonNegativeInt(dynamic value, {int fallback = 0}) {
+  final parsed = int.tryParse(value?.toString() ?? '');
+  return parsed == null || parsed < 0 ? fallback : parsed;
 }
