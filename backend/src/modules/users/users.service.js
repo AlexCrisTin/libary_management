@@ -6,7 +6,9 @@ const { v4: uuidv4 } = require('uuid');
  * 1. Lấy danh sách toàn bộ tài khoản (Admin)
  */
 exports.getAllUsers = async ({ role, is_active, keyword, page = 1, limit = 10 }) => {
-    const offset = (page - 1) * limit;
+    const normalizedPage = Math.max(1, Number(page) || 1);
+    const normalizedLimit = Math.min(100, Math.max(1, Number(limit) || 10));
+    const offset = (normalizedPage - 1) * normalizedLimit;
     const params = [];
     const where = [];
 
@@ -56,13 +58,13 @@ exports.getAllUsers = async ({ role, is_active, keyword, page = 1, limit = 10 })
         ORDER BY u.created_at DESC
         LIMIT ? OFFSET ?
     `;
-    const [rows] = await db.query(sql, [...params, Number(limit), Number(offset)]);
+    const [rows] = await db.query(sql, [...params, normalizedLimit, offset]);
 
     return {
         total,
-        page: Number(page),
-        limit: Number(limit),
-        totalPages: Math.ceil(total / limit),
+        page: normalizedPage,
+        limit: normalizedLimit,
+        totalPages: Math.ceil(total / normalizedLimit),
         items: rows
     };
 };
@@ -97,14 +99,36 @@ exports.getUserById = async (userId) => {
  * 3. Tạo tài khoản mới (Admin tạo Thủ thư / Admin khác)
  */
 exports.createUser = async ({ username, password, email, full_name, phone, role = 'librarian', is_active = 1 }) => {
-    const [existing] = await db.query('SELECT user_id FROM users WHERE username = ?', [username]);
+    if (!['admin', 'librarian'].includes(role)) {
+        throw new Error('Quản lý tài khoản chỉ tạo được tài khoản thủ thư hoặc quản trị viên!');
+    }
+    if (!password || String(password).length < 8) {
+        throw new Error('Mật khẩu phải có tối thiểu 8 ký tự!');
+    }
+    if (![true, false, 1, 0].includes(is_active)) {
+        throw new Error('Trạng thái tài khoản không hợp lệ!');
+    }
+    const cleanUsername = String(username || '').trim();
+    if (!cleanUsername) throw new Error('Tên đăng nhập không được để trống!');
+    const [existing] = await db.query('SELECT user_id FROM users WHERE username = ?', [cleanUsername]);
     if (existing.length > 0) {
         throw new Error('Tên đăng nhập này đã tồn tại!');
     }
 
     const cleanEmail = email && email.trim() ? email.trim().toLowerCase() : null;
     if (cleanEmail) {
-        const [existingEmail] = await db.query('SELECT user_id FROM users WHERE email = ?', [cleanEmail]);
+        const [existingEmail] = await db.query(
+            `SELECT u.user_id
+             FROM users u
+             LEFT JOIN readers r ON r.user_id = u.user_id
+             WHERE u.email = ? OR r.email = ?
+             UNION ALL
+             SELECT CONCAT('reader:', r2.reader_id) AS user_id
+             FROM readers r2
+             WHERE r2.email = ? AND r2.user_id IS NULL
+             LIMIT 1`,
+            [cleanEmail, cleanEmail, cleanEmail]
+        );
         if (existingEmail.length > 0) {
             throw new Error('Email này đã được sử dụng!');
         }
@@ -114,16 +138,17 @@ exports.createUser = async ({ username, password, email, full_name, phone, role 
     const passwordHash = await bcrypt.hash(password, 10);
 
     const sql = 'INSERT INTO users (user_id, username, email, full_name, phone, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
-    await db.query(sql, [userId, username, cleanEmail, full_name || null, phone || null, passwordHash, role, is_active ? 1 : 0]);
+    const normalizedIsActive = is_active === true || is_active === 1;
+    await db.query(sql, [userId, cleanUsername, cleanEmail, full_name || null, phone || null, passwordHash, role, normalizedIsActive ? 1 : 0]);
 
     return {
         user_id: userId,
-        username,
+        username: cleanUsername,
         email: cleanEmail,
         full_name: full_name || null,
         phone: phone || null,
         role,
-        is_active: Boolean(is_active)
+        is_active: normalizedIsActive
     };
 };
 
@@ -131,8 +156,8 @@ exports.createUser = async ({ username, password, email, full_name, phone, role 
  * 4. Đổi vai trò tài khoản (Phân quyền)
  */
 exports.updateRole = async (userId, newRole) => {
-    if (!['admin', 'librarian', 'reader'].includes(newRole)) {
-        throw new Error('Vai trò không hợp lệ! Chỉ chấp nhận admin, librarian hoặc reader.');
+    if (!['admin', 'librarian'].includes(newRole)) {
+        throw new Error('Vai trò không hợp lệ! Chỉ chấp nhận admin hoặc librarian.');
     }
     const [result] = await db.query('UPDATE users SET role = ? WHERE user_id = ?', [newRole, userId]);
     return result.affectedRows > 0;

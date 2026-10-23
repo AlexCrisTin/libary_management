@@ -2,6 +2,7 @@ const db = require('../../config/db');
 const { v4: uuidv4 } = require('uuid');
 const publishersService = require('../publishers/publishers.service');
 const categoriesService = require('../categories/categories.service');
+const { normalizePagination } = require('../../utils/pagination');
 
 /**
  * Hàm hỗ trợ parse trường JSON an toàn
@@ -31,7 +32,7 @@ exports.searchBooks = async ({
     page = 1,
     limit = 10
 }) => {
-    const offset = (page - 1) * limit;
+    const pagination = normalizePagination(page, limit, { defaultLimit: 10, maxLimit: 100 });
     const params = [];
     let whereConditions = [];
 
@@ -160,7 +161,7 @@ exports.searchBooks = async ({
         LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await db.query(sql, [...params, Number(limit), Number(offset)]);
+    const [rows] = await db.query(sql, [...params, pagination.limit, pagination.offset]);
 
     const books = rows.map((book) => ({
         ...book,
@@ -174,9 +175,9 @@ exports.searchBooks = async ({
 
     return {
         total,
-        page: Number(page),
-        limit: Number(limit),
-        totalPages: Math.ceil(total / limit),
+        page: pagination.page,
+        limit: pagination.limit,
+        totalPages: Math.ceil(total / pagination.limit),
         items: books
     };
 };

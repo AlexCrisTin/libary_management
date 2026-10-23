@@ -1,5 +1,6 @@
 const db = require('../../config/db');
 const { v4: uuidv4 } = require('uuid');
+const { normalizePagination } = require('../../utils/pagination');
 
 /**
  * 1. Đặt trước đầu sách (Create Hold)
@@ -152,7 +153,7 @@ exports.getMyHolds = async ({ reader_id, status = '' }) => {
  * 3. Thủ thư xem toàn bộ danh sách đặt trước (hỗ trợ lọc theo sách, độc giả, trạng thái)
  */
 exports.getAllHolds = async ({ bib_id = '', reader_id = '', status = '', page = 1, limit = 10 }) => {
-    const offset = (page - 1) * limit;
+    const pagination = normalizePagination(page, limit);
     const params = [];
     const where = [];
 
@@ -209,13 +210,13 @@ exports.getAllHolds = async ({ bib_id = '', reader_id = '', status = '', page = 
         LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await db.query(sql, [...params, Number(limit), Number(offset)]);
+    const [rows] = await db.query(sql, [...params, pagination.limit, pagination.offset]);
 
     return {
         total,
-        page,
-        limit,
-        total_pages: Math.ceil(total / limit),
+        page: pagination.page,
+        limit: pagination.limit,
+        total_pages: Math.ceil(total / pagination.limit),
         data: rows
     };
 };

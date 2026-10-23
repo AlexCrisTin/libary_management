@@ -2,64 +2,110 @@ const db = require('../../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const {
+    generateOtp,
+    getJwtSecret,
+    hashOtp,
+    hashToken,
+    passwordVersion,
+    shouldExposeDevOtp,
+    verifyOtp
+} = require('../../config/security');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_library_jwt_key_2024';
+const JWT_SECRET = getJwtSecret();
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+const MIN_PASSWORD_LENGTH = 8;
 
 /**
  * 1. Đăng ký tài khoản Độc giả (Tạo user và hồ sơ reader)
  */
 exports.register = async ({ username, password, full_name, email, phone, reader_type = 'student', faculty = null, birth_date = null }) => {
-    // Kiểm tra username đã tồn tại chưa
-    const [existingUsers] = await db.query('SELECT user_id FROM users WHERE username = ?', [username]);
-    if (existingUsers.length > 0) {
-        throw new Error('Tên đăng nhập này đã được sử dụng!');
+    const cleanUsername = String(username || '').trim();
+    const cleanFullName = String(full_name || '').trim();
+    const cleanEmail = email && String(email).trim()
+        ? String(email).trim().toLowerCase()
+        : null;
+    if (!cleanUsername || !cleanFullName) {
+        throw new Error('Tên đăng nhập và họ tên không được để trống!');
     }
-
-    // Kiểm tra email nếu có
-    if (email) {
-        const [existingEmail] = await db.query('SELECT reader_id FROM readers WHERE email = ?', [email]);
-        if (existingEmail.length > 0) {
-            throw new Error('Email này đã được sử dụng!');
-        }
+    if (!password || String(password).length < MIN_PASSWORD_LENGTH) {
+        throw new Error(`Mật khẩu phải có tối thiểu ${MIN_PASSWORD_LENGTH} ký tự!`);
+    }
+    if (!['student', 'lecturer', 'staff', 'public'].includes(reader_type)) {
+        throw new Error('Loại độc giả không hợp lệ!');
     }
 
     // Băm mật khẩu
     const passwordHash = await bcrypt.hash(password, 10);
     const userId = uuidv4();
     const readerId = uuidv4();
-    const readerCode = `RD-${Date.now().toString().slice(-6)}`;
-
-    // Tạo tài khoản trong bảng users (role: reader)
-    await db.query(
-        'INSERT INTO users (user_id, username, email, full_name, phone, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?, ?, "reader", 1)',
-        [userId, username, email ? email.trim().toLowerCase() : null, full_name || null, phone || null, passwordHash]
-    );
+    const readerCode = `RD-${uuidv4().replaceAll('-', '').slice(0, 10).toUpperCase()}`;
 
     // Tạo hồ sơ độc giả trong bảng readers (Thẻ có hạn 1 năm tính từ ngày đăng ký)
     const cardIssued = new Date();
     const cardExpired = new Date();
     cardExpired.setFullYear(cardExpired.getFullYear() + 1);
 
-    await db.query(
-        `INSERT INTO readers (
-            reader_id, user_id, reader_code, full_name, birth_date, 
-            phone, email, reader_type, faculty, card_issued, card_expired, 
-            status, max_books
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "active", 5)`,
-        [readerId, userId, readerCode, full_name, birth_date, phone, email, reader_type, faculty, cardIssued, cardExpired]
-    );
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+        const [existingUsers] = await connection.query(
+            'SELECT user_id FROM users WHERE username = ? LIMIT 1',
+            [cleanUsername]
+        );
+        if (existingUsers.length > 0) {
+            throw new Error('Tên đăng nhập này đã được sử dụng!');
+        }
+        if (cleanEmail) {
+            const [existingEmail] = await connection.query(
+                `SELECT u.user_id
+                 FROM users u
+                 LEFT JOIN readers r ON r.user_id = u.user_id
+                 WHERE u.email = ? OR r.email = ?
+                 LIMIT 1`,
+                [cleanEmail, cleanEmail]
+            );
+            if (existingEmail.length > 0) {
+                throw new Error('Email này đã được sử dụng!');
+            }
+        }
 
-    // Tạo cấu hình sở thích mặc định trong bảng reader_preferences
-    await db.query(
-        `INSERT INTO reader_preferences (reader_id, preferred_subjects, preferred_authors, preferred_langs, reading_pace, notification_pref)
-         VALUES (?, '[]', '[]', '["vi"]', 'medium', '{"email": true, "app": true, "sms": false}')`,
-        [readerId]
-    );
+        await connection.query(
+            'INSERT INTO users (user_id, username, email, full_name, phone, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?, ?, "reader", 1)',
+            [userId, cleanUsername, cleanEmail, cleanFullName, phone || null, passwordHash]
+        );
+        await connection.query(
+            `INSERT INTO readers (
+                reader_id, user_id, reader_code, full_name, birth_date,
+                phone, email, reader_type, faculty, card_issued, card_expired,
+                status, max_books
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "active", 5)`,
+            [readerId, userId, readerCode, cleanFullName, birth_date, phone, cleanEmail, reader_type, faculty, cardIssued, cardExpired]
+        );
+        await connection.query(
+            `INSERT INTO reader_preferences
+             (reader_id, preferred_subjects, preferred_authors, preferred_langs, reading_pace, notification_pref)
+             VALUES (?, '[]', '[]', '["vi"]', 'medium', '{"email": true, "app": true, "sms": false}')`,
+            [readerId]
+        );
+        await connection.commit();
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
 
     // Tạo JWT Token
     const token = jwt.sign(
-        { userId, username, role: 'reader', readerId, readerCode },
+        {
+            userId,
+            username: cleanUsername,
+            role: 'reader',
+            readerId,
+            readerCode,
+            passwordVersion: passwordVersion(passwordHash)
+        },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRES_IN }
     );
@@ -70,11 +116,11 @@ exports.register = async ({ username, password, full_name, email, phone, reader_
             user_id: userId,
             reader_id: readerId,
             reader_code: readerCode,
-            username,
-            full_name,
+            username: cleanUsername,
+            full_name: cleanFullName,
             phone,
             role: 'reader',
-            email
+            email: cleanEmail
         }
     };
 };
@@ -105,7 +151,8 @@ exports.login = async ({ username, password }) => {
     let payload = {
         userId: user.user_id,
         username: user.username,
-        role: user.role
+        role: user.role,
+        passwordVersion: passwordVersion(user.password_hash)
     };
 
     let userResponse = {
@@ -150,6 +197,9 @@ exports.login = async ({ username, password }) => {
  * 3. Đổi mật khẩu
  */
 exports.changePassword = async (userId, { oldPassword, newPassword }) => {
+    if (!newPassword || String(newPassword).length < MIN_PASSWORD_LENGTH) {
+        throw new Error(`Mật khẩu mới phải có tối thiểu ${MIN_PASSWORD_LENGTH} ký tự!`);
+    }
     const [users] = await db.query('SELECT password_hash FROM users WHERE user_id = ?', [userId]);
     if (users.length === 0) {
         throw new Error('Không tìm thấy tài khoản!');
@@ -224,8 +274,16 @@ exports.updateProfile = async (userId, { full_name, phone, email, avatar_url }) 
         cleanEmail = email && email.trim() ? email.trim().toLowerCase() : null;
         if (cleanEmail && cleanEmail !== user.email) {
             const [existing] = await db.query(
-                'SELECT user_id FROM users WHERE email = ? AND user_id != ?',
-                [cleanEmail, userId]
+                `SELECT u.user_id
+                 FROM users u
+                 LEFT JOIN readers r ON r.user_id = u.user_id
+                 WHERE (u.email = ? OR r.email = ?) AND u.user_id != ?
+                 UNION ALL
+                 SELECT CONCAT('reader:', r2.reader_id) AS user_id
+                 FROM readers r2
+                 WHERE r2.email = ? AND r2.user_id IS NULL
+                 LIMIT 1`,
+                [cleanEmail, cleanEmail, userId, cleanEmail]
             );
             if (existing.length > 0) {
                 throw new Error('Email này đã được sử dụng bởi một tài khoản khác!');
@@ -273,22 +331,21 @@ exports.forgotPassword = async ({ email }) => {
 
     // Tìm tài khoản liên kết với email này (hỗ trợ cả email ở bảng users hoặc bảng readers)
     const [users] = await db.query(
-        `SELECT u.user_id, u.username, u.role, COALESCE(u.email, r.email) AS user_email
+        `SELECT DISTINCT u.user_id
          FROM users u
          LEFT JOIN readers r ON u.user_id = r.user_id
          WHERE u.email = ? OR r.email = ?
-         LIMIT 1`,
+         LIMIT 2`,
         [cleanEmail, cleanEmail]
     );
 
-    if (users.length === 0) {
-        throw new Error('Không tìm thấy tài khoản nào liên kết với email này!');
+    // Cùng một phản hồi cho email không tồn tại hoặc email bị trùng để tránh lộ tài khoản.
+    if (users.length !== 1) {
+        return { email: cleanEmail, expires_in: '5 phút' };
     }
 
-    const user = users[0];
-
-    // Sinh mã OTP ngẫu nhiên 6 chữ số
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Sinh mã OTP bằng bộ sinh số mật mã và chỉ lưu bản băm.
+    const otp = generateOtp();
 
     // Hạn sử dụng: 5 phút tính từ thời điểm hiện tại
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
@@ -301,25 +358,15 @@ exports.forgotPassword = async ({ email }) => {
              otp = VALUES(otp),
              expires_at = VALUES(expires_at),
              created_at = NOW()`,
-        [cleanEmail, otp, expiresAt]
+        [cleanEmail, hashOtp(cleanEmail, otp), expiresAt]
     );
 
-    // In thông tin OTP ra Terminal để dễ dàng kiểm thử
-    console.log('==================================================');
-    console.log('[TEST MODE - MÃ XÁC THỰC OTP]');
-    console.log(`Tài khoản: ${user.username} (${user.role})`);
-    console.log(`Email nhận: ${cleanEmail}`);
-    console.log(`MÃ OTP: ${otp}`);
-    console.log(`Thời hạn: 5 phút (hết hạn lúc ${expiresAt.toLocaleTimeString('vi-VN')})`);
-    console.log('==================================================');
-
-    return {
+    const response = {
         email: cleanEmail,
-        username: user.username,
-        role: user.role,
-        dev_otp: otp,
         expires_in: '5 phút'
     };
+    if (shouldExposeDevOtp()) response.dev_otp = otp;
+    return response;
 };
 
 /**
@@ -333,61 +380,63 @@ exports.resetPassword = async ({ email, otp, new_password }) => {
     if (!otp) {
         throw new Error('Vui lòng nhập mã xác thực OTP!');
     }
-    if (!new_password || new_password.trim().length < 6) {
-        throw new Error('Mật khẩu mới phải có tối thiểu 6 ký tự!');
+    if (!new_password || new_password.trim().length < MIN_PASSWORD_LENGTH) {
+        throw new Error(`Mật khẩu mới phải có tối thiểu ${MIN_PASSWORD_LENGTH} ký tự!`);
     }
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanOtp = otp.toString().trim();
 
-    // 1. Kiểm tra mã OTP trong bảng password_resets
-    const [resets] = await db.query('SELECT * FROM password_resets WHERE email = ?', [cleanEmail]);
-    if (resets.length === 0) {
-        throw new Error('Không tìm thấy yêu cầu đặt lại mật khẩu cho email này! Vui lòng yêu cầu mã OTP mới.');
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+        // Khóa bản ghi để cùng một OTP không thể được dùng thành công hai lần đồng thời.
+        const [resets] = await connection.query(
+            'SELECT * FROM password_resets WHERE email = ? FOR UPDATE',
+            [cleanEmail]
+        );
+        if (resets.length === 0) {
+            throw new Error('Không tìm thấy yêu cầu đặt lại mật khẩu cho email này! Vui lòng yêu cầu mã OTP mới.');
+        }
+
+        const resetRecord = resets[0];
+        if (!verifyOtp(cleanEmail, cleanOtp, resetRecord.otp)) {
+            throw new Error('Mã OTP không chính xác!');
+        }
+        if (new Date() > new Date(resetRecord.expires_at)) {
+            throw new Error('Mã OTP đã hết hạn sử dụng (quá 5 phút)! Vui lòng yêu cầu mã mới.');
+        }
+
+        const [users] = await connection.query(
+            `SELECT DISTINCT u.user_id, u.username
+             FROM users u
+             LEFT JOIN readers r ON u.user_id = r.user_id
+             WHERE u.email = ? OR r.email = ?
+             LIMIT 2`,
+            [cleanEmail, cleanEmail]
+        );
+        if (users.length !== 1) {
+            throw new Error('Không thể xác định duy nhất tài khoản cho email này!');
+        }
+        const user = users[0];
+        const newPasswordHash = await bcrypt.hash(new_password.trim(), 10);
+        await connection.query(
+            'UPDATE users SET password_hash = ? WHERE user_id = ?',
+            [newPasswordHash, user.user_id]
+        );
+        await connection.query('DELETE FROM password_resets WHERE email = ?', [cleanEmail]);
+        await connection.commit();
+
+        return {
+            username: user.username,
+            message: 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới.'
+        };
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
     }
-
-    const resetRecord = resets[0];
-
-    // Kiểm tra mã OTP có khớp không
-    if (resetRecord.otp !== cleanOtp) {
-        throw new Error('Mã OTP không chính xác!');
-    }
-
-    // Kiểm tra thời hạn mã OTP
-    const now = new Date();
-    if (now > new Date(resetRecord.expires_at)) {
-        // Tự động xóa mã hết hạn khỏi database
-        await db.query('DELETE FROM password_resets WHERE email = ?', [cleanEmail]);
-        throw new Error('Mã OTP đã hết hạn sử dụng (quá 5 phút)! Vui lòng yêu cầu mã mới.');
-    }
-
-    // 2. Tìm tài khoản cần đổi mật khẩu
-    const [users] = await db.query(
-        `SELECT u.user_id, u.username
-         FROM users u
-         LEFT JOIN readers r ON u.user_id = r.user_id
-         WHERE u.email = ? OR r.email = ?
-         LIMIT 1`,
-        [cleanEmail, cleanEmail]
-    );
-
-    if (users.length === 0) {
-        throw new Error('Không tìm thấy tài khoản người dùng!');
-    }
-
-    const user = users[0];
-
-    // 3. Băm mật khẩu mới và cập nhật vào bảng users
-    const newPasswordHash = await bcrypt.hash(new_password.trim(), 10);
-    await db.query('UPDATE users SET password_hash = ? WHERE user_id = ?', [newPasswordHash, user.user_id]);
-
-    // 4. TỰ ĐỘNG XÓA MÃ OTP KHỎI DATABASE SAU KHI ĐÃ SỬ DỤNG THÀNH CÔNG
-    await db.query('DELETE FROM password_resets WHERE email = ?', [cleanEmail]);
-
-    return {
-        username: user.username,
-        message: 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới.'
-    };
 };
 
 /**
@@ -410,7 +459,7 @@ exports.logout = async ({ token, user }) => {
     await db.query(
         `INSERT INTO token_blacklist (token, user_id, expires_at, created_at)
          VALUES (?, ?, ?, NOW())`,
-        [token, userId, expiresAt]
+        [hashToken(token), userId, expiresAt]
     );
 
     return {
@@ -419,20 +468,22 @@ exports.logout = async ({ token, user }) => {
 };
 
 // Tự động dọn dẹp các mã OTP đã quá hạn mỗi 10 phút
-setInterval(async () => {
+const otpCleanupTimer = setInterval(async () => {
     try {
         await db.query('DELETE FROM password_resets WHERE expires_at < NOW()');
     } catch {
         // Bỏ qua lỗi nếu database chưa sẵn sàng
     }
 }, 10 * 60 * 1000);
+otpCleanupTimer.unref();
 
 // Tự động dọn dẹp các token đã hết hạn trong blacklist mỗi 12 giờ
-setInterval(async () => {
+const tokenCleanupTimer = setInterval(async () => {
     try {
         await db.query('DELETE FROM token_blacklist WHERE expires_at < NOW()');
     } catch {
         // Bỏ qua lỗi nếu database chưa sẵn sàng
     }
 }, 12 * 60 * 60 * 1000);
+tokenCleanupTimer.unref();
 

@@ -270,7 +270,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 
 CREATE TABLE IF NOT EXISTS password_resets (
     email VARCHAR(255) NOT NULL,
-    otp VARCHAR(10) NOT NULL,
+    otp VARCHAR(64) NOT NULL,
     expires_at DATETIME NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (email),

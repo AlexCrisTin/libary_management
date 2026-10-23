@@ -20,6 +20,30 @@ const loginLimiter = rateLimit({
     }
 });
 
+const registerLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 10,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    handler: (_req, res) => sendError(
+        res,
+        'Đã có quá nhiều yêu cầu đăng ký từ thiết bị này. Vui lòng thử lại sau!',
+        429
+    )
+});
+
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 500,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    handler: (_req, res) => sendError(
+        res,
+        'Bạn đang gửi quá nhiều yêu cầu. Vui lòng đợi một lát rồi thử lại!',
+        429
+    )
+});
+
 /**
  * 2. Giới hạn yêu cầu gửi mã OTP và đặt lại mật khẩu (OTP Rate Limiter)
  * - Tối đa 5 lần trong 15 phút để tránh spam OTP hoặc đoán mã xác thực 6 chữ số
@@ -58,7 +82,9 @@ const aiLimiter = rateLimit({
 });
 
 module.exports = {
+    apiLimiter,
     loginLimiter,
+    registerLimiter,
     otpLimiter,
     aiLimiter
 };

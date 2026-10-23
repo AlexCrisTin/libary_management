@@ -34,6 +34,17 @@ flutter run
 flutter analyze
 ```
 
+Kiểm thử backend gồm hai lớp:
+
+```bash
+cd backend
+npm test
+npm run test:e2e
+```
+
+`test:e2e` chạy toàn bộ luồng đăng nhập, phân quyền, mượn/trả, gia hạn, tiền
+phạt và đặt slot trên MySQL thật, sau đó tự dọn dữ liệu thử.
+
 ## Xuất APK để dùng trên Google Pixel
 
 APK chạy trên điện thoại thật không thể dùng địa chỉ `10.0.2.2`; địa chỉ đó chỉ

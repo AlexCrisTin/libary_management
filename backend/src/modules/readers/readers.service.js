@@ -15,7 +15,9 @@ const parseJSONField = (data, defaultValue = []) => {
  * 1. Lấy danh sách toàn bộ độc giả (Thủ thư xem, hỗ trợ tìm kiếm và lọc)
  */
 exports.getAllReaders = async ({ keyword = '', reader_type = '', status = '', page = 1, limit = 10 }) => {
-    const offset = (page - 1) * limit;
+    const normalizedPage = Math.max(1, Number(page) || 1);
+    const normalizedLimit = Math.min(100, Math.max(1, Number(limit) || 10));
+    const offset = (normalizedPage - 1) * normalizedLimit;
     const params = [];
     const where = [];
 
@@ -55,13 +57,13 @@ exports.getAllReaders = async ({ keyword = '', reader_type = '', status = '', pa
         LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await db.query(sql, [...params, Number(limit), Number(offset)]);
+    const [rows] = await db.query(sql, [...params, normalizedLimit, offset]);
 
     return {
         total,
-        page: Number(page),
-        limit: Number(limit),
-        totalPages: Math.ceil(total / limit),
+        page: normalizedPage,
+        limit: normalizedLimit,
+        totalPages: Math.ceil(total / normalizedLimit),
         items: rows
     };
 };
@@ -133,6 +135,10 @@ exports.createReader = async (data) => {
     if (!['active', 'suspended', 'expired'].includes(status)) {
         throw new Error('Trạng thái thẻ không hợp lệ!');
     }
+    const normalizedMaxBooks = Number(max_books);
+    if (!Number.isInteger(normalizedMaxBooks) || normalizedMaxBooks < 1 || normalizedMaxBooks > 50) {
+        throw new Error('Hạn mức mượn sách phải là số nguyên từ 1 đến 50!');
+    }
 
     // Ngày cấp là hôm nay, hạn thẻ mặc định 1 năm
     const cardIssued = new Date();
@@ -153,7 +159,7 @@ exports.createReader = async (data) => {
     await db.query(sql, [
         readerId, user_id, readerCode, full_name, birth_date,
         phone, email, address, reader_type, faculty, cardIssued, cardExpired,
-        status, Number(max_books), avatar_url
+        status, normalizedMaxBooks, avatar_url
     ]);
 
     return {
@@ -164,7 +170,7 @@ exports.createReader = async (data) => {
         card_issued: cardIssued,
         card_expired: cardExpired,
         status,
-        max_books: Number(max_books)
+        max_books: normalizedMaxBooks
     };
 };
 
@@ -176,6 +182,25 @@ exports.updateReader = async (readerId, updateData) => {
     const values = [];
 
     const allowed = ['full_name', 'birth_date', 'phone', 'email', 'address', 'reader_type', 'faculty', 'max_books', 'avatar_url'];
+    if (updateData.max_books !== undefined) {
+        const maxBooks = Number(updateData.max_books);
+        if (!Number.isInteger(maxBooks) || maxBooks < 1 || maxBooks > 50) {
+            throw new Error('Hạn mức mượn sách phải là số nguyên từ 1 đến 50!');
+        }
+        updateData = { ...updateData, max_books: maxBooks };
+    }
+    if (updateData.reader_type !== undefined &&
+        !['student', 'lecturer', 'staff', 'public'].includes(updateData.reader_type)) {
+        throw new Error('Loại độc giả không hợp lệ!');
+    }
+    if (updateData.email !== undefined) {
+        updateData = {
+            ...updateData,
+            email: updateData.email && String(updateData.email).trim()
+                ? String(updateData.email).trim().toLowerCase()
+                : null
+        };
+    }
     allowed.forEach((col) => {
         if (updateData[col] !== undefined) {
             fields.push(`${col} = ?`);
@@ -185,10 +210,65 @@ exports.updateReader = async (readerId, updateData) => {
 
     if (fields.length === 0) return false;
 
-    values.push(readerId);
-    const sql = `UPDATE readers SET ${fields.join(', ')} WHERE reader_id = ?`;
-    const [result] = await db.query(sql, values);
-    return result.affectedRows > 0;
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+        const [existingReaders] = await connection.query(
+            'SELECT reader_id, user_id FROM readers WHERE reader_id = ? FOR UPDATE',
+            [readerId]
+        );
+        if (existingReaders.length === 0) {
+            await connection.rollback();
+            return false;
+        }
+        const existingReader = existingReaders[0];
+
+        if (updateData.email) {
+            const [duplicateReaders] = await connection.query(
+                'SELECT reader_id FROM readers WHERE email = ? AND reader_id != ? LIMIT 1',
+                [updateData.email, readerId]
+            );
+            const [duplicateUsers] = await connection.query(
+                `SELECT user_id FROM users
+                 WHERE email = ? AND (? IS NULL OR user_id != ?)
+                 LIMIT 1`,
+                [updateData.email, existingReader.user_id, existingReader.user_id]
+            );
+            if (duplicateReaders.length > 0 || duplicateUsers.length > 0) {
+                throw new Error('Email này đã được sử dụng bởi tài khoản khác!');
+            }
+        }
+
+        values.push(readerId);
+        const sql = `UPDATE readers SET ${fields.join(', ')} WHERE reader_id = ?`;
+        const [result] = await connection.query(sql, values);
+
+        if (existingReader.user_id) {
+            const userFields = [];
+            const userValues = [];
+            for (const column of ['full_name', 'phone', 'email', 'avatar_url']) {
+                if (updateData[column] !== undefined) {
+                    userFields.push(`${column} = ?`);
+                    userValues.push(updateData[column]);
+                }
+            }
+            if (userFields.length > 0) {
+                userValues.push(existingReader.user_id);
+                await connection.query(
+                    `UPDATE users SET ${userFields.join(', ')} WHERE user_id = ?`,
+                    userValues
+                );
+            }
+        }
+
+        await connection.commit();
+        return true;
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
 };
 
 /**

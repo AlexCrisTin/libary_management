@@ -1,5 +1,6 @@
 const db = require('../../config/db');
 const { v4: uuidv4 } = require('uuid');
+const { normalizePagination } = require('../../utils/pagination');
 
 /**
  * 1. Gửi tin nhắn mới (Độc giả hoặc Thủ thư gửi)
@@ -40,7 +41,7 @@ exports.sendMessage = async ({ reader_id, sender_id, sender_role, message_text }
  * Đồng thời tự động đánh dấu các tin nhắn gửi đến là đã đọc
  */
 exports.getMessages = async ({ reader_id, viewer_role, page = 1, limit = 50 }) => {
-    const offset = (page - 1) * limit;
+    const pagination = normalizePagination(page, limit, { defaultLimit: 50, maxLimit: 100 });
 
     // Đếm tổng số tin nhắn
     const countSql = 'SELECT COUNT(*) AS total FROM chat_messages WHERE reader_id = ?';
@@ -65,7 +66,7 @@ exports.getMessages = async ({ reader_id, viewer_role, page = 1, limit = 50 }) =
         LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await db.query(sql, [reader_id, Number(limit), Number(offset)]);
+    const [rows] = await db.query(sql, [reader_id, pagination.limit, pagination.offset]);
 
     // Đánh dấu các tin nhắn của phía bên kia là đã đọc
     if (viewer_role === 'reader') {
@@ -82,9 +83,9 @@ exports.getMessages = async ({ reader_id, viewer_role, page = 1, limit = 50 }) =
 
     return {
         total,
-        page,
-        limit,
-        total_pages: Math.ceil(total / limit),
+        page: pagination.page,
+        limit: pagination.limit,
+        total_pages: Math.ceil(total / pagination.limit),
         data: rows
     };
 };
@@ -94,7 +95,7 @@ exports.getMessages = async ({ reader_id, viewer_role, page = 1, limit = 50 }) =
  * Kèm tin nhắn mới nhất và số tin chưa đọc từ phía độc giả
  */
 exports.getConversations = async ({ page = 1, limit = 20 }) => {
-    const offset = (page - 1) * limit;
+    const pagination = normalizePagination(page, limit, { defaultLimit: 20, maxLimit: 100 });
 
     const countSql = 'SELECT COUNT(DISTINCT reader_id) AS total FROM chat_messages';
     const [countRows] = await db.query(countSql);
@@ -128,13 +129,13 @@ exports.getConversations = async ({ page = 1, limit = 20 }) => {
         LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await db.query(sql, [Number(limit), Number(offset)]);
+    const [rows] = await db.query(sql, [pagination.limit, pagination.offset]);
 
     return {
         total,
-        page,
-        limit,
-        total_pages: Math.ceil(total / limit),
+        page: pagination.page,
+        limit: pagination.limit,
+        total_pages: Math.ceil(total / pagination.limit),
         data: rows
     };
 };

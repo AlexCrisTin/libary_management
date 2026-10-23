@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const authController = require('./auth.controller');
 const authMiddleware = require('../../middlewares/auth.middleware');
-const { loginLimiter, otpLimiter } = require('../../middlewares/rateLimiter.middleware');
+const { loginLimiter, otpLimiter, registerLimiter } = require('../../middlewares/rateLimiter.middleware');
 
 // 1. Đăng ký tài khoản độc giả
-router.post('/register', authController.register);
+router.post('/register', registerLimiter, authController.register);
 
 // 2. Đăng nhập (Cả Thủ thư và Độc giả - Có Rate Limiting chống Brute-force)
 router.post('/login', loginLimiter, authController.login);

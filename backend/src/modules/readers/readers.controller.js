@@ -59,13 +59,23 @@ exports.createReader = async (req, res, next) => {
 exports.updateReader = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const updated = await readersService.updateReader(id, req.body);
+        const personalFields = ['full_name', 'birth_date', 'phone', 'email', 'address', 'avatar_url'];
+        const staffFields = [...personalFields, 'reader_type', 'faculty', 'max_books'];
+        const allowedFields = req.user.role === 'reader' ? personalFields : staffFields;
+        const safeUpdate = Object.fromEntries(
+            Object.entries(req.body || {}).filter(([key]) => allowedFields.includes(key))
+        );
+        if (Object.keys(safeUpdate).length === 0) {
+            return sendError(res, 'Không có trường thông tin hợp lệ để cập nhật!', 400);
+        }
+
+        const updated = await readersService.updateReader(id, safeUpdate);
         if (!updated) {
             return sendError(res, 'Không tìm thấy độc giả để cập nhật!', 404);
         }
         return sendSuccess(res, 'Cập nhật thông tin độc giả thành công');
     } catch (error) {
-        next(error);
+        return sendError(res, error.message, 400);
     }
 };
 

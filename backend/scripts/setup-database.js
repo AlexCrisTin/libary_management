@@ -102,6 +102,24 @@ async function ensurePerformanceIndexes(connection) {
     }
 }
 
+async function ensureSecuritySchema(connection) {
+    const [columns] = await connection.query(
+        `SELECT CHARACTER_MAXIMUM_LENGTH AS max_length
+         FROM information_schema.columns
+         WHERE table_schema = DATABASE()
+           AND table_name = 'password_resets'
+           AND column_name = 'otp'
+         LIMIT 1`
+    );
+
+    if (columns.length > 0 && Number(columns[0].max_length) < 64) {
+        await connection.query(
+            'ALTER TABLE password_resets MODIFY otp VARCHAR(64) NOT NULL'
+        );
+        console.log('Đã nâng cột password_resets.otp để lưu OTP dạng băm.');
+    }
+}
+
 async function main() {
     let connection;
     try {
@@ -120,6 +138,7 @@ async function main() {
         if (!seedOnly) {
             await connection.query(readSql(schemaPath));
             await ensurePerformanceIndexes(connection);
+            await ensureSecuritySchema(connection);
             console.log('Đã cài đặt schema.');
         }
 

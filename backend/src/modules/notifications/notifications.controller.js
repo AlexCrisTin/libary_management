@@ -8,7 +8,7 @@ const { sendSuccess, sendError } = require('../../utils/response');
  */
 exports.getMyNotifications = async (req, res, next) => {
     try {
-        const reader_id = req.user.readerId || req.query.reader_id;
+        const reader_id = req.user.readerId;
         if (!reader_id) {
             return sendError(res, 'Chức năng này chỉ dành cho độc giả hoặc tài khoản liên kết với thẻ độc giả!', 403);
         }
@@ -64,7 +64,7 @@ exports.getLibrarianNotifications = async (req, res, next) => {
  */
 exports.getUnreadCount = async (req, res, next) => {
     try {
-        const reader_id = req.user.readerId || req.query.reader_id;
+        const reader_id = req.user.readerId;
         if (!reader_id) {
             return sendError(res, 'Chức năng này chỉ dành cho độc giả!', 403);
         }

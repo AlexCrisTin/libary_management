@@ -16,8 +16,13 @@ router.delete('/copies/:copyId', authMiddleware, roleMiddleware('librarian', 'ad
 // 3. Quét trực tiếp Barcode/ISBN để tìm sách & vị trí kệ (Công khai)
 router.get('/scan/:code', booksController.scanBook);
 
-// 4. Tra cứu thông tin sách thật trên Internet qua ISBN (Google Books & Open Library)
-router.get('/lookup-isbn/:isbn', booksController.lookupIsbn);
+// 4. Tra cứu ISBN gọi dịch vụ ngoài, chỉ dùng trong form nghiệp vụ của thủ thư.
+router.get(
+    '/lookup-isbn/:isbn',
+    authMiddleware,
+    roleMiddleware('librarian', 'admin'),
+    booksController.lookupIsbn
+);
 
 // Lưu/bỏ lưu sách theo tài khoản độc giả
 router.get('/:id/bookmark', authMiddleware, roleMiddleware('reader'), booksController.getBookmark);

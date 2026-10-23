@@ -68,8 +68,8 @@ exports.changePassword = async (req, res, next) => {
         if (!oldPassword || !newPassword) {
             return sendError(res, 'Vui lòng nhập mật khẩu cũ và mật khẩu mới!', 400);
         }
-        if (newPassword.length < 6) {
-            return sendError(res, 'Mật khẩu mới phải có tối thiểu 6 ký tự!', 400);
+        if (newPassword.length < 8) {
+            return sendError(res, 'Mật khẩu mới phải có tối thiểu 8 ký tự!', 400);
         }
 
         await authService.changePassword(req.user.userId, { oldPassword, newPassword });

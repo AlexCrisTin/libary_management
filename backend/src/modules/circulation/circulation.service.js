@@ -1,5 +1,6 @@
 const db = require('../../config/db');
 const { v4: uuidv4 } = require('uuid');
+const { normalizePagination } = require('../../utils/pagination');
 
 const OVERDUE_FINE_PER_DAY = 2000;
 
@@ -44,6 +45,10 @@ const normalizeExtendDays = (value) => {
  * Thủ thư thực hiện tại quầy hoặc thông qua quét mã
  */
 exports.borrowBook = async ({ reader_id, reader_code, copy_id, barcode, due_days = 14, issued_by }) => {
+    const normalizedDueDays = Number(due_days);
+    if (!Number.isInteger(normalizedDueDays) || normalizedDueDays < 1 || normalizedDueDays > 365) {
+        throw new Error('Số ngày mượn phải là số nguyên từ 1 đến 365 ngày!');
+    }
     // 1. Kiểm tra thông tin độc giả
     let reader = null;
     if (reader_id) {
@@ -158,10 +163,46 @@ exports.borrowBook = async ({ reader_id, reader_code, copy_id, barcode, due_days
     try {
         await conn.beginTransaction();
 
+        // Khóa hồ sơ độc giả để hai yêu cầu đồng thời không thể vượt hạn mức mượn.
+        const [lockedReaders] = await conn.query(
+            'SELECT * FROM readers WHERE reader_id = ? FOR UPDATE',
+            [reader.reader_id]
+        );
+        if (lockedReaders.length === 0) throw new Error('Không tìm thấy hồ sơ độc giả!');
+        const lockedReader = lockedReaders[0];
+        if (lockedReader.status !== 'active') {
+            throw new Error(`Thẻ độc giả đang không hoạt động (Trạng thái: ${lockedReader.status})!`);
+        }
+        if (lockedReader.card_expired) {
+            const lockedExpiry = new Date(lockedReader.card_expired);
+            const lockedToday = new Date();
+            lockedToday.setHours(0, 0, 0, 0);
+            if (lockedExpiry < lockedToday) throw new Error('Thẻ thư viện của độc giả đã hết hạn sử dụng!');
+        }
+        const [lockedBorrowCount] = await conn.query(
+            `SELECT COUNT(*) AS active_count
+             FROM borrow_transactions
+             WHERE reader_id = ? AND status IN ('borrowed', 'overdue')`,
+            [lockedReader.reader_id]
+        );
+        const lockedActiveCount = Number(lockedBorrowCount[0].active_count);
+        if (lockedActiveCount >= (lockedReader.max_books || 5)) {
+            throw new Error(`Độc giả đã mượn tối đa ${lockedReader.max_books || 5} cuốn sách, không thể mượn thêm!`);
+        }
+
+        // Cập nhật có điều kiện để một bản sao không thể bị mượn hai lần khi có yêu cầu đồng thời.
+        const [copyUpdate] = await conn.query(
+            'UPDATE book_copies SET status = "borrowed" WHERE copy_id = ? AND status = ?',
+            [copy.copy_id, copy.status]
+        );
+        if (copyUpdate.affectedRows !== 1) {
+            throw new Error('Trạng thái bản sao vừa thay đổi. Vui lòng tải lại và thử lại!');
+        }
+
         const txId = uuidv4();
         const borrowDate = new Date().toISOString().split('T')[0];
         const dueDateObj = new Date();
-        dueDateObj.setDate(dueDateObj.getDate() + Number(due_days));
+        dueDateObj.setDate(dueDateObj.getDate() + normalizedDueDays);
         const dueDate = dueDateObj.toISOString().split('T')[0];
 
         // Ghi nhận lượt mượn vào bảng borrow_transactions
@@ -171,12 +212,6 @@ exports.borrowBook = async ({ reader_id, reader_code, copy_id, barcode, due_days
                 status, issued_by
             ) VALUES (?, ?, ?, ?, ?, 'borrowed', ?)`,
             [txId, reader.reader_id, copy.copy_id, borrowDate, dueDate, issued_by || null]
-        );
-
-        // Cập nhật trạng thái bản sách thành 'borrowed'
-        await conn.query(
-            'UPDATE book_copies SET status = "borrowed" WHERE copy_id = ?',
-            [copy.copy_id]
         );
 
         // Nếu độc giả từng đặt trước đầu sách này -> Chuyển hold thành 'fulfilled' và đôn hàng đợi
@@ -226,8 +261,8 @@ exports.borrowBook = async ({ reader_id, reader_code, copy_id, barcode, due_days
                 reader_id: reader.reader_id,
                 reader_code: reader.reader_code,
                 full_name: reader.full_name,
-                currently_borrowed: activeCount + 1,
-                max_books: reader.max_books
+                currently_borrowed: lockedActiveCount + 1,
+                max_books: lockedReader.max_books
             },
             book: {
                 copy_id: copy.copy_id,
@@ -252,6 +287,13 @@ exports.borrowBook = async ({ reader_id, reader_code, copy_id, barcode, due_days
  * Thủ thư quét mã vạch hoặc nhập mã giao dịch
  */
 exports.returnBook = async ({ barcode, copy_id, tx_id, returned_to, condition, fine_rate_per_day = 2000 }) => {
+    const normalizedFineRate = Number(fine_rate_per_day);
+    if (!Number.isInteger(normalizedFineRate) || normalizedFineRate < 0 || normalizedFineRate > 1000000) {
+        throw new Error('Mức phạt theo ngày không hợp lệ!');
+    }
+    if (condition && !['new', 'good', 'fair', 'poor', 'damaged'].includes(condition)) {
+        throw new Error('Tình trạng bản sao không hợp lệ!');
+    }
     // 1. Tìm giao dịch mượn đang diễn ra
     let query = `
         SELECT 
@@ -302,7 +344,7 @@ exports.returnBook = async ({ barcode, copy_id, tx_id, returned_to, condition, f
 
     const diffMs = today.getTime() - dueDate.getTime();
     const overdueDays = diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0;
-    const fineAmount = overdueDays * Number(fine_rate_per_day);
+    const fineAmount = overdueDays * normalizedFineRate;
 
     // 3. Thực thi Transaction trả sách
     const conn = await db.getConnection();
@@ -312,12 +354,15 @@ exports.returnBook = async ({ barcode, copy_id, tx_id, returned_to, condition, f
         const returnDate = new Date().toISOString().split('T')[0];
 
         // Cập nhật giao dịch mượn
-        await conn.query(
+        const [transactionUpdate] = await conn.query(
             `UPDATE borrow_transactions 
              SET return_date = ?, status = 'returned', returned_to = ?, fine_amount = ? 
-             WHERE tx_id = ?`,
+             WHERE tx_id = ? AND status IN ('borrowed', 'overdue')`,
             [returnDate, returned_to || null, fineAmount, tx.tx_id]
         );
+        if (transactionUpdate.affectedRows !== 1) {
+            throw new Error('Giao dịch này vừa được xử lý bởi yêu cầu khác!');
+        }
 
         // Yêu cầu gia hạn chưa xử lý không còn giá trị sau khi sách được trả.
         await conn.query(
@@ -710,7 +755,7 @@ exports.resolveRenewalRequest = async ({ request_id, action, extend_days = 7, pr
  * Dùng cho Thủ thư quản lý hoặc Độc giả xem sách mình đang mượn
  */
 exports.getActiveLoans = async ({ reader_id = '', keyword = '', status = '', page = 1, limit = 10 }) => {
-    const offset = (page - 1) * limit;
+    const pagination = normalizePagination(page, limit);
     const params = [];
     const where = ["bt.status IN ('borrowed', 'overdue')"];
 
@@ -790,7 +835,7 @@ exports.getActiveLoans = async ({ reader_id = '', keyword = '', status = '', pag
         LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await db.query(sql, [...params, Number(limit), Number(offset)]);
+    const [rows] = await db.query(sql, [...params, pagination.limit, pagination.offset]);
 
     const items = rows.map(item => {
         const isOverdue = item.days_difference > 0;
@@ -804,9 +849,9 @@ exports.getActiveLoans = async ({ reader_id = '', keyword = '', status = '', pag
 
     return {
         total,
-        page,
-        limit,
-        total_pages: Math.ceil(total / limit),
+        page: pagination.page,
+        limit: pagination.limit,
+        total_pages: Math.ceil(total / pagination.limit),
         data: items
     };
 };
@@ -825,7 +870,7 @@ exports.getLoanHistory = async ({
     page = 1,
     limit = 10
 }) => {
-    const offset = (page - 1) * limit;
+    const pagination = normalizePagination(page, limit);
     const params = [];
     const where = [];
 
@@ -913,7 +958,7 @@ exports.getLoanHistory = async ({
         LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await db.query(sql, [...params, Number(limit), Number(offset)]);
+    const [rows] = await db.query(sql, [...params, pagination.limit, pagination.offset]);
 
     const items = rows.map(({ payable_fine_amount, ...item }) => ({
         ...item,
@@ -922,9 +967,9 @@ exports.getLoanHistory = async ({
 
     return {
         total,
-        page,
-        limit,
-        total_pages: Math.ceil(total / limit),
+        page: pagination.page,
+        limit: pagination.limit,
+        total_pages: Math.ceil(total / pagination.limit),
         data: items
     };
 };

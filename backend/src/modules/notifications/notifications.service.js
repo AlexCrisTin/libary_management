@@ -1,5 +1,6 @@
 const db = require('../../config/db');
 const { v4: uuidv4 } = require('uuid');
+const { normalizePagination } = require('../../utils/pagination');
 
 /**
  * 1. Tạo thông báo mới (Hệ thống hoặc các module khác gọi tự động)
@@ -30,7 +31,7 @@ exports.createNotification = async ({ reader_id, title, content, type = 'system'
  * 2. Lấy danh sách thông báo của độc giả (hỗ trợ phân trang và lọc đã đọc/chưa đọc)
  */
 exports.getMyNotifications = async ({ reader_id, is_read = null, page = 1, limit = 20 }) => {
-    const offset = (page - 1) * limit;
+    const pagination = normalizePagination(page, limit, { defaultLimit: 20, maxLimit: 100 });
     const params = [reader_id];
     let whereClause = 'WHERE reader_id = ?';
 
@@ -61,13 +62,13 @@ exports.getMyNotifications = async ({ reader_id, is_read = null, page = 1, limit
         LIMIT ? OFFSET ?
     `;
 
-    const [rows] = await db.query(sql, [...params, Number(limit), Number(offset)]);
+    const [rows] = await db.query(sql, [...params, pagination.limit, pagination.offset]);
 
     return {
         total,
-        page,
-        limit,
-        total_pages: Math.ceil(total / limit),
+        page: pagination.page,
+        limit: pagination.limit,
+        total_pages: Math.ceil(total / pagination.limit),
         data: rows
     };
 };
@@ -76,7 +77,7 @@ exports.getMyNotifications = async ({ reader_id, is_read = null, page = 1, limit
  * Lấy luồng thông báo chung của toàn bộ độc giả cho thủ thư/admin.
  */
 exports.getAllNotifications = async ({ page = 1, limit = 100 }) => {
-    const offset = (page - 1) * limit;
+    const pagination = normalizePagination(page, limit, { defaultLimit: 100, maxLimit: 100 });
     const [countRows] = await db.query('SELECT COUNT(*) AS total FROM notifications');
     const total = countRows[0].total;
     const [rows] = await db.query(
@@ -95,14 +96,14 @@ exports.getAllNotifications = async ({ page = 1, limit = 100 }) => {
          JOIN readers r ON n.reader_id = r.reader_id
          ORDER BY n.created_at DESC
          LIMIT ? OFFSET ?`,
-        [Number(limit), Number(offset)]
+        [pagination.limit, pagination.offset]
     );
 
     return {
         total,
-        page: Number(page),
-        limit: Number(limit),
-        total_pages: Math.ceil(total / limit),
+        page: pagination.page,
+        limit: pagination.limit,
+        total_pages: Math.ceil(total / pagination.limit),
         data: rows
     };
 };
