@@ -210,7 +210,7 @@ class _HoldCard extends StatelessWidget {
                     'Hiệu lực đến: ${apiDate(item['expires_at'])}',
                   ),
                 if (!pickup && status == 'notified')
-                  Text('Giữ đến: ${apiDate(item['expires_at'])}'),
+                  Text('Đặt slot trước: ${apiDate(item['expires_at'])}'),
                 if (pickup && status == 'pending')
                   const Text('Đang chờ thủ thư xác nhận slot'),
                 if (pickup && status == 'approved') ...[
@@ -261,7 +261,7 @@ class _StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
       'waiting' => ('Đang chờ', kBeigeButton),
-      'notified' => ('Có thể nhận', const Color(0xFF82D1A8)),
+      'notified' => ('Có sách • đặt slot', const Color(0xFF82D1A8)),
       'pending' => ('Chờ duyệt slot', kBeigeButton),
       'approved' => ('Đã giữ sách', const Color(0xFF82D1A8)),
       'rejected' => ('Bị từ chối', const Color(0xFFD18282)),

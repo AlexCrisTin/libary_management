@@ -20,9 +20,13 @@ class _DetailBookState extends State<DetailBook> {
   bool _submitting = false;
   bool _bookmarked = false;
   bool _bookmarkLoading = false;
+  bool _bookingStateLoading = false;
   bool _suggestionsLoading = false;
   List<Map<String, dynamic>> _suggestionPool = const [];
   List<Map<String, dynamic>> _suggestedBooks = const [];
+  Map<String, dynamic>? _activeHold;
+  Map<String, dynamic>? _activeReservation;
+  String? _bookingStateError;
   String? _suggestionsError;
   String? _error;
 
@@ -49,6 +53,22 @@ class _DetailBookState extends State<DetailBook> {
     return locations.toList();
   }
 
+  String get _holdStatus =>
+      apiText(_activeHold?['status'], fallback: '').toLowerCase();
+
+  String get _reservationStatus =>
+      apiText(_activeReservation?['status'], fallback: '').toLowerCase();
+
+  String get _primaryActionLabel {
+    if (_bookingStateLoading) return 'Đang kiểm tra';
+    if (_bookingStateError != null) return 'Tải lại trạng thái';
+    if (_reservationStatus == 'pending') return 'Đang chờ duyệt';
+    if (_reservationStatus == 'approved') return 'Đã giữ sách';
+    if (_holdStatus == 'waiting') return 'Đang chờ sách';
+    if (_holdStatus == 'notified') return 'Đặt slot';
+    return _availableCopies > 0 ? 'Đặt slot' : 'Báo khi có';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -73,7 +93,56 @@ class _DetailBookState extends State<DetailBook> {
       if (mounted) setState(() => _loading = false);
     }
     if (bookLoaded) {
-      await Future.wait([_loadBookmark(), _loadSuggestions()]);
+      await Future.wait([
+        _loadBookmark(),
+        _loadBookingState(),
+        _loadSuggestions(),
+      ]);
+    }
+  }
+
+  Future<void> _loadBookingState() async {
+    if (!AppSession.isReader) return;
+    if (mounted) {
+      setState(() {
+        _bookingStateLoading = true;
+        _bookingStateError = null;
+      });
+    }
+    try {
+      final responses = await Future.wait([
+        ApiClient.get('/holds/my-holds'),
+        ApiClient.get('/pickup-reservations/my-reservations'),
+      ]);
+      final activeHold = apiList(responses[0])
+          .cast<Map<String, dynamic>?>()
+          .firstWhere((item) {
+            if (item == null ||
+                apiText(item['bib_id'], fallback: '') != widget.bookId) {
+              return false;
+            }
+            final status = apiText(item['status'], fallback: '').toLowerCase();
+            return status == 'waiting' || status == 'notified';
+          }, orElse: () => null);
+      final activeReservation = apiList(responses[1])
+          .cast<Map<String, dynamic>?>()
+          .firstWhere((item) {
+            if (item == null ||
+                apiText(item['bib_id'], fallback: '') != widget.bookId) {
+              return false;
+            }
+            final status = apiText(item['status'], fallback: '').toLowerCase();
+            return status == 'pending' || status == 'approved';
+          }, orElse: () => null);
+      if (!mounted) return;
+      setState(() {
+        _activeHold = activeHold;
+        _activeReservation = activeReservation;
+      });
+    } catch (error) {
+      if (mounted) setState(() => _bookingStateError = error.toString());
+    } finally {
+      if (mounted) setState(() => _bookingStateLoading = false);
     }
   }
 
@@ -126,54 +195,35 @@ class _DetailBookState extends State<DetailBook> {
   }
 
   Future<void> _borrowOrHold() async {
-    if (_availableCopies > 0) {
-      final locationText = _availableLocations.isEmpty
-          ? 'Vị trí kệ chưa được cập nhật.'
-          : 'Vị trí hiện tại: ${_availableLocations.join('; ')}.';
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          backgroundColor: kCardFill,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          title: const Text(
-            'Đặt slot nhận sách?',
-            style: TextStyle(color: kBrownTitle, fontWeight: FontWeight.w700),
-          ),
-          content: Text(
-            'Hiện còn $_availableCopies bản trên kệ. '
-            'Yêu cầu sẽ được gửi đến thủ thư. Sau khi được duyệt, một bản sách '
-            'sẽ được giữ riêng cho bạn đến thời hạn thủ thư xác nhận.\n\n'
-            '$locationText',
-            style: const TextStyle(color: kBookTitle, height: 1.45),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Để sau'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: FilledButton.styleFrom(backgroundColor: kBrownTitle),
-              child: const Text('Gửi yêu cầu'),
-            ),
-          ],
-        ),
+    if (_bookingStateLoading) return;
+    if (_bookingStateError != null) {
+      await _loadBookingState();
+      return;
+    }
+    if (_reservationStatus == 'pending') {
+      _showMessage('Yêu cầu đặt slot đang chờ thủ thư xác nhận.');
+      return;
+    }
+    if (_reservationStatus == 'approved') {
+      final expiresAt = _dateTimeText(_activeReservation?['pickup_expires_at']);
+      _showMessage(
+        expiresAt == '—'
+            ? 'Sách đã được giữ cho bạn. Vui lòng đến thư viện nhận sách.'
+            : 'Sách đã được giữ cho bạn đến $expiresAt.',
       );
-      if (confirmed != true || !mounted) return;
-      setState(() => _submitting = true);
-      try {
-        await ApiClient.post(
-          '/pickup-reservations',
-          body: {'bib_id': widget.bookId},
-        );
-        _showMessage('Đã gửi yêu cầu đặt slot đến thủ thư.');
-      } catch (error) {
-        _showMessage(error.toString());
-      } finally {
-        if (mounted) setState(() => _submitting = false);
-      }
+      return;
+    }
+    if (_holdStatus == 'waiting') {
+      final position = apiText(_activeHold?['queue_position'], fallback: '—');
+      _showMessage('Bạn đang ở vị trí $position trong hàng chờ sách này.');
+      return;
+    }
+    if (_holdStatus == 'notified') {
+      await _requestPickupSlot(fromWaitlist: true);
+      return;
+    }
+    if (_availableCopies > 0) {
+      await _requestPickupSlot();
       return;
     }
 
@@ -188,9 +238,8 @@ class _DetailBookState extends State<DetailBook> {
         ),
         content: const Text(
           'Hiện tất cả bản sách đều đang được mượn hoặc giữ trước. '
-          'Đăng ký của bạn có hiệu lực trong 14 ngày. Nếu sách được trả trong '
-          'thời gian này, hệ thống sẽ thông báo và giữ sách tại quầy cho bạn '
-          'trong 3 ngày.',
+          'Đăng ký của bạn có hiệu lực trong 14 ngày. Khi sách được trả, '
+          'hệ thống sẽ thông báo để bạn gửi yêu cầu đặt slot trong 3 ngày.',
           style: TextStyle(color: kBookTitle, height: 1.45),
         ),
         actions: [
@@ -211,6 +260,71 @@ class _DetailBookState extends State<DetailBook> {
     try {
       await ApiClient.post('/holds', body: {'bib_id': widget.bookId});
       _showMessage('Đã đăng ký báo khi có sách, hiệu lực trong 14 ngày.');
+      await _loadBookingState();
+    } catch (error) {
+      _showMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _requestPickupSlot({bool fromWaitlist = false}) async {
+    if (!mounted) return;
+    if (!fromWaitlist) {
+      final locationText = _availableLocations.isEmpty
+          ? 'Vị trí kệ chưa được cập nhật.'
+          : 'Vị trí hiện tại: ${_availableLocations.join('; ')}.';
+      return _confirmAndSubmitPickupSlot(
+        'Hiện còn $_availableCopies bản trên kệ. '
+        'Yêu cầu sẽ được gửi đến thủ thư. Sau khi được duyệt, một bản sách '
+        'sẽ được giữ riêng cho bạn đến thời hạn thủ thư xác nhận.\n\n'
+        '$locationText',
+      );
+    }
+    final deadline = _dateTimeText(_activeHold?['expires_at']);
+    return _confirmAndSubmitPickupSlot(
+      'Sách bạn đăng ký đã có và đang được ưu tiên cho bạn. '
+      'Hãy gửi yêu cầu đặt slot${deadline == '—' ? '' : ' trước $deadline'}; '
+      'sau đó thủ thư sẽ xác nhận thời hạn đến nhận.',
+    );
+  }
+
+  Future<void> _confirmAndSubmitPickupSlot(String content) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: kCardFill,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text(
+          'Đặt slot nhận sách?',
+          style: TextStyle(color: kBrownTitle, fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          content,
+          style: const TextStyle(color: kBookTitle, height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Để sau'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: kBrownTitle),
+            child: const Text('Gửi yêu cầu'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _submitting = true);
+    try {
+      await ApiClient.post(
+        '/pickup-reservations',
+        body: {'bib_id': widget.bookId},
+      );
+      _showMessage('Đã gửi yêu cầu đặt slot đến thủ thư.');
+      await _loadBookingState();
     } catch (error) {
       _showMessage(error.toString());
     } finally {
@@ -292,8 +406,8 @@ class _DetailBookState extends State<DetailBook> {
                   children: [
                     _BookPresentation(
                       coverUrl: _book['cover_url']?.toString(),
-                      available: _availableCopies > 0,
-                      submitting: _submitting,
+                      actionLabel: _primaryActionLabel,
+                      submitting: _submitting || _bookingStateLoading,
                       onPressed: _borrowOrHold,
                     ),
                     const SizedBox(height: 30),
@@ -411,13 +525,13 @@ class _BookHeader extends StatelessWidget {
 class _BookPresentation extends StatelessWidget {
   const _BookPresentation({
     required this.coverUrl,
-    required this.available,
+    required this.actionLabel,
     required this.submitting,
     required this.onPressed,
   });
 
   final String? coverUrl;
-  final bool available;
+  final String actionLabel;
   final bool submitting;
   final VoidCallback onPressed;
 
@@ -465,9 +579,10 @@ class _BookPresentation extends StatelessWidget {
                         ),
                       )
                     : Text(
-                        available ? 'Đặt slot' : 'Báo khi có',
+                        actionLabel,
+                        textAlign: TextAlign.center,
                         style: const TextStyle(
-                          fontSize: 19,
+                          fontSize: 17,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -478,6 +593,14 @@ class _BookPresentation extends StatelessWidget {
       ),
     );
   }
+}
+
+String _dateTimeText(dynamic value) {
+  final date = DateTime.tryParse(value?.toString() ?? '')?.toLocal();
+  if (date == null) return '—';
+  String two(int number) => number.toString().padLeft(2, '0');
+  return '${two(date.hour)}:${two(date.minute)} '
+      '${two(date.day)}/${two(date.month)}/${date.year}';
 }
 
 class _BookInformationCard extends StatelessWidget {

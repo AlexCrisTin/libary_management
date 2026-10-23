@@ -419,8 +419,8 @@ exports.returnBook = async ({ barcode, copy_id, tx_id, returned_to, condition, f
                 [
                     notifId,
                     nextHold.reader_id,
-                    'Sách bạn đặt trước đã có sẵn tại thư viện',
-                    `Cuốn sách "${tx.book_title}" mà bạn đặt trước đã có sẵn tại quầy. Vui lòng đến nhận sách trong vòng 3 ngày tới.`,
+                    'Sách bạn đăng ký đã có sẵn tại thư viện',
+                    `Cuốn sách "${tx.book_title}" đã có. Vui lòng gửi yêu cầu đặt slot trong vòng 3 ngày tới.`,
                     nextHold.hold_id
                 ]
             );

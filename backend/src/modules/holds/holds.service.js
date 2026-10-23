@@ -293,7 +293,7 @@ exports.cancelHold = async ({ hold_id, reader_id, user_role }) => {
                         uuidv4(),
                         nextHold.reader_id,
                         'Sách bạn đăng ký đã có sẵn',
-                        'Sách đã được giữ tại quầy cho bạn. Vui lòng đến nhận trong vòng 3 ngày.',
+                        'Sách đã có. Vui lòng gửi yêu cầu đặt slot trong vòng 3 ngày.',
                         nextHold.hold_id
                     ]
                 );

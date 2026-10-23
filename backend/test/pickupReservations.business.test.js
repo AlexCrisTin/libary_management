@@ -87,7 +87,7 @@ test('duyệt slot sẽ khóa một bản sách và tạo thông báo', async ()
                 }], []];
             }
             if (sql.includes('FROM book_copies')) {
-                return [[{ copy_id: 'copy-1', barcode: 'BC-001' }], []];
+                return [[{ copy_id: 'copy-1', barcode: 'BC-001', status: 'available' }], []];
             }
             return [{ affectedRows: 1 }, []];
         },
@@ -108,6 +108,44 @@ test('duyệt slot sẽ khóa một bản sách và tạo thông báo', async ()
     assert.equal(committed, true);
     assert.ok(statements.some((sql) => sql.includes("SET status = 'reserved'")));
     assert.ok(statements.some((sql) => sql.includes('INSERT INTO notifications')));
+});
+
+test('sách được báo có có thể chuyển thành yêu cầu đặt slot', async () => {
+    const calls = [];
+    fakeDb.query = async (sql, params) => {
+        calls.push({ sql, params });
+        if (sql.includes('FROM readers')) {
+            return [[{ reader_id: 'reader-1', status: 'active', card_expired: null }], []];
+        }
+        if (sql.includes('FROM bibliographic_records')) {
+            return [[{ bib_id: 'book-1', title: 'Sách thử nghiệm', isbn: '123' }], []];
+        }
+        if (sql.includes('FROM borrow_transactions')) return [[], []];
+        if (sql.includes('FROM book_copies bc')) {
+            return [[{ copy_id: 'copy-reserved', barcode: 'BC-RESERVED' }], []];
+        }
+        if (sql.includes('FROM pickup_reservations')) return [[], []];
+        if (sql.includes('FROM holds')) {
+            return [[{
+                hold_id: 'hold-1',
+                status: 'notified',
+                expires_at: '2026-10-26 12:00:00'
+            }], []];
+        }
+        if (sql.includes('INSERT INTO pickup_reservations')) return [{ affectedRows: 1 }, []];
+        if (sql.includes("SET status = 'fulfilled'")) return [{ affectedRows: 1 }, []];
+        throw new Error(`Câu SQL chưa được giả lập: ${sql}`);
+    };
+
+    const result = await service.createReservation({
+        reader_id: 'reader-1',
+        bib_id: 'book-1'
+    });
+
+    assert.equal(result.status, 'pending');
+    assert.equal(result.copy_id, 'copy-reserved');
+    assert.equal(result.converted_from_waitlist, true);
+    assert.ok(calls.some(({ sql }) => sql.includes("SET status = 'fulfilled'")));
 });
 
 test('không cho thủ thư đặt thời hạn lấy sách quá 7 ngày', async () => {

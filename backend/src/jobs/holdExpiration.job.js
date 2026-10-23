@@ -80,8 +80,8 @@ async function scanAndExpireHolds() {
                 [
                     uuidv4(),
                     hold.reader_id,
-                    'Đã hết thời gian nhận sách',
-                    `Thời gian nhận sách "${hold.book_title}" đã kết thúc. Bản sách sẽ được chuyển cho người tiếp theo.`,
+                    'Đã hết thời gian đặt slot',
+                    `Thời gian đặt slot cho sách "${hold.book_title}" đã kết thúc. Lượt ưu tiên sẽ được chuyển cho người tiếp theo.`,
                     hold.hold_id
                 ]
             );
@@ -112,7 +112,7 @@ async function scanAndExpireHolds() {
                         uuidv4(),
                         next.reader_id,
                         'Sách bạn đăng ký đã có sẵn',
-                        `Sách "${hold.book_title}" đã được giữ tại quầy. Vui lòng đến nhận trong vòng 3 ngày.`,
+                        `Sách "${hold.book_title}" đã có. Vui lòng gửi yêu cầu đặt slot trong vòng 3 ngày.`,
                         next.hold_id
                     ]
                 );

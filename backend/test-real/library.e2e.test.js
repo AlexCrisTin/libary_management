@@ -369,6 +369,57 @@ test('luồng xuyên suốt trên MySQL thật và hàng rào bảo mật tối 
         assert.equal(Number(txRows[0].fine_paid), 1);
     });
 
+    await t.test('báo khi có chuyển thành đặt slot khi sách được trả', async () => {
+        const borrowed = await api('/api/circulation/borrow', {
+            method: 'POST', token: librarianToken,
+            body: { reader_id: ids.reader2, copy_id: ids.copy1, due_days: 14 }
+        });
+        assert.equal(borrowed.status, 201, JSON.stringify(borrowed.body));
+        const borrowedTxId = borrowed.body.data.tx_id;
+        tracked.txIds.push(borrowedTxId);
+
+        const hold = await api('/api/holds', {
+            method: 'POST', token: reader1Token, body: { bib_id: ids.bib1 }
+        });
+        assert.equal(hold.status, 201, JSON.stringify(hold.body));
+        const holdId = hold.body.data.hold_id;
+
+        const returned = await api('/api/circulation/return', {
+            method: 'POST', token: librarianToken, body: { tx_id: borrowedTxId }
+        });
+        assert.equal(returned.status, 200, JSON.stringify(returned.body));
+        assert.equal(returned.body.data.book.next_status, 'reserved');
+
+        const slot = await api('/api/pickup-reservations', {
+            method: 'POST', token: reader1Token, body: { bib_id: ids.bib1 }
+        });
+        assert.equal(slot.status, 201, JSON.stringify(slot.body));
+        assert.equal(slot.body.data.converted_from_waitlist, true);
+        assert.equal(slot.body.data.copy_id, ids.copy1);
+        const reservationId = slot.body.data.reservation_id;
+        tracked.reservationIds.push(reservationId);
+
+        const [holdRows] = await db.query(
+            'SELECT status FROM holds WHERE hold_id = ?',
+            [holdId]
+        );
+        assert.equal(holdRows[0].status, 'fulfilled');
+
+        const expiry = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
+        const approved = await api(`/api/pickup-reservations/${reservationId}/approve`, {
+            method: 'PUT', token: librarianToken, body: { pickup_expires_at: expiry }
+        });
+        assert.equal(approved.status, 200, JSON.stringify(approved.body));
+        assert.equal(approved.body.data.copy_id, ids.copy1);
+
+        const received = await api('/api/circulation/borrow', {
+            method: 'POST', token: librarianToken,
+            body: { reader_id: ids.reader1, copy_id: ids.copy1, due_days: 14 }
+        });
+        assert.equal(received.status, 201, JSON.stringify(received.body));
+        tracked.txIds.push(received.body.data.tx_id);
+    });
+
     await t.test('đặt slot, duyệt đúng bản sao và chỉ người đặt được mượn', async () => {
         const reservation = await api('/api/pickup-reservations', {
             method: 'POST', token: reader1Token, body: { bib_id: ids.bib2 }
