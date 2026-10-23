@@ -39,7 +39,9 @@ exports.getStatistics = async ({ days = 7 }) => {
                  WHERE status IN ('borrowed', 'overdue')) AS active_loans,
                 (SELECT COUNT(*) FROM borrow_transactions
                  WHERE status IN ('borrowed', 'overdue') AND due_date < CURDATE()) AS overdue_loans,
-                (SELECT COUNT(*) FROM readers WHERE archived_at IS NULL) AS total_readers,
+                (SELECT COUNT(DISTINCT r.reader_id)
+                 FROM readers r
+                 WHERE r.archived_at IS NULL) AS total_readers,
                 (SELECT COUNT(*) FROM bibliographic_records
                  WHERE archived_at IS NULL) AS total_titles,
                 (SELECT COUNT(*) FROM book_copies bc

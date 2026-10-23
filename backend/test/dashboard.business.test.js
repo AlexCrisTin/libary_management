@@ -73,4 +73,8 @@ test('dashboard ưu tiên lượt quá hạn rồi đến lượt sắp hết h�
     const dueQuery = calls.find((sql) => sql.includes('DATEDIFF(bt.due_date'));
     assert.ok(dueQuery.includes('DATE_ADD(CURDATE(), INTERVAL 7 DAY)'));
     assert.ok(dueQuery.includes('CASE WHEN bt.due_date < CURDATE() THEN 0 ELSE 1 END'));
+
+    const summaryQuery = calls.find((sql) => sql.includes('AS total_readers'));
+    assert.ok(summaryQuery.includes('COUNT(DISTINCT r.reader_id)'));
+    assert.ok(summaryQuery.includes('r.archived_at IS NULL'));
 });

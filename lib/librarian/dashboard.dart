@@ -9,6 +9,7 @@ import 'librarian_nav.dart';
 class Dashboard extends StatefulWidget {
   const Dashboard({
     super.key,
+    this.refreshRequest = 0,
     this.onOpenTab,
     this.onOpenReaderManagement,
     this.onOpenBorrowReturn,
@@ -18,6 +19,7 @@ class Dashboard extends StatefulWidget {
     this.onOpenNotice,
   });
 
+  final int refreshRequest;
   final ValueChanged<int>? onOpenTab;
   final VoidCallback? onOpenReaderManagement;
   final ValueChanged<String>? onOpenBorrowReturn;
@@ -50,6 +52,15 @@ class _DashboardState extends State<Dashboard> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant Dashboard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshRequest == widget.refreshRequest) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   Future<void> _load() async {

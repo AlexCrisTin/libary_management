@@ -26,6 +26,7 @@ class _LibrarianShellState extends State<LibrarianShell> {
   String _borrowReturnStatus = '';
   int _borrowReturnRequest = 0;
   int _readerManagementRequest = 0;
+  int _dashboardRefreshRequest = 0;
 
   /// Pages matched to the 5 bottom-nav tabs:
   ///  0 → Dashboard
@@ -41,6 +42,7 @@ class _LibrarianShellState extends State<LibrarianShell> {
 
   void _onTabSelected(int index) {
     setState(() {
+      if (index == 0) _dashboardRefreshRequest++;
       if (index == 4) _readerManagementRequest++;
       _currentIndex = index;
     });
@@ -58,6 +60,7 @@ class _LibrarianShellState extends State<LibrarianShell> {
   Widget build(BuildContext context) {
     final pages = [
       _DashboardPage(
+        refreshRequest: _dashboardRefreshRequest,
         onOpenTab: _onTabSelected,
         onOpenReaderManagement: () => _onTabSelected(4),
         onOpenBorrowReturn: _openBorrowReturn,
@@ -122,6 +125,7 @@ class _LibrarianShellState extends State<LibrarianShell> {
 
 class _DashboardPage extends StatelessWidget {
   const _DashboardPage({
+    required this.refreshRequest,
     required this.onOpenTab,
     required this.onOpenReaderManagement,
     required this.onOpenBorrowReturn,
@@ -131,6 +135,7 @@ class _DashboardPage extends StatelessWidget {
     required this.onOpenNotice,
   });
 
+  final int refreshRequest;
   final ValueChanged<int> onOpenTab;
   final VoidCallback onOpenReaderManagement;
   final ValueChanged<String> onOpenBorrowReturn;
@@ -141,6 +146,7 @@ class _DashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Dashboard(
+    refreshRequest: refreshRequest,
     onOpenTab: onOpenTab,
     onOpenReaderManagement: onOpenReaderManagement,
     onOpenBorrowReturn: onOpenBorrowReturn,
