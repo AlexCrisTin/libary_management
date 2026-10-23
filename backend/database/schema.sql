@@ -163,6 +163,8 @@ CREATE TABLE IF NOT EXISTS borrow_transactions (
     KEY idx_transactions_reader_status (reader_id, status),
     KEY idx_transactions_copy_status (copy_id, status),
     KEY idx_transactions_due_status (due_date, status),
+    KEY idx_transactions_status_due (status, due_date),
+    KEY idx_transactions_fine_status_return (fine_paid, status, return_date),
     KEY idx_transactions_issuer (issued_by),
     KEY idx_transactions_receiver (returned_to),
     CONSTRAINT fk_tx_reader FOREIGN KEY (reader_id) REFERENCES readers(reader_id),
@@ -184,6 +186,7 @@ CREATE TABLE IF NOT EXISTS renewal_requests (
     PRIMARY KEY (request_id),
     KEY idx_renewal_tx_status (tx_id, status),
     KEY idx_renewal_reader (reader_id),
+    KEY idx_renewal_status_created (status, created_at),
     KEY idx_renewal_processor (processed_by),
     CONSTRAINT fk_renewal_transaction FOREIGN KEY (tx_id) REFERENCES borrow_transactions(tx_id) ON DELETE CASCADE,
     CONSTRAINT fk_renewal_reader FOREIGN KEY (reader_id) REFERENCES readers(reader_id) ON DELETE CASCADE,
@@ -205,6 +208,7 @@ CREATE TABLE IF NOT EXISTS holds (
     KEY idx_holds_reader_status (reader_id, status),
     KEY idx_holds_bib_queue (bib_id, status, queue_position),
     KEY idx_holds_expiration (status, expires_at),
+    KEY idx_holds_status_requested (status, requested_at),
     CONSTRAINT fk_hold_reader FOREIGN KEY (reader_id) REFERENCES readers(reader_id) ON DELETE CASCADE,
     CONSTRAINT fk_hold_bib FOREIGN KEY (bib_id) REFERENCES bibliographic_records(bib_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -224,6 +228,7 @@ CREATE TABLE IF NOT EXISTS pickup_reservations (
     KEY idx_pickup_reader_status (reader_id, status),
     KEY idx_pickup_bib_status (bib_id, status),
     KEY idx_pickup_expiry (status, pickup_expires_at),
+    KEY idx_pickup_status_requested (status, requested_at),
     KEY idx_pickup_copy (copy_id),
     CONSTRAINT fk_pickup_reader FOREIGN KEY (reader_id) REFERENCES readers(reader_id) ON DELETE CASCADE,
     CONSTRAINT fk_pickup_bib FOREIGN KEY (bib_id) REFERENCES bibliographic_records(bib_id) ON DELETE CASCADE,
@@ -257,6 +262,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     PRIMARY KEY (message_id),
     KEY idx_chat_reader_created (reader_id, created_at),
     KEY idx_chat_reader_unread (reader_id, sender_role, is_read),
+    KEY idx_chat_role_read_reader_created (sender_role, is_read, reader_id, created_at),
     KEY idx_chat_sender (sender_id),
     CONSTRAINT fk_chat_reader FOREIGN KEY (reader_id) REFERENCES readers(reader_id) ON DELETE CASCADE,
     CONSTRAINT fk_chat_sender FOREIGN KEY (sender_id) REFERENCES users(user_id) ON DELETE CASCADE

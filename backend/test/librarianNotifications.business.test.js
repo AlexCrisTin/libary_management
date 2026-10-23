@@ -6,12 +6,33 @@ const calls = [];
 const fakeDb = {
     query: async (sql, params = []) => {
         calls.push({ sql, params });
-        if (sql.includes('COUNT(*) AS total')) return [[{ total: 6 }], []];
+        if (sql.includes('AS pickup_count')) {
+            return [[{
+                pickup_count: 9995,
+                hold_count: 1,
+                renewal_count: 1,
+                overdue_count: 1,
+                fine_count: 1,
+                message_count: 1
+            }], []];
+        }
+
+        const sources = [
+            ['FROM pickup_reservations pr', 'pickup:reservation-1', 'pickup_request', '2026-10-23T10:00:00Z'],
+            ['FROM holds h', 'hold:hold-1', 'hold_request', '2026-10-23T09:00:00Z'],
+            ['FROM renewal_requests rr', 'renewal:request-1', 'renewal_request', '2026-10-23T08:00:00Z'],
+            ["bt.status IN ('borrowed', 'overdue')", 'overdue:tx-1', 'overdue_loan', '2026-10-23T07:00:00Z'],
+            ['bt.fine_paid = 0', 'fine:tx-2', 'unpaid_fine', '2026-10-23T06:00:00Z'],
+            ['FROM chat_messages cm', 'message:reader-1', 'unread_message', '2026-10-23T05:00:00Z']
+        ];
+        const source = sources.find(([pattern]) => sql.includes(pattern));
+        if (!source) throw new Error(`Câu SQL chưa được giả lập: ${sql}`);
         return [[{
-            notification_id: 'pickup:reservation-1',
-            type: 'pickup_request',
-            title: 'Yêu cầu đặt slot mới',
-            reader_name: 'Nguyễn Văn A'
+            notification_id: source[1],
+            type: source[2],
+            title: 'Thông báo',
+            reader_name: 'Nguyễn Văn A',
+            created_at: source[3]
         }], []];
     }
 };
@@ -31,16 +52,20 @@ test('thông báo thủ thư tổng hợp đủ các sự kiện nghiệp vụ',
         limit: 20
     });
 
-    assert.equal(result.total, 6);
+    assert.equal(result.total, 10000);
+    assert.equal(result.total_pages, 500);
     assert.equal(result.data[0].type, 'pickup_request');
-    assert.deepEqual(calls[1].params, [20, 0]);
+    assert.equal(result.data.length, 6);
+    assert.equal(calls.length, 7);
+    assert.ok(calls.slice(1).every(({ params }) => params.length === 1 && params[0] === 20));
 
-    const sql = calls[0].sql;
-    assert.match(sql, /pickup_reservations/);
-    assert.match(sql, /FROM holds h/);
-    assert.match(sql, /renewal_requests/);
-    assert.match(sql, /borrow_transactions/);
-    assert.match(sql, /chat_messages/);
-    assert.match(sql, /unpaid_fine/);
-    assert.doesNotMatch(sql, /FROM notifications n/);
+    const allSql = calls.map(({ sql }) => sql).join('\n');
+    assert.match(allSql, /pickup_reservations/);
+    assert.match(allSql, /FROM holds h/);
+    assert.match(allSql, /renewal_requests/);
+    assert.match(allSql, /borrow_transactions/);
+    assert.match(allSql, /chat_messages/);
+    assert.match(allSql, /unpaid_fine/);
+    assert.doesNotMatch(allSql, /UNION ALL/);
+    assert.doesNotMatch(allSql, /FROM notifications n/);
 });

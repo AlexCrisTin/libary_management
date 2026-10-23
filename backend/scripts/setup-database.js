@@ -46,8 +46,61 @@ const expectedTables = [
     'chat_messages', 'password_resets', 'token_blacklist',
     'ai_conversations', 'ai_messages', 'ai_usage_logs'
 ];
+const performanceIndexes = [
+    {
+        table: 'borrow_transactions',
+        name: 'idx_transactions_status_due',
+        columns: '`status`, `due_date`'
+    },
+    {
+        table: 'borrow_transactions',
+        name: 'idx_transactions_fine_status_return',
+        columns: '`fine_paid`, `status`, `return_date`'
+    },
+    {
+        table: 'renewal_requests',
+        name: 'idx_renewal_status_created',
+        columns: '`status`, `created_at`'
+    },
+    {
+        table: 'holds',
+        name: 'idx_holds_status_requested',
+        columns: '`status`, `requested_at`'
+    },
+    {
+        table: 'pickup_reservations',
+        name: 'idx_pickup_status_requested',
+        columns: '`status`, `requested_at`'
+    },
+    {
+        table: 'chat_messages',
+        name: 'idx_chat_role_read_reader_created',
+        columns: '`sender_role`, `is_read`, `reader_id`, `created_at`'
+    }
+];
 
 const readSql = (filePath) => fs.readFileSync(filePath, 'utf8');
+
+async function ensurePerformanceIndexes(connection) {
+    for (const index of performanceIndexes) {
+        const [rows] = await connection.query(
+            `SELECT 1
+             FROM information_schema.statistics
+             WHERE table_schema = DATABASE()
+               AND table_name = ?
+               AND index_name = ?
+             LIMIT 1`,
+            [index.table, index.name]
+        );
+        if (rows.length > 0) continue;
+
+        await connection.query(
+            `ALTER TABLE \`${index.table}\`
+             ADD INDEX \`${index.name}\` (${index.columns})`
+        );
+        console.log(`Đã thêm index ${index.name}.`);
+    }
+}
 
 async function main() {
     let connection;
@@ -66,6 +119,7 @@ async function main() {
 
         if (!seedOnly) {
             await connection.query(readSql(schemaPath));
+            await ensurePerformanceIndexes(connection);
             console.log('Đã cài đặt schema.');
         }
 

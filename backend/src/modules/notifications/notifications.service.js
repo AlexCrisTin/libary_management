@@ -118,7 +118,39 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
     const normalizedPage = Math.max(1, Number(page) || 1);
     const normalizedLimit = Math.min(200, Math.max(1, Number(limit) || 100));
     const offset = (normalizedPage - 1) * normalizedLimit;
-    const feedSql = `
+    const windowLimit = offset + normalizedLimit;
+
+    // Chỉ đếm trên các bảng nguồn, không JOIN và dựng toàn bộ nội dung thông báo.
+    const countSql = `
+        SELECT
+            (SELECT COUNT(*)
+             FROM pickup_reservations
+             WHERE status = 'pending') AS pickup_count,
+            (SELECT COUNT(*)
+             FROM holds
+             WHERE status = 'waiting'
+               AND (expires_at IS NULL OR expires_at > NOW())) AS hold_count,
+            (SELECT COUNT(*)
+             FROM renewal_requests
+             WHERE status = 'pending') AS renewal_count,
+            (SELECT COUNT(*)
+             FROM borrow_transactions
+             WHERE status IN ('borrowed', 'overdue')
+               AND due_date < CURDATE()) AS overdue_count,
+            (SELECT COUNT(*)
+             FROM borrow_transactions
+             WHERE fine_paid = 0
+               AND status NOT IN ('borrowed', 'overdue')
+               AND (
+                   fine_amount > 0 OR
+                   (return_date IS NOT NULL AND return_date > due_date)
+               )) AS fine_count,
+            (SELECT COUNT(DISTINCT reader_id)
+             FROM chat_messages
+             WHERE sender_role = 'reader' AND is_read = 0) AS message_count
+    `;
+
+    const pickupSql = `
         SELECT
             CONCAT('pickup:', pr.reservation_id) AS notification_id,
             pr.reservation_id AS reference_id,
@@ -133,9 +165,11 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
         JOIN readers r ON r.reader_id = pr.reader_id
         JOIN bibliographic_records br ON br.bib_id = pr.bib_id
         WHERE pr.status = 'pending'
+        ORDER BY pr.requested_at DESC, pr.reservation_id ASC
+        LIMIT ?
+    `;
 
-        UNION ALL
-
+    const holdSql = `
         SELECT
             CONCAT('hold:', h.hold_id) AS notification_id,
             h.hold_id AS reference_id,
@@ -152,9 +186,11 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
         JOIN bibliographic_records br ON br.bib_id = h.bib_id
         WHERE h.status = 'waiting'
           AND (h.expires_at IS NULL OR h.expires_at > NOW())
+        ORDER BY h.requested_at DESC, h.hold_id ASC
+        LIMIT ?
+    `;
 
-        UNION ALL
-
+    const renewalSql = `
         SELECT
             CONCAT('renewal:', rr.request_id) AS notification_id,
             rr.request_id AS reference_id,
@@ -172,9 +208,11 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
         JOIN book_copies bc ON bc.copy_id = bt.copy_id
         JOIN bibliographic_records br ON br.bib_id = bc.bib_id
         WHERE rr.status = 'pending'
+        ORDER BY rr.created_at DESC, rr.request_id ASC
+        LIMIT ?
+    `;
 
-        UNION ALL
-
+    const overdueSql = `
         SELECT
             CONCAT('overdue:', bt.tx_id) AS notification_id,
             bt.tx_id AS reference_id,
@@ -191,9 +229,11 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
         JOIN book_copies bc ON bc.copy_id = bt.copy_id
         JOIN bibliographic_records br ON br.bib_id = bc.bib_id
         WHERE bt.status IN ('borrowed', 'overdue') AND bt.due_date < CURDATE()
+        ORDER BY bt.due_date DESC, bt.tx_id ASC
+        LIMIT ?
+    `;
 
-        UNION ALL
-
+    const fineSql = `
         SELECT
             CONCAT('fine:', bt.tx_id) AS notification_id,
             bt.tx_id AS reference_id,
@@ -225,9 +265,12 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
               bt.fine_amount > 0 OR
               (bt.return_date IS NOT NULL AND bt.return_date > bt.due_date)
           )
+        ORDER BY COALESCE(bt.reported_at, TIMESTAMP(bt.return_date), TIMESTAMP(bt.due_date)) DESC,
+                 bt.tx_id ASC
+        LIMIT ?
+    `;
 
-        UNION ALL
-
+    const messageSql = `
         SELECT
             CONCAT('message:', r.reader_id) AS notification_id,
             r.reader_id AS reference_id,
@@ -242,18 +285,44 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
         JOIN readers r ON r.reader_id = cm.reader_id
         WHERE cm.sender_role = 'reader' AND cm.is_read = 0
         GROUP BY r.reader_id, r.full_name, r.reader_code
+        ORDER BY MAX(cm.created_at) DESC, r.reader_id ASC
+        LIMIT ?
     `;
 
-    const [countRows] = await db.query(
-        `SELECT COUNT(*) AS total FROM (${feedSql}) librarian_feed`
-    );
-    const total = Number(countRows[0].total) || 0;
-    const [rows] = await db.query(
-        `SELECT * FROM (${feedSql}) librarian_feed
-         ORDER BY created_at DESC, notification_id ASC
-         LIMIT ? OFFSET ?`,
-        [normalizedLimit, offset]
-    );
+    const queryResults = await Promise.all([
+        db.query(countSql),
+        db.query(pickupSql, [windowLimit]),
+        db.query(holdSql, [windowLimit]),
+        db.query(renewalSql, [windowLimit]),
+        db.query(overdueSql, [windowLimit]),
+        db.query(fineSql, [windowLimit]),
+        db.query(messageSql, [windowLimit])
+    ]);
+
+    const countRow = queryResults[0][0][0] || {};
+    const total = [
+        countRow.pickup_count,
+        countRow.hold_count,
+        countRow.renewal_count,
+        countRow.overdue_count,
+        countRow.fine_count,
+        countRow.message_count
+    ].reduce((sum, value) => sum + (Number(value) || 0), 0);
+
+    const timestamp = (value) => {
+        if (value instanceof Date) return value.getTime();
+        const parsed = Date.parse(String(value || ''));
+        return Number.isNaN(parsed) ? 0 : parsed;
+    };
+    const feed = queryResults
+        .slice(1)
+        .flatMap(([rows]) => rows)
+        .sort((left, right) => {
+            const timeDifference = timestamp(right.created_at) - timestamp(left.created_at);
+            if (timeDifference !== 0) return timeDifference;
+            return String(left.notification_id).localeCompare(String(right.notification_id));
+        });
+    const rows = feed.slice(offset, offset + normalizedLimit);
 
     return {
         total,

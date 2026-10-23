@@ -33,10 +33,11 @@ class _NoticeState extends State<Notice> {
   void initState() {
     super.initState();
     _load();
-    _refreshTimer = Timer.periodic(
-      const Duration(seconds: 15),
-      (_) => _load(showLoading: false),
-    );
+    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      // Thông báo mới chỉ làm thay đổi trang đầu. Không truy vấn lại các
+      // trang cũ khi thủ thư đang xem lịch sử để tránh tải thừa và lệch trang.
+      if (_page == 1 && !_loading) _load(showLoading: false);
+    });
   }
 
   @override
