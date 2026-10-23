@@ -14,6 +14,7 @@ exports.searchBooks = async (req, res, next) => {
             copy_status,
             language,
             publish_year,
+            sort,
             page = 1,
             limit = 10
         } = req.query;
@@ -25,6 +26,7 @@ exports.searchBooks = async (req, res, next) => {
             copy_status,
             language,
             publish_year,
+            sort,
             page: parseInt(page, 10),
             limit: parseInt(limit, 10)
         });

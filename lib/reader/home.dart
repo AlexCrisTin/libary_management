@@ -73,6 +73,7 @@ class HomeContent extends StatefulWidget {
 
 class _HomeContentState extends State<HomeContent> {
   List<Map<String, dynamic>> _books = const [];
+  List<Map<String, dynamic>> _hotBooks = const [];
   int _unreadNotices = 0;
   bool _loading = true;
   String? _error;
@@ -88,10 +89,18 @@ class _HomeContentState extends State<HomeContent> {
       _error = null;
     });
     try {
-      final result = apiMap(
-        await ApiClient.get('/books', query: {'limit': 30}),
-      );
-      if (mounted) setState(() => _books = apiList(result['items']));
+      final responses = await Future.wait([
+        ApiClient.get('/books', query: {'limit': 30}),
+        ApiClient.get('/books', query: {'sort': 'most_borrowed', 'limit': 10}),
+      ]);
+      final booksResult = apiMap(responses[0]);
+      final hotBooksResult = apiMap(responses[1]);
+      if (mounted) {
+        setState(() {
+          _books = apiList(booksResult['items']);
+          _hotBooks = apiList(hotBooksResult['items']);
+        });
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -159,7 +168,7 @@ class _HomeContentState extends State<HomeContent> {
           child: RefreshIndicator(
             onRefresh: _load,
             child: _HomeBookList(
-              books: _books,
+              hotBooks: _hotBooks,
               categories: _categoryGroups(),
               onOpenBook: _openBook,
             ),
@@ -172,18 +181,17 @@ class _HomeContentState extends State<HomeContent> {
 
 class _HomeBookList extends StatelessWidget {
   const _HomeBookList({
-    required this.books,
+    required this.hotBooks,
     required this.categories,
     required this.onOpenBook,
   });
 
-  final List<Map<String, dynamic>> books;
+  final List<Map<String, dynamic>> hotBooks;
   final Map<String, List<Map<String, dynamic>>> categories;
   final ValueChanged<Map<String, dynamic>> onOpenBook;
 
   @override
   Widget build(BuildContext context) {
-    final hotBooks = books.take(10).toList();
     final categoryEntries = categories.entries.take(4).toList();
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -191,18 +199,33 @@ class _HomeBookList extends StatelessWidget {
       children: [
         const _SectionTitle('Sách đang hot'),
         const SizedBox(height: 16),
-        SizedBox(
-          height: 232,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: hotBooks.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 20),
-            itemBuilder: (_, index) => _HotBookCard(
-              book: hotBooks[index],
-              onTap: () => onOpenBook(hotBooks[index]),
+        if (hotBooks.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 22),
+            decoration: BoxDecoration(
+              color: kCardFill,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Text(
+              'Chưa có dữ liệu lượt mượn để xếp hạng.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: kMuted, fontWeight: FontWeight.w600),
+            ),
+          )
+        else
+          SizedBox(
+            height: 232,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: hotBooks.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 20),
+              itemBuilder: (_, index) => _HotBookCard(
+                book: hotBooks[index],
+                onTap: () => onOpenBook(hotBooks[index]),
+              ),
             ),
           ),
-        ),
         const SizedBox(height: 20),
         const _SectionTitle('Khám phá chủ đề'),
         const SizedBox(height: 14),
@@ -260,10 +283,36 @@ class _HotBookCard extends StatelessWidget {
         width: 128,
         child: Column(
           children: [
-            BookCover(
-              width: 124,
-              height: 184,
-              url: book['cover_url']?.toString(),
+            Stack(
+              children: [
+                BookCover(
+                  width: 124,
+                  height: 184,
+                  url: book['cover_url']?.toString(),
+                ),
+                Positioned(
+                  right: 7,
+                  bottom: 7,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: kBrownTitle.withValues(alpha: .9),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${book['borrow_count'] ?? 0} lượt',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text(

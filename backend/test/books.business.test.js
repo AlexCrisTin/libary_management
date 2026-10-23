@@ -146,3 +146,31 @@ test('lọc sách hết khi không còn bản sao khả dụng', async () => {
     assert.ok(calls.every((sql) => sql.includes('NOT EXISTS')));
     assert.ok(calls.every((sql) => sql.includes("status_copy.status = 'available'")));
 });
+
+test('sách hot chỉ gồm sách đã được mượn và xếp theo tổng lượt mượn', async () => {
+    const calls = [];
+    fakeDb.query = async (sql) => {
+        calls.push(sql);
+        if (sql.includes('COUNT(*) AS total')) return [[{ total: 1 }], []];
+        return [[{
+            bib_id: 'book-1',
+            title: 'Clean Code',
+            authors: '[]',
+            subject_headings: '[]',
+            borrow_count: '12',
+            total_copies: '2',
+            available_copies: '1',
+            borrowed_copies: '1'
+        }], []];
+    };
+
+    const result = await booksService.searchBooks({
+        sort: 'most_borrowed',
+        page: 1,
+        limit: 10
+    });
+
+    assert.equal(result.items[0].borrow_count, 12);
+    assert.ok(calls.every((sql) => sql.includes('borrow_transactions borrowed_tx')));
+    assert.ok(calls.some((sql) => sql.includes('ORDER BY borrow_count DESC')));
+});

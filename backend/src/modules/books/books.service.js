@@ -27,6 +27,7 @@ exports.searchBooks = async ({
     copy_status = '',
     language = '',
     publish_year = '',
+    sort = '',
     page = 1,
     limit = 10
 }) => {
@@ -91,7 +92,36 @@ exports.searchBooks = async ({
         params.push(normalizedYear);
     }
 
+    const normalizedSort = String(sort).trim().toLowerCase();
+    if (normalizedSort && normalizedSort !== 'most_borrowed') {
+        throw new Error('Kiểu sắp xếp sách không hợp lệ!');
+    }
+    if (normalizedSort === 'most_borrowed') {
+        whereConditions.push(`EXISTS (
+            SELECT 1
+            FROM book_copies borrowed_copy
+            INNER JOIN borrow_transactions borrowed_tx
+                ON borrowed_tx.copy_id = borrowed_copy.copy_id
+            WHERE borrowed_copy.bib_id = b.bib_id
+        )`);
+    }
+
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    const orderClause = normalizedSort === 'most_borrowed'
+        ? 'borrow_count DESC, b.title ASC'
+        : 'b.created_at DESC';
+    const popularitySelect = normalizedSort === 'most_borrowed'
+        ? 'MAX(COALESCE(popularity.borrow_count, 0)) AS borrow_count'
+        : '0 AS borrow_count';
+    const popularityJoin = normalizedSort === 'most_borrowed'
+        ? `LEFT JOIN (
+            SELECT popular_copy.bib_id, COUNT(popular_tx.tx_id) AS borrow_count
+            FROM book_copies popular_copy
+            INNER JOIN borrow_transactions popular_tx
+                ON popular_tx.copy_id = popular_copy.copy_id
+            GROUP BY popular_copy.bib_id
+        ) popularity ON popularity.bib_id = b.bib_id`
+        : '';
 
     // Đếm tổng số lượng bản ghi thỏa mãn
     const countSql = `SELECT COUNT(*) AS total FROM bibliographic_records b ${whereClause}`;
@@ -117,14 +147,16 @@ exports.searchBooks = async ({
             b.subject_headings,
             b.cover_url,
             b.created_at,
+            ${popularitySelect},
             COUNT(c.copy_id) AS total_copies,
             SUM(CASE WHEN c.status = 'available' THEN 1 ELSE 0 END) AS available_copies,
             SUM(CASE WHEN c.status = 'borrowed' THEN 1 ELSE 0 END) AS borrowed_copies
         FROM bibliographic_records b
         LEFT JOIN book_copies c ON b.bib_id = c.bib_id
+        ${popularityJoin}
         ${whereClause}
         GROUP BY b.bib_id
-        ORDER BY b.created_at DESC
+        ORDER BY ${orderClause}
         LIMIT ? OFFSET ?
     `;
 
@@ -134,6 +166,7 @@ exports.searchBooks = async ({
         ...book,
         authors: parseJSONField(book.authors),
         subject_headings: parseJSONField(book.subject_headings),
+        borrow_count: Number(book.borrow_count) || 0,
         total_copies: Number(book.total_copies) || 0,
         available_copies: Number(book.available_copies) || 0,
         borrowed_copies: Number(book.borrowed_copies) || 0
