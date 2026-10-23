@@ -132,10 +132,6 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
              WHERE status = 'pending') AS renewal_count,
             (SELECT COUNT(*)
              FROM borrow_transactions
-             WHERE status IN ('borrowed', 'overdue')
-               AND due_date < CURDATE()) AS overdue_count,
-            (SELECT COUNT(*)
-             FROM borrow_transactions
              WHERE fine_paid = 0
                AND status NOT IN ('borrowed', 'overdue')
                AND (
@@ -185,27 +181,6 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
         JOIN bibliographic_records br ON br.bib_id = bc.bib_id
         WHERE rr.status = 'pending'
         ORDER BY rr.created_at DESC, rr.request_id ASC
-        LIMIT ?
-    `;
-
-    const overdueSql = `
-        SELECT
-            CONCAT('overdue:', bt.tx_id) AS notification_id,
-            bt.tx_id AS reference_id,
-            'overdue_loan' AS type,
-            'Sách đang quá hạn' AS title,
-            CONCAT('Sách "', br.title, '" của ', r.full_name, ' đã quá hạn ',
-                   DATEDIFF(CURDATE(), bt.due_date), ' ngày.') AS content,
-            TIMESTAMP(bt.due_date) AS created_at,
-            r.reader_id,
-            r.full_name AS reader_name,
-            r.reader_code
-        FROM borrow_transactions bt
-        JOIN readers r ON r.reader_id = bt.reader_id
-        JOIN book_copies bc ON bc.copy_id = bt.copy_id
-        JOIN bibliographic_records br ON br.bib_id = bc.bib_id
-        WHERE bt.status IN ('borrowed', 'overdue') AND bt.due_date < CURDATE()
-        ORDER BY bt.due_date DESC, bt.tx_id ASC
         LIMIT ?
     `;
 
@@ -269,7 +244,6 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
         db.query(countSql),
         db.query(pickupSql, [windowLimit]),
         db.query(renewalSql, [windowLimit]),
-        db.query(overdueSql, [windowLimit]),
         db.query(fineSql, [windowLimit]),
         db.query(messageSql, [windowLimit])
     ]);
@@ -278,7 +252,6 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
     const total = [
         countRow.pickup_count,
         countRow.renewal_count,
-        countRow.overdue_count,
         countRow.fine_count,
         countRow.message_count
     ].reduce((sum, value) => sum + (Number(value) || 0), 0);

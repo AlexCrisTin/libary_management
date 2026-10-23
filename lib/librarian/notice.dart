@@ -70,7 +70,9 @@ class _NoticeState extends State<Notice> {
 
       if (mounted) {
         setState(() {
-          _notices = apiList(result['data']);
+          _notices = apiList(
+            result['data'],
+          ).where((notice) => notice['type'] != 'overdue_loan').toList();
           _page = _positiveInt(result['page'], fallback: targetPage);
           _totalPages = totalPages;
           _totalItems = _nonNegativeInt(
@@ -114,9 +116,6 @@ class _NoticeState extends State<Notice> {
         break;
       case 'renewal_request':
         page = const RenewalRequests();
-        break;
-      case 'overdue_loan':
-        page = const BorrowReturnBookManagement(initialLoanStatus: 'overdue');
         break;
       case 'unpaid_fine':
         page = const BorrowReturnBookManagement(initialSection: 'fines');
@@ -283,14 +282,12 @@ class _AdminNoticeTile extends StatelessWidget {
 IconData _noticeIcon(dynamic type) => switch (type?.toString()) {
   'pickup_request' => Icons.event_available_rounded,
   'renewal_request' => Icons.update_rounded,
-  'overdue_loan' => Icons.warning_amber_rounded,
   'unpaid_fine' => Icons.payments_outlined,
   'unread_message' => Icons.mark_chat_unread_rounded,
   _ => Icons.notifications_rounded,
 };
 
 Color _noticeColor(dynamic type) => switch (type?.toString()) {
-  'overdue_loan' => kLibRed,
   'pickup_request' => const Color(0xFFE29A55),
   'renewal_request' => const Color(0xFF588A73),
   'unpaid_fine' => kLibRed,
@@ -302,7 +299,6 @@ String _noticeBadge(dynamic type) => switch (type?.toString()) {
   'unread_message' => 'Tin mới',
   'pickup_request' => 'Chờ duyệt',
   'renewal_request' => 'Chờ duyệt',
-  'overdue_loan' => 'Quá hạn',
   'unpaid_fine' => 'Chưa thu',
   _ => 'Mới',
 };
