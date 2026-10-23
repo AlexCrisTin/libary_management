@@ -71,7 +71,11 @@ class _MessageAllState extends State<MessageAll> {
         await ApiClient.get('/chat/conversations', query: {'limit': 100}),
       );
       if (mounted) {
-        setState(() => _conversations = apiList(result['data']));
+        setState(
+          () => _conversations = _deduplicateConversations(
+            apiList(result['data']),
+          ),
+        );
       }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -581,4 +585,52 @@ String _conversationTime(dynamic value) {
   }
   return '${date.day.toString().padLeft(2, '0')}/'
       '${date.month.toString().padLeft(2, '0')}';
+}
+
+List<Map<String, dynamic>> _deduplicateConversations(
+  List<Map<String, dynamic>> conversations,
+) {
+  final byReader = <String, Map<String, dynamic>>{};
+  for (final conversation in conversations) {
+    final readerId = apiText(conversation['reader_id'], fallback: '');
+    if (readerId.isEmpty) continue;
+    final current = byReader[readerId];
+    if (current == null || _isNewerConversation(conversation, current)) {
+      byReader[readerId] = conversation;
+    }
+  }
+
+  final result = byReader.values.toList();
+  result.sort((left, right) => _compareConversations(right, left));
+  return result;
+}
+
+bool _isNewerConversation(
+  Map<String, dynamic> candidate,
+  Map<String, dynamic> current,
+) => _compareConversations(candidate, current) >= 0;
+
+int _compareConversations(
+  Map<String, dynamic> left,
+  Map<String, dynamic> right,
+) {
+  final leftTime = DateTime.tryParse(
+    left['last_message_time']?.toString() ?? '',
+  );
+  final rightTime = DateTime.tryParse(
+    right['last_message_time']?.toString() ?? '',
+  );
+  final timeComparison = switch ((leftTime, rightTime)) {
+    (final DateTime leftValue, final DateTime rightValue) =>
+      leftValue.compareTo(rightValue),
+    (final DateTime _, null) => 1,
+    (null, final DateTime _) => -1,
+    _ => 0,
+  };
+  if (timeComparison != 0) return timeComparison;
+
+  return apiText(
+    left['last_message_id'],
+    fallback: '',
+  ).compareTo(apiText(right['last_message_id'], fallback: ''));
 }

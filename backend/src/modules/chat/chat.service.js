@@ -97,7 +97,16 @@ exports.getMessages = async ({ reader_id, viewer_role, page = 1, limit = 50 }) =
 exports.getConversations = async ({ page = 1, limit = 20 }) => {
     const pagination = normalizePagination(page, limit, { defaultLimit: 20, maxLimit: 100 });
 
-    const countSql = 'SELECT COUNT(DISTINCT reader_id) AS total FROM chat_messages';
+    const countSql = `
+        SELECT COUNT(*) AS total
+        FROM readers r
+        WHERE r.archived_at IS NULL
+          AND EXISTS (
+              SELECT 1
+              FROM chat_messages cm
+              WHERE cm.reader_id = r.reader_id
+          )
+    `;
     const [countRows] = await db.query(countSql);
     const total = countRows[0].total;
 
@@ -107,6 +116,7 @@ exports.getConversations = async ({ page = 1, limit = 20 }) => {
             r.full_name AS reader_name,
             r.reader_code,
             r.avatar_url,
+            latest.message_id AS last_message_id,
             latest.message_text AS last_message,
             latest.created_at AS last_message_time,
             latest.sender_role AS last_sender_role,
@@ -116,16 +126,15 @@ exports.getConversations = async ({ page = 1, limit = 20 }) => {
                 WHERE reader_id = r.reader_id AND is_read = 0 AND sender_role = 'reader'
             ) AS unread_count
         FROM readers r
-        JOIN (
-            SELECT cm.*
+        JOIN chat_messages latest ON latest.message_id = (
+            SELECT cm.message_id
             FROM chat_messages cm
-            INNER JOIN (
-                SELECT reader_id, MAX(created_at) AS max_time
-                FROM chat_messages
-                GROUP BY reader_id
-            ) m ON cm.reader_id = m.reader_id AND cm.created_at = m.max_time
-        ) latest ON r.reader_id = latest.reader_id
-        ORDER BY latest.created_at DESC
+            WHERE cm.reader_id = r.reader_id
+            ORDER BY cm.created_at DESC, cm.message_id DESC
+            LIMIT 1
+        )
+        WHERE r.archived_at IS NULL
+        ORDER BY latest.created_at DESC, latest.message_id DESC
         LIMIT ? OFFSET ?
     `;
 
