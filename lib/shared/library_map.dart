@@ -22,10 +22,16 @@ class _LibraryMapPageState extends State<LibraryMapPage> {
   List<Map<String, dynamic>> _shelves = const [];
   bool _loading = true;
   bool _searching = false;
+  bool _savingShelf = false;
   String? _error;
   int? _selectedFloor;
   String? _selectedLocationId;
   String? _selectedBookTitle;
+
+  bool get _canManageShelves {
+    final role = AppSession.user?['role']?.toString();
+    return role == 'librarian' || role == 'admin';
+  }
 
   List<int> get _floors {
     final values =
@@ -91,6 +97,15 @@ class _LibraryMapPageState extends State<LibraryMapPage> {
         _shelves = shelves;
         if (_selectedFloor == null || !floors.contains(_selectedFloor)) {
           _selectedFloor = floors.isEmpty ? null : floors.first;
+        }
+        if (_selectedLocationId != null &&
+            !shelves.any(
+              (shelf) =>
+                  apiText(shelf['location_id'], fallback: '') ==
+                  _selectedLocationId,
+            )) {
+          _selectedLocationId = null;
+          _selectedBookTitle = null;
         }
       });
     } catch (error) {
@@ -309,6 +324,118 @@ class _LibraryMapPageState extends State<LibraryMapPage> {
     });
   }
 
+  Future<void> _openShelfForm({Map<String, dynamic>? shelf}) async {
+    if (!_canManageShelves || _savingShelf) return;
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: _mapCream,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _ShelfFormSheet(
+        existingShelf: shelf,
+        initialFloor: _selectedFloor ?? 1,
+      ),
+    );
+    if (result == null || !mounted) return;
+    await _saveShelf(result, existingShelf: shelf);
+  }
+
+  Future<void> _saveShelf(
+    Map<String, dynamic> payload, {
+    Map<String, dynamic>? existingShelf,
+  }) async {
+    final existingId = existingShelf == null
+        ? ''
+        : apiText(existingShelf['location_id'], fallback: '');
+    final duplicate = _shelves.any((item) {
+      final itemId = apiText(item['location_id'], fallback: '');
+      if (itemId == existingId) return false;
+      return int.tryParse('${item['floor']}') == payload['floor'] &&
+          apiText(item['section'], fallback: '').toUpperCase() ==
+              payload['section'] &&
+          apiText(item['shelf'], fallback: '').toUpperCase() ==
+              payload['shelf'] &&
+          apiText(item['position'], fallback: '').toUpperCase() ==
+              (payload['position']?.toString().toUpperCase() ?? '');
+    });
+    if (duplicate) {
+      _showMessage('Vị trí tầng, khu, kệ và ngăn này đã tồn tại.');
+      return;
+    }
+
+    setState(() => _savingShelf = true);
+    try {
+      String locationId = existingId;
+      if (existingShelf == null) {
+        final created = apiMap(await ApiClient.post('/shelves', body: payload));
+        locationId = apiText(created['location_id'], fallback: '');
+      } else {
+        await ApiClient.put('/shelves/$existingId', body: payload);
+      }
+      await _loadShelves();
+      if (!mounted) return;
+      if (locationId.isNotEmpty) _selectLocation(locationId);
+      _showMessage(
+        existingShelf == null
+            ? 'Đã thêm vị trí kệ mới.'
+            : 'Đã cập nhật vị trí kệ.',
+      );
+    } catch (error) {
+      _showMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _savingShelf = false);
+    }
+  }
+
+  Future<void> _confirmDeleteShelf(Map<String, dynamic> shelf) async {
+    if (!_canManageShelves || _savingShelf) return;
+    final currentBooks = int.tryParse('${shelf['current_books_count']}') ?? 0;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa vị trí kệ?'),
+        content: Text(
+          '${_locationLabel(shelf)} sẽ bị xóa.'
+          '${currentBooks > 0 ? '\n\n$currentBooks bản sao trên kệ sẽ chuyển sang trạng thái chưa xếp kệ.' : ''}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFC95F63),
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Xóa kệ'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final id = apiText(shelf['location_id'], fallback: '');
+    if (id.isEmpty) return;
+    setState(() => _savingShelf = true);
+    try {
+      await ApiClient.delete('/shelves/$id');
+      if (_selectedLocationId == id) {
+        _selectedLocationId = null;
+        _selectedBookTitle = null;
+      }
+      await _loadShelves();
+      _showMessage('Đã xóa vị trí kệ.');
+    } catch (error) {
+      _showMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _savingShelf = false);
+    }
+  }
+
   void _showMessage(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -366,7 +493,7 @@ class _LibraryMapPageState extends State<LibraryMapPage> {
               child: ApiStateView(
                 loading: _loading,
                 error: _error,
-                isEmpty: _shelves.isEmpty,
+                isEmpty: _shelves.isEmpty && !_canManageShelves,
                 onRetry: _loadShelves,
                 emptyMessage: 'Chưa có dữ liệu vị trí kệ sách',
                 child: ListView(
@@ -419,6 +546,53 @@ class _LibraryMapPageState extends State<LibraryMapPage> {
                       ],
                     ),
                     const SizedBox(height: 13),
+                    if (_canManageShelves) ...[
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+                        decoration: BoxDecoration(
+                          color: _mapCream,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: _mapBeige),
+                        ),
+                        child: Row(
+                          children: [
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Quản lý vị trí kệ',
+                                    style: TextStyle(
+                                      color: _mapBrownDark,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Chạm một kệ để sửa hoặc xóa',
+                                    style: TextStyle(
+                                      color: _mapBrown,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: _mapBrown,
+                              ),
+                              onPressed: _savingShelf
+                                  ? null
+                                  : () => _openShelfForm(),
+                              icon: const Icon(Icons.add_rounded),
+                              label: const Text('Thêm kệ'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     if (_floors.isNotEmpty)
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
@@ -470,6 +644,12 @@ class _LibraryMapPageState extends State<LibraryMapPage> {
                       _SelectedShelfCard(
                         shelf: selectedShelf,
                         bookTitle: _selectedBookTitle,
+                        onEdit: _canManageShelves && !_savingShelf
+                            ? () => _openShelfForm(shelf: selectedShelf)
+                            : null,
+                        onDelete: _canManageShelves && !_savingShelf
+                            ? () => _confirmDeleteShelf(selectedShelf)
+                            : null,
                       )
                     else
                       const _MapHintCard(),
@@ -478,6 +658,250 @@ class _LibraryMapPageState extends State<LibraryMapPage> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShelfFormSheet extends StatefulWidget {
+  const _ShelfFormSheet({this.existingShelf, required this.initialFloor});
+
+  final Map<String, dynamic>? existingShelf;
+  final int initialFloor;
+
+  @override
+  State<_ShelfFormSheet> createState() => _ShelfFormSheetState();
+}
+
+class _ShelfFormSheetState extends State<_ShelfFormSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _floorController;
+  late final TextEditingController _sectionController;
+  late final TextEditingController _shelfController;
+  late final TextEditingController _positionController;
+  late final TextEditingController _capacityController;
+  late final TextEditingController _ddcController;
+
+  bool get _editing => widget.existingShelf != null;
+
+  int get _currentBooks => _editing
+      ? int.tryParse('${widget.existingShelf!['current_books_count']}') ?? 0
+      : 0;
+
+  @override
+  void initState() {
+    super.initState();
+    final shelf = widget.existingShelf;
+    _floorController = TextEditingController(
+      text: shelf == null
+          ? '${widget.initialFloor}'
+          : '${shelf['floor'] ?? ''}',
+    );
+    _sectionController = TextEditingController(
+      text: shelf == null ? '' : apiText(shelf['section'], fallback: ''),
+    );
+    _shelfController = TextEditingController(
+      text: shelf == null ? '' : apiText(shelf['shelf'], fallback: ''),
+    );
+    _positionController = TextEditingController(
+      text: shelf == null ? '' : apiText(shelf['position'], fallback: ''),
+    );
+    _capacityController = TextEditingController(
+      text: shelf == null ? '50' : '${shelf['capacity'] ?? 50}',
+    );
+    _ddcController = TextEditingController(
+      text: shelf == null ? '' : apiText(shelf['ddc_range'], fallback: ''),
+    );
+  }
+
+  @override
+  void dispose() {
+    _floorController.dispose();
+    _sectionController.dispose();
+    _shelfController.dispose();
+    _positionController.dispose();
+    _capacityController.dispose();
+    _ddcController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_formKey.currentState?.validate() != true) return;
+    final position = _positionController.text.trim();
+    final ddcRange = _ddcController.text.trim();
+    Navigator.pop(context, <String, dynamic>{
+      'floor': int.parse(_floorController.text.trim()),
+      'section': _sectionController.text.trim().toUpperCase(),
+      'shelf': _shelfController.text.trim().toUpperCase(),
+      'position': position.isEmpty ? null : position,
+      'capacity': int.parse(_capacityController.text.trim()),
+      'ddc_range': ddcRange.isEmpty ? null : ddcRange,
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          0,
+          20,
+          20 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                _editing ? 'Chỉnh sửa vị trí kệ' : 'Thêm vị trí kệ',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: _mapBrownDark,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _floorController,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
+                      decoration: _shelfInputDecoration(
+                        label: 'Tầng',
+                        hint: 'Ví dụ: 1',
+                        icon: Icons.layers_outlined,
+                      ),
+                      validator: (value) {
+                        final floor = int.tryParse(value?.trim() ?? '');
+                        if (floor == null || floor < 1) {
+                          return 'Nhập tầng hợp lệ';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _sectionController,
+                      textCapitalization: TextCapitalization.characters,
+                      textInputAction: TextInputAction.next,
+                      decoration: _shelfInputDecoration(
+                        label: 'Khu',
+                        hint: 'Ví dụ: A',
+                        icon: Icons.grid_view_rounded,
+                      ),
+                      validator: (value) => _requiredShelfValue(
+                        value,
+                        fieldName: 'khu vực',
+                        maxLength: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _shelfController,
+                      textCapitalization: TextCapitalization.characters,
+                      textInputAction: TextInputAction.next,
+                      decoration: _shelfInputDecoration(
+                        label: 'Mã kệ',
+                        hint: 'Ví dụ: A01',
+                        icon: Icons.view_column_outlined,
+                      ),
+                      validator: (value) => _requiredShelfValue(
+                        value,
+                        fieldName: 'mã kệ',
+                        maxLength: 10,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _positionController,
+                      textInputAction: TextInputAction.next,
+                      decoration: _shelfInputDecoration(
+                        label: 'Ngăn',
+                        hint: 'Không bắt buộc',
+                        icon: Icons.table_rows_outlined,
+                      ),
+                      validator: (value) {
+                        if ((value?.trim().length ?? 0) > 10) {
+                          return 'Tối đa 10 ký tự';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _capacityController,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+                decoration: _shelfInputDecoration(
+                  label: 'Sức chứa tối đa',
+                  hint: 'Ví dụ: 50',
+                  icon: Icons.inventory_2_outlined,
+                  helper: _editing && _currentBooks > 0
+                      ? 'Kệ hiện có $_currentBooks cuốn sách'
+                      : null,
+                ),
+                validator: (value) {
+                  final capacity = int.tryParse(value?.trim() ?? '');
+                  if (capacity == null || capacity < 1) {
+                    return 'Sức chứa phải lớn hơn 0';
+                  }
+                  if (capacity < _currentBooks) {
+                    return 'Không thể nhỏ hơn số sách hiện có ($_currentBooks)';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _ddcController,
+                textInputAction: TextInputAction.done,
+                decoration: _shelfInputDecoration(
+                  label: 'Dải phân loại DDC',
+                  hint: 'Ví dụ: 000-099',
+                  icon: Icons.numbers_rounded,
+                ),
+                validator: (value) {
+                  if ((value?.trim().length ?? 0) > 50) {
+                    return 'Tối đa 50 ký tự';
+                  }
+                  return null;
+                },
+                onFieldSubmitted: (_) => _submit(),
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: _mapBrown,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: _submit,
+                icon: Icon(_editing ? Icons.save_rounded : Icons.add_rounded),
+                label: Text(_editing ? 'Lưu thay đổi' : 'Thêm kệ'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -719,10 +1143,17 @@ class _LibraryMapPainter extends CustomPainter {
 }
 
 class _SelectedShelfCard extends StatelessWidget {
-  const _SelectedShelfCard({required this.shelf, this.bookTitle});
+  const _SelectedShelfCard({
+    required this.shelf,
+    this.bookTitle,
+    this.onEdit,
+    this.onDelete,
+  });
 
   final Map<String, dynamic> shelf;
   final String? bookTitle;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -736,46 +1167,86 @@ class _SelectedShelfCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _mapBeige),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const CircleAvatar(
-            backgroundColor: Color(0xFFD37C7E),
-            child: Icon(Icons.location_on_rounded, color: Colors.white),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const CircleAvatar(
+                backgroundColor: Color(0xFFD37C7E),
+                child: Icon(Icons.location_on_rounded, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (bookTitle != null && bookTitle!.isNotEmpty) ...[
+                      Text(
+                        bookTitle!,
+                        style: const TextStyle(
+                          color: _mapBrownDark,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                    ],
+                    Text(
+                      _locationLabel(shelf),
+                      style: const TextStyle(
+                        color: _mapBrownDark,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      'Sức chứa: $current/$capacity cuốn'
+                      '${apiText(shelf['ddc_range'], fallback: '').isEmpty ? '' : ' • DDC ${apiText(shelf['ddc_range'])}'}',
+                      style: const TextStyle(color: _mapBrown),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          if (onEdit != null || onDelete != null) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Divider(height: 1),
+            ),
+            Row(
               children: [
-                if (bookTitle != null && bookTitle!.isNotEmpty) ...[
-                  Text(
-                    bookTitle!,
-                    style: const TextStyle(
-                      color: _mapBrownDark,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                if (onEdit != null)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _mapBrownDark,
+                        side: const BorderSide(color: _mapBeige),
+                      ),
+                      onPressed: onEdit,
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Chỉnh sửa'),
                     ),
                   ),
-                  const SizedBox(height: 3),
-                ],
-                Text(
-                  _locationLabel(shelf),
-                  style: const TextStyle(
-                    color: _mapBrownDark,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                if (onEdit != null && onDelete != null)
+                  const SizedBox(width: 10),
+                if (onDelete != null)
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFC95F63),
+                      ),
+                      onPressed: onDelete,
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      label: const Text('Xóa kệ'),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'Sức chứa: $current/$capacity cuốn'
-                  '${apiText(shelf['ddc_range'], fallback: '').isEmpty ? '' : ' • DDC ${apiText(shelf['ddc_range'])}'}',
-                  style: const TextStyle(color: _mapBrown),
-                ),
               ],
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -817,4 +1288,43 @@ String _locationLabel(Map<String, dynamic> value) {
   final position = apiText(value['position'], fallback: '');
   return 'Tầng $floor • Khu $section • Kệ $shelf'
       '${position.isEmpty ? '' : ' • Ngăn $position'}';
+}
+
+InputDecoration _shelfInputDecoration({
+  required String label,
+  required String hint,
+  required IconData icon,
+  String? helper,
+}) {
+  return InputDecoration(
+    labelText: label,
+    hintText: hint,
+    helperText: helper,
+    prefixIcon: Icon(icon, color: _mapBrown),
+    filled: true,
+    fillColor: Colors.white,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide.none,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: _mapBeige),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: _mapBrown, width: 2),
+    ),
+  );
+}
+
+String? _requiredShelfValue(
+  String? value, {
+  required String fieldName,
+  required int maxLength,
+}) {
+  final text = value?.trim() ?? '';
+  if (text.isEmpty) return 'Nhập $fieldName';
+  if (text.length > maxLength) return 'Tối đa $maxLength ký tự';
+  return null;
 }
