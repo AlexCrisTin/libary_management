@@ -102,14 +102,14 @@ class BeigeHeader extends StatelessWidget {
 class SearchHeaderBar extends StatelessWidget {
   const SearchHeaderBar({
     super.key,
-    this.initialText,
+    this.controller,
     this.readOnly = false,
     this.onTap,
     this.onSubmitted,
     this.trailing,
   });
 
-  final String? initialText;
+  final TextEditingController? controller;
   final bool readOnly;
   final VoidCallback? onTap;
   final ValueChanged<String>? onSubmitted;
@@ -124,9 +124,7 @@ class SearchHeaderBar extends StatelessWidget {
             child: TextField(
               readOnly: readOnly,
               onTap: onTap,
-              controller: initialText == null
-                  ? null
-                  : TextEditingController(text: initialText),
+              controller: controller,
               onSubmitted: onSubmitted,
               decoration: InputDecoration(
                 hintText: 'Bạn muốn đọc gì................',

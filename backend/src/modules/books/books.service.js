@@ -108,8 +108,8 @@ exports.searchBooks = async ({
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     const orderClause = normalizedSort === 'most_borrowed'
-        ? 'borrow_count DESC, b.title ASC'
-        : 'b.created_at DESC';
+        ? 'borrow_count DESC, b.title ASC, b.bib_id ASC'
+        : 'b.created_at DESC, b.bib_id ASC';
     const popularitySelect = normalizedSort === 'most_borrowed'
         ? 'MAX(COALESCE(popularity.borrow_count, 0)) AS borrow_count'
         : '0 AS borrow_count';

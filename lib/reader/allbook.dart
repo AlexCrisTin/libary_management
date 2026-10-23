@@ -15,9 +15,15 @@ class AllBook extends StatefulWidget {
 }
 
 class _AllBookState extends State<AllBook> {
+  static const int _pageSize = 20;
+
+  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _allBooks = const [];
   bool _loading = true;
+  bool _loadingMore = false;
   String? _error;
+  String? _loadMoreError;
   String _keyword = '';
   String _ddcClass = '';
   String _author = '';
@@ -27,16 +33,12 @@ class _AllBookState extends State<AllBook> {
   String? _selectedSubject;
   bool _availableOnly = false;
   int _unreadNotices = 0;
+  int _page = 1;
+  int _totalPages = 1;
+  int _totalBooks = 0;
+  int _requestVersion = 0;
 
-  List<Map<String, dynamic>> get _books {
-    return _allBooks.where((book) {
-      final subjectMatches =
-          _selectedSubject == null ||
-          _subjectNames(book).contains(_selectedSubject);
-      final available = int.tryParse('${book['available_copies'] ?? 0}') ?? 0;
-      return subjectMatches && (!_availableOnly || available > 0);
-    }).toList();
-  }
+  bool get _hasMore => _page < _totalPages;
 
   List<String> get _subjects {
     final values = <String>{};
@@ -55,46 +57,136 @@ class _AllBookState extends State<AllBook> {
     super.initState();
     final initialSubject = widget.initialSubject?.trim() ?? '';
     _selectedSubject = initialSubject.isEmpty ? null : initialSubject;
+    _scrollController.addListener(_onScroll);
     _load();
   }
 
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients ||
+        _scrollController.position.extentAfter > 400) {
+      return;
+    }
+    _loadMore();
+  }
+
+  Map<String, dynamic> _queryForPage(int page) {
+    final selectedSubject = _selectedSubject?.trim() ?? '';
+    return {
+      'keyword': _keyword,
+      'ddc_class': _ddcClass,
+      'author': _author,
+      'subject': selectedSubject.isNotEmpty ? selectedSubject : _subject,
+      'copy_status': _availableOnly ? 'available' : '',
+      'language': _language,
+      'publish_year': _publishYear,
+      'page': page,
+      'limit': _pageSize,
+    };
+  }
+
+  Future<Map<String, dynamic>> _fetchPage(int page) async {
+    return apiMap(await ApiClient.get('/books', query: _queryForPage(page)));
+  }
+
   Future<void> _load() async {
+    final requestVersion = ++_requestVersion;
+    var loadedSuccessfully = false;
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
     setState(() {
       _loading = true;
+      _loadingMore = false;
       _error = null;
+      _loadMoreError = null;
     });
     try {
-      final result = apiMap(
-        await ApiClient.get(
-          '/books',
-          query: {
-            'keyword': _keyword,
-            'ddc_class': _ddcClass,
-            'author': _author,
-            'subject': _subject,
-            'language': _language,
-            'publish_year': _publishYear,
-            'limit': 100,
-          },
-        ),
-      );
-      if (mounted) {
+      final result = await _fetchPage(1);
+      if (mounted && requestVersion == _requestVersion) {
         setState(() {
           _allBooks = apiList(result['items']);
-          if (_selectedSubject != null &&
-              !_allBooks.any(
-                (book) => _subjectNames(book).contains(_selectedSubject),
-              )) {
-            _selectedSubject = null;
-          }
+          _page = _positiveInt(result['page'], fallback: 1);
+          _totalPages = _positiveInt(result['totalPages'], fallback: 1);
+          _totalBooks = _nonNegativeInt(result['total']);
         });
+        loadedSuccessfully = true;
       }
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted && requestVersion == _requestVersion) {
+        setState(() => _error = error.toString());
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && requestVersion == _requestVersion) {
+        setState(() => _loading = false);
+      }
     }
-    await _loadUnreadNotices();
+    if (loadedSuccessfully && requestVersion == _requestVersion) {
+      _loadNextPageIfListIsShort();
+    }
+    if (requestVersion == _requestVersion) await _loadUnreadNotices();
+  }
+
+  Future<void> _loadMore() async {
+    if (_loading || _loadingMore || !_hasMore || _loadMoreError != null) {
+      return;
+    }
+
+    final requestVersion = _requestVersion;
+    final nextPage = _page + 1;
+    setState(() => _loadingMore = true);
+    try {
+      final result = await _fetchPage(nextPage);
+      if (!mounted || requestVersion != _requestVersion) return;
+
+      final knownIds = _allBooks
+          .map((book) => apiText(book['bib_id'], fallback: ''))
+          .where((id) => id.isNotEmpty)
+          .toSet();
+      final newBooks = apiList(result['items']).where((book) {
+        final id = apiText(book['bib_id'], fallback: '');
+        return id.isEmpty || knownIds.add(id);
+      });
+
+      setState(() {
+        _allBooks = [..._allBooks, ...newBooks];
+        _page = _positiveInt(result['page'], fallback: nextPage);
+        _totalPages = _positiveInt(result['totalPages'], fallback: _totalPages);
+        _totalBooks = _nonNegativeInt(result['total'], fallback: _totalBooks);
+      });
+      _loadNextPageIfListIsShort();
+    } catch (error) {
+      if (mounted && requestVersion == _requestVersion) {
+        setState(() => _loadMoreError = error.toString());
+      }
+    } finally {
+      if (mounted && requestVersion == _requestVersion) {
+        setState(() => _loadingMore = false);
+      }
+    }
+  }
+
+  void _retryLoadMore() {
+    setState(() => _loadMoreError = null);
+    _loadMore();
+  }
+
+  void _loadNextPageIfListIsShort() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          !_scrollController.hasClients ||
+          !_hasMore ||
+          _loadMoreError != null) {
+        return;
+      }
+      if (_scrollController.position.extentAfter <= 400) _loadMore();
+    });
   }
 
   Future<void> _loadUnreadNotices() async {
@@ -258,10 +350,12 @@ class _AllBookState extends State<AllBook> {
       ),
     );
     if (applied == true && mounted) {
+      final nextSubject = subjectController.text.trim();
       setState(() {
         _ddcClass = ddcController.text.trim();
         _author = authorController.text.trim();
-        _subject = subjectController.text.trim();
+        _subject = nextSubject;
+        if (nextSubject.isNotEmpty) _selectedSubject = null;
         _language = languageController.text.trim();
         _publishYear = yearController.text.trim();
         _availableOnly = availableOnly;
@@ -287,11 +381,12 @@ class _AllBookState extends State<AllBook> {
 
   @override
   Widget build(BuildContext context) {
-    final books = _books;
+    final books = _allBooks;
+    final showFooter = _loadingMore || _loadMoreError != null || _hasMore;
     return Column(
       children: [
         SearchHeaderBar(
-          initialText: _keyword,
+          controller: _searchController,
           onSubmitted: (value) {
             _keyword = value.trim();
             _load();
@@ -317,7 +412,10 @@ class _AllBookState extends State<AllBook> {
               _language.isNotEmpty ||
               _publishYear.isNotEmpty ||
               _availableOnly,
-          onSelected: (subject) => setState(() => _selectedSubject = subject),
+          onSelected: (subject) {
+            setState(() => _selectedSubject = subject);
+            _load();
+          },
           onOpenFilter: _openFilters,
         ),
         Expanded(
@@ -330,19 +428,84 @@ class _AllBookState extends State<AllBook> {
             child: RefreshIndicator(
               onRefresh: _load,
               child: ListView.separated(
+                controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                itemCount: books.length,
+                itemCount: books.length + (showFooter ? 1 : 0),
                 separatorBuilder: (_, __) => const SizedBox(height: 13),
-                itemBuilder: (_, index) => _BookResultCard(
-                  book: books[index],
-                  onTap: () => _openBook(books[index]),
-                ),
+                itemBuilder: (_, index) {
+                  if (index == books.length) {
+                    return _BookListFooter(
+                      loading: _loadingMore,
+                      error: _loadMoreError,
+                      loaded: books.length,
+                      total: _totalBooks,
+                      onRetry: _retryLoadMore,
+                    );
+                  }
+                  return _BookResultCard(
+                    book: books[index],
+                    onTap: () => _openBook(books[index]),
+                  );
+                },
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+int _positiveInt(dynamic value, {required int fallback}) {
+  final parsed = int.tryParse('$value');
+  return parsed == null || parsed < 1 ? fallback : parsed;
+}
+
+int _nonNegativeInt(dynamic value, {int fallback = 0}) {
+  final parsed = int.tryParse('$value');
+  return parsed == null || parsed < 0 ? fallback : parsed;
+}
+
+class _BookListFooter extends StatelessWidget {
+  const _BookListFooter({
+    required this.loading,
+    required this.error,
+    required this.loaded,
+    required this.total,
+    required this.onRetry,
+  });
+
+  final bool loading;
+  final String? error;
+  final int loaded;
+  final int total;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (error != null) {
+      return Center(
+        child: TextButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Không tải được thêm sách · Thử lại'),
+        ),
+      );
+    }
+    if (loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Text(
+        total > 0 ? 'Đã tải $loaded/$total cuốn sách' : 'Đang tải thêm...',
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: kMuted, fontSize: 12),
+      ),
     );
   }
 }
