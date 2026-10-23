@@ -63,9 +63,10 @@ class _ReaderHoldsState extends State<ReaderHolds> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Hủy đặt trước?'),
+        title: Text(pickup ? 'Hủy đặt slot?' : 'Hủy báo khi có?'),
         content: Text(
-          'Bạn muốn hủy đặt trước “${apiText(item['book_title'])}”?',
+          'Bạn muốn hủy ${pickup ? 'đặt slot' : 'báo khi có'} '
+          '“${apiText(item['book_title'])}”?',
         ),
         actions: [
           TextButton(
@@ -74,7 +75,7 @@ class _ReaderHoldsState extends State<ReaderHolds> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Hủy đặt trước'),
+            child: Text(pickup ? 'Hủy đặt slot' : 'Hủy báo khi có'),
           ),
         ],
       ),
@@ -88,7 +89,11 @@ class _ReaderHoldsState extends State<ReaderHolds> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã hủy yêu cầu đặt trước.')),
+        SnackBar(
+          content: Text(
+            pickup ? 'Đã hủy yêu cầu đặt slot.' : 'Đã hủy báo khi có.',
+          ),
+        ),
       );
       await _load();
     } catch (error) {
@@ -205,10 +210,7 @@ class _HoldCard extends StatelessWidget {
                 Text('ISBN: ${apiText(item['isbn'])}'),
                 Text('Ngày đặt: ${apiDate(item['requested_at'])}'),
                 if (!pickup && status == 'waiting')
-                  Text(
-                    'Vị trí chờ: ${apiText(item['queue_position'])} • '
-                    'Hiệu lực đến: ${apiDate(item['expires_at'])}',
-                  ),
+                  Text('Báo khi có đến: ${apiDate(item['expires_at'])}'),
                 if (!pickup && status == 'notified')
                   Text('Đặt slot trước: ${apiDate(item['expires_at'])}'),
                 if (pickup && status == 'pending')
@@ -260,7 +262,7 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
-      'waiting' => ('Đang chờ', kBeigeButton),
+      'waiting' => ('Chờ thông báo', kBeigeButton),
       'notified' => ('Có sách • đặt slot', const Color(0xFF82D1A8)),
       'pending' => ('Chờ duyệt slot', kBeigeButton),
       'approved' => ('Đã giữ sách', const Color(0xFF82D1A8)),

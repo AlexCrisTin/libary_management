@@ -25,6 +25,7 @@ class _LibrarianShellState extends State<LibrarianShell> {
   late int _currentIndex;
   String _borrowReturnStatus = '';
   int _borrowReturnRequest = 0;
+  int _readerManagementRequest = 0;
 
   /// Pages matched to the 5 bottom-nav tabs:
   ///  0 → Dashboard
@@ -39,7 +40,10 @@ class _LibrarianShellState extends State<LibrarianShell> {
   }
 
   void _onTabSelected(int index) {
-    setState(() => _currentIndex = index);
+    setState(() {
+      if (index == 4) _readerManagementRequest++;
+      _currentIndex = index;
+    });
   }
 
   void _openBorrowReturn(String status) {
@@ -80,7 +84,7 @@ class _LibrarianShellState extends State<LibrarianShell> {
         initialLoanStatus: _borrowReturnStatus,
         navigationRequest: _borrowReturnRequest,
       ),
-      const _ReaderManagementPage(),
+      _ReaderManagementPage(refreshRequest: _readerManagementRequest),
     ];
 
     return Scaffold(
@@ -170,7 +174,11 @@ class _BorrowReturnPage extends StatelessWidget {
 }
 
 class _ReaderManagementPage extends StatelessWidget {
-  const _ReaderManagementPage();
+  const _ReaderManagementPage({required this.refreshRequest});
+
+  final int refreshRequest;
+
   @override
-  Widget build(BuildContext context) => const ReaderManagement();
+  Widget build(BuildContext context) =>
+      ReaderManagement(refreshRequest: refreshRequest);
 }

@@ -36,7 +36,7 @@ exports.getMyHolds = async (req, res, next) => {
 
         const { status } = req.query;
         const result = await holdsService.getMyHolds({ reader_id, status });
-        return sendSuccess(res, 'Lấy danh sách sách đặt trước thành công', result);
+        return sendSuccess(res, 'Lấy danh sách báo khi có thành công', result);
     } catch (error) {
         next(error);
     }
@@ -55,7 +55,7 @@ exports.getAllHolds = async (req, res, next) => {
             page: parseInt(page || 1, 10),
             limit: parseInt(limit || 10, 10)
         });
-        return sendSuccess(res, 'Lấy danh sách hàng đợi đặt trước thành công', result);
+        return sendSuccess(res, 'Lấy danh sách đăng ký báo khi có thành công', result);
     } catch (error) {
         next(error);
     }
@@ -71,7 +71,7 @@ exports.cancelHold = async (req, res, next) => {
         const user_role = req.user.role;
 
         const result = await holdsService.cancelHold({ hold_id, reader_id, user_role });
-        return sendSuccess(res, 'Hủy yêu cầu đặt trước thành công', result);
+        return sendSuccess(res, 'Hủy đăng ký báo khi có thành công', result);
     } catch (error) {
         return sendError(res, error.message, 400);
     }

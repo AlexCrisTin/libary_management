@@ -39,7 +39,7 @@ exports.getStatistics = async ({ days = 7 }) => {
                  WHERE status IN ('borrowed', 'overdue')) AS active_loans,
                 (SELECT COUNT(*) FROM borrow_transactions
                  WHERE status IN ('borrowed', 'overdue') AND due_date < CURDATE()) AS overdue_loans,
-                (SELECT COUNT(*) FROM readers) AS total_readers,
+                (SELECT COUNT(*) FROM readers WHERE archived_at IS NULL) AS total_readers,
                 (SELECT COUNT(*) FROM bibliographic_records) AS total_titles,
                 (SELECT COUNT(*) FROM book_copies) AS total_copies,
                 (SELECT COALESCE(SUM(fine_amount), 0) FROM borrow_transactions
@@ -80,6 +80,7 @@ exports.getStatistics = async ({ days = 7 }) => {
                    COUNT(bt.tx_id) AS borrow_count
             FROM borrow_transactions bt
             JOIN readers r ON r.reader_id = bt.reader_id
+            WHERE r.archived_at IS NULL
             GROUP BY r.reader_id, r.full_name, r.reader_code
             ORDER BY borrow_count DESC, r.full_name ASC
             LIMIT 5

@@ -4,54 +4,46 @@ const { v4: uuidv4 } = require('uuid');
 const ACTIVE_STATUSES = ['pending', 'approved'];
 const MAX_PICKUP_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
-async function handoffReservedCopy(conn, { bibId, copyId, bookTitle }) {
+async function releaseReservedCopy(conn, { bibId, copyId, bookTitle }) {
     if (!copyId) return;
 
-    const [nextRows] = await conn.query(
-        `SELECT hold_id, reader_id, queue_position
+    await conn.query(
+        `UPDATE book_copies SET status = 'available'
+         WHERE copy_id = ? AND status = 'reserved'`,
+        [copyId]
+    );
+
+    const [waitingRows] = await conn.query(
+        `SELECT hold_id, reader_id
          FROM holds
          WHERE bib_id = ? AND status = 'waiting'
            AND (expires_at IS NULL OR expires_at > NOW())
-         ORDER BY queue_position ASC, requested_at ASC
-         LIMIT 1 FOR UPDATE`,
+         ORDER BY requested_at ASC
+         FOR UPDATE`,
         [bibId]
     );
 
-    if (nextRows.length === 0) {
+    for (const hold of waitingRows) {
         await conn.query(
-            `UPDATE book_copies SET status = 'available'
-             WHERE copy_id = ? AND status = 'reserved'`,
-            [copyId]
+            `UPDATE holds
+             SET status = 'notified', notified_at = NOW(),
+                 expires_at = DATE_ADD(NOW(), INTERVAL 3 DAY), queue_position = NULL
+             WHERE hold_id = ?`,
+            [hold.hold_id]
         );
-        return;
+        await conn.query(
+            `INSERT INTO notifications
+             (notification_id, reader_id, title, content, type, reference_id, is_read, created_at)
+             VALUES (?, ?, ?, ?, 'hold_available', ?, 0, NOW())`,
+            [
+                uuidv4(),
+                hold.reader_id,
+                'Sách bạn đăng ký đã có sẵn',
+                `Sách "${bookTitle}" đã có lại. Đây chỉ là thông báo; hãy gửi yêu cầu đặt slot nếu bạn muốn thư viện giữ sách.`,
+                hold.hold_id
+            ]
+        );
     }
-
-    const nextHold = nextRows[0];
-    await conn.query(
-        `UPDATE holds
-         SET status = 'notified', notified_at = NOW(),
-             expires_at = DATE_ADD(NOW(), INTERVAL 3 DAY), queue_position = NULL
-         WHERE hold_id = ?`,
-        [nextHold.hold_id]
-    );
-    await conn.query(
-        `UPDATE holds
-         SET queue_position = queue_position - 1
-         WHERE bib_id = ? AND status = 'waiting' AND queue_position > ?`,
-        [bibId, nextHold.queue_position]
-    );
-    await conn.query(
-        `INSERT INTO notifications
-         (notification_id, reader_id, title, content, type, reference_id, is_read, created_at)
-         VALUES (?, ?, ?, ?, 'hold_available', ?, 0, NOW())`,
-        [
-            uuidv4(),
-            nextHold.reader_id,
-            'Sách bạn đăng ký đã có sẵn',
-            `Sách "${bookTitle}" đã có. Vui lòng gửi yêu cầu đặt slot trong vòng 3 ngày.`,
-            nextHold.hold_id
-        ]
-    );
 }
 
 const assertReaderCanReserve = (reader) => {
@@ -84,7 +76,7 @@ const normalizePickupExpiry = (value) => {
 };
 
 /** Độc giả gửi yêu cầu giữ một đầu sách hiện đang còn bản sẵn có. */
-exports.createReservation = async ({ reader_id, bib_id }) => {
+exports.createReservation = async ({ reader_id, bib_id, hold_id = null }) => {
     const [readers] = await db.query('SELECT * FROM readers WHERE reader_id = ?', [reader_id]);
     const reader = readers[0];
     assertReaderCanReserve(reader);
@@ -119,66 +111,73 @@ exports.createReservation = async ({ reader_id, bib_id }) => {
         throw new Error('Bạn đã có một yêu cầu đặt slot đang được xử lý cho sách này!');
     }
 
-    const [activeHolds] = await db.query(
-        `SELECT hold_id, status, expires_at FROM holds
-         WHERE reader_id = ? AND bib_id = ? AND status IN ('waiting', 'notified')
-           AND (expires_at IS NULL OR expires_at > NOW())
-         LIMIT 1`,
-        [reader_id, bib_id]
-    );
+    const holdLookup = hold_id
+        ? {
+            sql: `SELECT hold_id, status, expires_at FROM holds
+                  WHERE hold_id = ? AND reader_id = ? AND bib_id = ?
+                    AND status IN ('waiting', 'notified')
+                    AND (expires_at IS NULL OR expires_at > NOW())
+                  LIMIT 1`,
+            params: [hold_id, reader_id, bib_id]
+        }
+        : {
+            sql: `SELECT hold_id, status, expires_at FROM holds
+                  WHERE reader_id = ? AND bib_id = ? AND status IN ('waiting', 'notified')
+                    AND (expires_at IS NULL OR expires_at > NOW())
+                  ORDER BY requested_at ASC
+                  LIMIT 1`,
+            params: [reader_id, bib_id]
+        };
+    const [activeHolds] = await db.query(holdLookup.sql, holdLookup.params);
     const activeHold = activeHolds[0] || null;
-    if (activeHold?.status === 'waiting') {
-        throw new Error('Sách chưa có lại. Yêu cầu báo khi có của bạn vẫn đang trong hàng chờ!');
+    if (hold_id && !activeHold) {
+        throw new Error('Yêu cầu báo khi có đã hết hạn hoặc không còn hiệu lực. Vui lòng tải lại!');
     }
-
-    let reservedCopy = null;
     if (activeHold?.status === 'notified') {
-        const [copies] = await db.query(
-            `SELECT bc.copy_id, bc.barcode
-             FROM book_copies bc
+        // Tự sửa dữ liệu cũ từng giữ bản sao ngay từ bước "Báo khi có".
+        // Theo nghiệp vụ hiện tại, reserved chỉ hợp lệ khi có slot đã duyệt.
+        await db.query(
+            `UPDATE book_copies bc
+             SET bc.status = 'available'
              WHERE bc.bib_id = ? AND bc.status = 'reserved'
                AND NOT EXISTS (
                    SELECT 1 FROM pickup_reservations pr
-                   WHERE pr.copy_id = bc.copy_id AND pr.status IN ('pending', 'approved')
-               )
-             ORDER BY bc.acquired_date ASC, bc.copy_id ASC
-             LIMIT 1`,
+                   WHERE pr.copy_id = bc.copy_id AND pr.status = 'approved'
+               )`,
             [bib_id]
         );
-        reservedCopy = copies[0] || null;
-        if (!reservedCopy) {
-            throw new Error('Bản sách được báo có vừa thay đổi trạng thái. Vui lòng tải lại hoặc liên hệ thủ thư!');
+    }
+
+    const [copies] = await db.query(
+        `SELECT COUNT(*) AS available_copies
+         FROM book_copies WHERE bib_id = ? AND status = 'available'`,
+        [bib_id]
+    );
+    if (Number(copies[0].available_copies) < 1) {
+        if (activeHold?.status === 'waiting') {
+            throw new Error('Sách chưa có lại. Đăng ký báo khi có của bạn vẫn đang hoạt động!');
         }
-    } else {
-        const [copies] = await db.query(
-            `SELECT COUNT(*) AS available_copies
-             FROM book_copies WHERE bib_id = ? AND status = 'available'`,
-            [bib_id]
-        );
-        if (Number(copies[0].available_copies) < 1) {
-            throw new Error('Sách hiện đã hết bản có sẵn. Hãy dùng chức năng đăng ký chờ sách!');
-        }
+        throw new Error('Sách hiện đã hết bản có sẵn. Hãy dùng chức năng báo khi có sách!');
     }
 
     const reservationId = uuidv4();
     await db.query(
         `INSERT INTO pickup_reservations
          (reservation_id, reader_id, bib_id, copy_id, status, pickup_expires_at)
-         VALUES (?, ?, ?, ?, 'pending', ?)`,
+         VALUES (?, ?, ?, ?, 'pending', NULL)`,
         [
             reservationId,
             reader_id,
             bib_id,
-            reservedCopy?.copy_id || null,
-            activeHold?.status === 'notified' ? activeHold.expires_at : null
+            null
         ]
     );
 
-    if (activeHold?.status === 'notified') {
+    if (activeHold) {
         await db.query(
             `UPDATE holds
              SET status = 'fulfilled', queue_position = NULL
-             WHERE hold_id = ? AND status = 'notified'`,
+             WHERE hold_id = ? AND status IN ('waiting', 'notified')`,
             [activeHold.hold_id]
         );
     }
@@ -189,8 +188,9 @@ exports.createReservation = async ({ reader_id, bib_id }) => {
         bib_id,
         book_title: books[0].title,
         status: 'pending',
-        copy_id: reservedCopy?.copy_id || null,
-        converted_from_waitlist: activeHold?.status === 'notified',
+        copy_id: null,
+        hold_id: activeHold?.hold_id || null,
+        converted_from_waitlist: Boolean(activeHold),
         requested_at: new Date()
     };
 };
@@ -213,7 +213,13 @@ exports.getMyReservations = async ({ reader_id }) => {
 };
 
 /** Thủ thư xem và lọc danh sách yêu cầu đặt slot. */
-exports.getAllReservations = async ({ status = 'active', keyword = '', page = 1, limit = 20 }) => {
+exports.getAllReservations = async ({
+    status = 'active',
+    keyword = '',
+    reader_id = '',
+    page = 1,
+    limit = 20
+}) => {
     await exports.expireReservations();
     const normalizedPage = Math.max(1, Number(page) || 1);
     const normalizedLimit = Math.min(100, Math.max(1, Number(limit) || 20));
@@ -226,6 +232,10 @@ exports.getAllReservations = async ({ status = 'active', keyword = '', page = 1,
     } else if (status && status !== 'all') {
         where.push('pr.status = ?');
         params.push(status);
+    }
+    if (reader_id.trim()) {
+        where.push('pr.reader_id = ?');
+        params.push(reader_id.trim());
     }
     if (keyword.trim()) {
         where.push(`(r.full_name LIKE ? OR r.reader_code LIKE ? OR
@@ -370,7 +380,7 @@ exports.rejectReservation = async ({ reservation_id, reason = '', processed_by }
         }
         const rejectionReason = reason.trim() || 'Thư viện chưa thể giữ bản sách vào thời điểm này.';
         if (reservation.copy_id) {
-            await handoffReservedCopy(conn, {
+            await releaseReservedCopy(conn, {
                 bibId: reservation.bib_id,
                 copyId: reservation.copy_id,
                 bookTitle: reservation.book_title
@@ -426,7 +436,7 @@ exports.cancelReservation = async ({ reservation_id, reader_id, user_role }) => 
                 'SELECT title FROM bibliographic_records WHERE bib_id = ? LIMIT 1',
                 [reservation.bib_id]
             );
-            await handoffReservedCopy(conn, {
+            await releaseReservedCopy(conn, {
                 bibId: reservation.bib_id,
                 copyId: reservation.copy_id,
                 bookTitle: books[0]?.title || 'Sách'
@@ -464,7 +474,7 @@ exports.expireReservations = async () => {
         );
         for (const reservation of rows) {
             if (reservation.copy_id) {
-                await handoffReservedCopy(conn, {
+                await releaseReservedCopy(conn, {
                     bibId: reservation.bib_id,
                     copyId: reservation.copy_id,
                     bookTitle: reservation.book_title

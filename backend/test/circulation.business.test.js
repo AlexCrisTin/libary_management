@@ -120,7 +120,7 @@ test('không cho đặt trước khi vẫn còn bản sao sẵn sàng trên kệ
     );
 });
 
-test('đăng ký chờ sách có hiệu lực 14 ngày', async () => {
+test('đăng ký báo khi có sách có hiệu lực 14 ngày và không tạo hàng ưu tiên', async () => {
     const calls = [];
     const responses = [
         [[{ reader_id: 'reader-1', status: 'active', card_expired: null }], []],
@@ -128,7 +128,6 @@ test('đăng ký chờ sách có hiệu lực 14 ngày', async () => {
         [[], []],
         [[], []],
         [[{ total_copies: 2, available_copies: 0 }], []],
-        [[{ next_position: 1 }], []],
         [{ affectedRows: 1 }, []]
     ];
     fakeDb.query = async (sql, params) => {
@@ -143,7 +142,9 @@ test('đăng ký chờ sách có hiệu lực 14 ngày', async () => {
 
     assert.equal(result.status, 'waiting');
     assert.equal(result.valid_days, 14);
+    assert.equal(result.queue_position, undefined);
     assert.ok(calls.some(({ sql }) => sql.includes('DATE_ADD(NOW(), INTERVAL 14 DAY)')));
+    assert.ok(calls.every(({ sql }) => !sql.includes('MAX(queue_position)')));
 });
 
 test('lịch sử tiền phạt được tìm kiếm và phân trang ngay tại backend', async () => {

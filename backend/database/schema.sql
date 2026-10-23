@@ -68,10 +68,12 @@ CREATE TABLE IF NOT EXISTS readers (
     max_books SMALLINT NOT NULL DEFAULT 5,
     avatar_url TEXT DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    archived_at DATETIME DEFAULT NULL,
     PRIMARY KEY (reader_id),
     UNIQUE KEY uq_readers_code (reader_code),
     UNIQUE KEY uq_readers_user (user_id),
     KEY idx_readers_status_expired (status, card_expired),
+    KEY idx_readers_archived (archived_at),
     KEY idx_readers_name (full_name),
     CONSTRAINT fk_reader_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -7,7 +7,8 @@ exports.create = async (req, res) => {
         if (!req.body.bib_id) return sendError(res, 'Vui lòng cung cấp mã đầu sách!', 400);
         const result = await service.createReservation({
             reader_id: req.user.readerId,
-            bib_id: req.body.bib_id
+            bib_id: req.body.bib_id,
+            hold_id: req.body.hold_id || null
         });
         return sendSuccess(res, 'Đã gửi yêu cầu đặt slot đến thủ thư', result, 201);
     } catch (error) {
@@ -30,6 +31,7 @@ exports.getAll = async (req, res, next) => {
         const result = await service.getAllReservations({
             status: req.query.status || 'active',
             keyword: req.query.keyword || '',
+            reader_id: req.query.reader_id || '',
             page: parseInt(req.query.page || 1, 10),
             limit: parseInt(req.query.limit || 20, 10)
         });

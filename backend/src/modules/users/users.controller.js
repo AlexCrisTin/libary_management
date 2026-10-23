@@ -107,9 +107,12 @@ exports.deleteUser = async (req, res, next) => {
         if (id === req.user.userId) {
             return sendError(res, 'Không thể tự xóa tài khoản đang đăng nhập!', 400);
         }
-        await usersService.deleteUser(id);
+        const deleted = await usersService.deleteUser(id);
+        if (!deleted) {
+            return sendError(res, 'Không tìm thấy tài khoản để xóa!', 404);
+        }
         return sendSuccess(res, 'Xóa tài khoản thành công');
     } catch (error) {
-        next(error);
+        return sendError(res, error.message, 400);
     }
 };

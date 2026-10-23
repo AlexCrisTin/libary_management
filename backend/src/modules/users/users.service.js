@@ -185,6 +185,93 @@ exports.resetPassword = async (userId, newPassword) => {
  * 7. Xóa tài khoản
  */
 exports.deleteUser = async (userId) => {
-    const [result] = await db.query('DELETE FROM users WHERE user_id = ?', [userId]);
-    return result.affectedRows > 0;
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+        const [users] = await connection.query(
+            `SELECT u.user_id, u.role, r.reader_id
+             FROM users u
+             LEFT JOIN readers r ON r.user_id = u.user_id
+             WHERE u.user_id = ?
+             FOR UPDATE`,
+            [userId]
+        );
+        if (users.length === 0) {
+            await connection.rollback();
+            return false;
+        }
+
+        const readerId = users[0].reader_id;
+        if (readerId) {
+            const [activeLoans] = await connection.query(
+                `SELECT tx_id
+                 FROM borrow_transactions
+                 WHERE reader_id = ? AND status IN ('borrowed', 'overdue')
+                 LIMIT 1
+                 FOR UPDATE`,
+                [readerId]
+            );
+            if (activeLoans.length > 0) {
+                throw new Error('Không thể xóa tài khoản vì độc giả còn sách chưa trả!');
+            }
+
+            const [unpaidFines] = await connection.query(
+                `SELECT tx_id
+                 FROM borrow_transactions
+                 WHERE reader_id = ? AND fine_amount > 0 AND fine_paid = 0
+                 LIMIT 1
+                 FOR UPDATE`,
+                [readerId]
+            );
+            if (unpaidFines.length > 0) {
+                throw new Error('Không thể xóa tài khoản vì độc giả còn tiền phạt chưa thanh toán!');
+            }
+
+            await connection.query(
+                `UPDATE book_copies bc
+                 JOIN pickup_reservations pr ON pr.copy_id = bc.copy_id
+                 SET bc.status = 'available'
+                 WHERE pr.reader_id = ? AND pr.status = 'approved'
+                   AND bc.status = 'reserved'`,
+                [readerId]
+            );
+            await connection.query(
+                `UPDATE pickup_reservations
+                 SET status = 'cancelled', processed_at = NOW(),
+                     rejection_reason = 'Tài khoản độc giả đã bị xóa'
+                 WHERE reader_id = ? AND status IN ('pending', 'approved')`,
+                [readerId]
+            );
+            await connection.query(
+                `UPDATE holds
+                 SET status = 'cancelled', queue_position = NULL
+                 WHERE reader_id = ? AND status IN ('waiting', 'notified')`,
+                [readerId]
+            );
+            await connection.query(
+                `UPDATE renewal_requests
+                 SET status = 'cancelled', processed_at = NOW()
+                 WHERE reader_id = ? AND status = 'pending'`,
+                [readerId]
+            );
+            await connection.query(
+                `UPDATE readers
+                 SET status = 'suspended', archived_at = NOW()
+                 WHERE reader_id = ?`,
+                [readerId]
+            );
+        }
+
+        const [result] = await connection.query(
+            'DELETE FROM users WHERE user_id = ?',
+            [userId]
+        );
+        await connection.commit();
+        return result.affectedRows > 0;
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
 };

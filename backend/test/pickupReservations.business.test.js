@@ -121,8 +121,8 @@ test('sách được báo có có thể chuyển thành yêu cầu đặt slot',
             return [[{ bib_id: 'book-1', title: 'Sách thử nghiệm', isbn: '123' }], []];
         }
         if (sql.includes('FROM borrow_transactions')) return [[], []];
-        if (sql.includes('FROM book_copies bc')) {
-            return [[{ copy_id: 'copy-reserved', barcode: 'BC-RESERVED' }], []];
+        if (sql.includes('COUNT(*) AS available_copies')) {
+            return [[{ available_copies: 1 }], []];
         }
         if (sql.includes('FROM pickup_reservations')) return [[], []];
         if (sql.includes('FROM holds')) {
@@ -132,6 +132,9 @@ test('sách được báo có có thể chuyển thành yêu cầu đặt slot',
                 expires_at: '2026-10-26 12:00:00'
             }], []];
         }
+        if (sql.includes("SET bc.status = 'available'")) {
+            return [{ affectedRows: 1 }, []];
+        }
         if (sql.includes('INSERT INTO pickup_reservations')) return [{ affectedRows: 1 }, []];
         if (sql.includes("SET status = 'fulfilled'")) return [{ affectedRows: 1 }, []];
         throw new Error(`Câu SQL chưa được giả lập: ${sql}`);
@@ -139,12 +142,63 @@ test('sách được báo có có thể chuyển thành yêu cầu đặt slot',
 
     const result = await service.createReservation({
         reader_id: 'reader-1',
-        bib_id: 'book-1'
+        bib_id: 'book-1',
+        hold_id: 'hold-1'
     });
 
     assert.equal(result.status, 'pending');
-    assert.equal(result.copy_id, 'copy-reserved');
+    assert.equal(result.copy_id, null);
+    assert.equal(result.hold_id, 'hold-1');
     assert.equal(result.converted_from_waitlist, true);
+    assert.ok(calls.some(({ sql }) => sql.includes("SET bc.status = 'available'")));
+    const holdLookup = calls.find(({ sql }) => sql.includes('FROM holds'));
+    assert.deepEqual(holdLookup.params, ['hold-1', 'reader-1', 'book-1']);
+    const insert = calls.find(({ sql }) => sql.includes('INSERT INTO pickup_reservations'));
+    assert.match(insert.sql, /'pending', NULL/);
+    assert.equal(insert.params[3], null);
+    assert.ok(calls.some(({ sql }) => sql.includes("SET status = 'fulfilled'")));
+});
+
+test('đăng ký đang chờ được chuyển thành slot nếu sách đã có bản sẵn', async () => {
+    const calls = [];
+    fakeDb.query = async (sql, params) => {
+        calls.push({ sql, params });
+        if (sql.includes('FROM readers')) {
+            return [[{ reader_id: 'reader-1', status: 'active', card_expired: null }], []];
+        }
+        if (sql.includes('FROM bibliographic_records')) {
+            return [[{ bib_id: 'book-1', title: 'Sách thử nghiệm', isbn: '123' }], []];
+        }
+        if (sql.includes('FROM borrow_transactions')) return [[], []];
+        if (sql.includes('FROM pickup_reservations')) return [[], []];
+        if (sql.includes('FROM holds')) {
+            return [[{
+                hold_id: 'hold-waiting',
+                status: 'waiting',
+                expires_at: '2026-11-06 12:00:00'
+            }], []];
+        }
+        if (sql.includes('COUNT(*) AS available_copies')) {
+            return [[{ available_copies: 2 }], []];
+        }
+        if (sql.includes('INSERT INTO pickup_reservations')) return [{ affectedRows: 1 }, []];
+        if (sql.includes("SET status = 'fulfilled'")) return [{ affectedRows: 1 }, []];
+        throw new Error(`Câu SQL chưa được giả lập: ${sql}`);
+    };
+
+    const result = await service.createReservation({
+        reader_id: 'reader-1',
+        bib_id: 'book-1',
+        hold_id: 'hold-waiting'
+    });
+
+    assert.equal(result.status, 'pending');
+    assert.equal(result.hold_id, 'hold-waiting');
+    assert.equal(result.converted_from_waitlist, true);
+    assert.equal(
+        calls.some(({ sql }) => sql.includes("SET bc.status = 'available'")),
+        false
+    );
     assert.ok(calls.some(({ sql }) => sql.includes("SET status = 'fulfilled'")));
 });
 

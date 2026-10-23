@@ -388,16 +388,45 @@ test('luồng xuyên suốt trên MySQL thật và hàng rào bảo mật tối 
             method: 'POST', token: librarianToken, body: { tx_id: borrowedTxId }
         });
         assert.equal(returned.status, 200, JSON.stringify(returned.body));
-        assert.equal(returned.body.data.book.next_status, 'reserved');
+        assert.equal(returned.body.data.book.next_status, 'available');
+        assert.ok(
+            returned.body.data.hold_notifications.some(
+                (item) => item.hold_id === holdId && item.reader_id === ids.reader1
+            ),
+            'Trả sách phải tạo sự kiện thông báo báo khi có cho độc giả'
+        );
+        const [availabilityNotices] = await db.query(
+            `SELECT notification_id FROM notifications
+             WHERE reader_id = ? AND reference_id = ? AND type = 'hold_available'`,
+            [ids.reader1, holdId]
+        );
+        assert.equal(
+            availabilityNotices.length,
+            1,
+            'Thông báo sách có lại phải xuất hiện trong notice của độc giả'
+        );
 
         const slot = await api('/api/pickup-reservations', {
-            method: 'POST', token: reader1Token, body: { bib_id: ids.bib1 }
+            method: 'POST', token: reader1Token,
+            body: { bib_id: ids.bib1, hold_id: holdId }
         });
         assert.equal(slot.status, 201, JSON.stringify(slot.body));
         assert.equal(slot.body.data.converted_from_waitlist, true);
-        assert.equal(slot.body.data.copy_id, ids.copy1);
+        assert.equal(slot.body.data.copy_id, null);
         const reservationId = slot.body.data.reservation_id;
         tracked.reservationIds.push(reservationId);
+
+        const pendingForLibrarian = await api(
+            `/api/pickup-reservations?status=pending&reader_id=${encodeURIComponent(ids.reader1)}`,
+            { token: librarianToken }
+        );
+        assert.equal(pendingForLibrarian.status, 200, JSON.stringify(pendingForLibrarian.body));
+        assert.ok(
+            pendingForLibrarian.body.data.data.some(
+                (item) => item.reservation_id === reservationId && item.copy_id === null
+            ),
+            'Yêu cầu đặt slot phải xuất hiện cho thủ thư nhưng chưa giữ bản sao trước khi duyệt'
+        );
 
         const [holdRows] = await db.query(
             'SELECT status FROM holds WHERE hold_id = ?',
@@ -411,6 +440,18 @@ test('luồng xuyên suốt trên MySQL thật và hàng rào bảo mật tối 
         });
         assert.equal(approved.status, 200, JSON.stringify(approved.body));
         assert.equal(approved.body.data.copy_id, ids.copy1);
+
+        const approvedForBorrowFlow = await api(
+            `/api/pickup-reservations?status=approved&reader_id=${encodeURIComponent(ids.reader1)}`,
+            { token: librarianToken }
+        );
+        assert.equal(approvedForBorrowFlow.status, 200, JSON.stringify(approvedForBorrowFlow.body));
+        assert.ok(
+            approvedForBorrowFlow.body.data.data.some(
+                (item) => item.reservation_id === reservationId && item.barcode
+            ),
+            'Slot đã duyệt phải trả về barcode bản sao cho luồng lập phiếu mượn'
+        );
 
         const received = await api('/api/circulation/borrow', {
             method: 'POST', token: librarianToken,

@@ -120,6 +120,62 @@ async function ensureSecuritySchema(connection) {
     }
 }
 
+async function ensureReaderArchiveSchema(connection) {
+    const [columns] = await connection.query(
+        `SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = DATABASE()
+           AND table_name = 'readers'
+           AND column_name = 'archived_at'
+         LIMIT 1`
+    );
+
+    if (columns.length === 0) {
+        await connection.query(
+            'ALTER TABLE readers ADD COLUMN archived_at DATETIME DEFAULT NULL AFTER created_at'
+        );
+        console.log('Đã bổ sung trạng thái lưu trữ hồ sơ độc giả.');
+    }
+
+    const [indexes] = await connection.query(
+        `SELECT 1
+         FROM information_schema.statistics
+         WHERE table_schema = DATABASE()
+           AND table_name = 'readers'
+           AND index_name = 'idx_readers_archived'
+         LIMIT 1`
+    );
+    if (indexes.length === 0) {
+        await connection.query(
+            'ALTER TABLE readers ADD INDEX idx_readers_archived (archived_at)'
+        );
+    }
+
+    // Các tài khoản độc giả từng bị xóa theo cơ chế cũ đã bị SET NULL user_id.
+    // Mã RD-* chỉ được sinh bởi luồng đăng ký tài khoản; hồ sơ tạo tại quầy
+    // dùng LIB-* nên vẫn được giữ nguyên trong danh sách quản lý.
+    const [legacyRows] = await connection.query(
+        `UPDATE readers
+         SET archived_at = COALESCE(archived_at, NOW()), status = 'suspended'
+         WHERE archived_at IS NULL
+           AND user_id IS NULL
+           AND reader_code LIKE 'RD-%'
+           AND NOT EXISTS (
+               SELECT 1 FROM borrow_transactions bt
+               WHERE bt.reader_id = readers.reader_id
+                 AND bt.status IN ('borrowed', 'overdue')
+           )
+           AND NOT EXISTS (
+               SELECT 1 FROM borrow_transactions bt
+               WHERE bt.reader_id = readers.reader_id
+                 AND bt.fine_amount > 0 AND bt.fine_paid = 0
+           )`
+    );
+    if (legacyRows.affectedRows > 0) {
+        console.log(`Đã lưu trữ ${legacyRows.affectedRows} hồ sơ thuộc tài khoản đã xóa trước đây.`);
+    }
+}
+
 async function main() {
     let connection;
     try {
@@ -139,6 +195,7 @@ async function main() {
             await connection.query(readSql(schemaPath));
             await ensurePerformanceIndexes(connection);
             await ensureSecuritySchema(connection);
+            await ensureReaderArchiveSchema(connection);
             console.log('Đã cài đặt schema.');
         }
 

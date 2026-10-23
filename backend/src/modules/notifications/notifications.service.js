@@ -128,10 +128,6 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
              FROM pickup_reservations
              WHERE status = 'pending') AS pickup_count,
             (SELECT COUNT(*)
-             FROM holds
-             WHERE status = 'waiting'
-               AND (expires_at IS NULL OR expires_at > NOW())) AS hold_count,
-            (SELECT COUNT(*)
              FROM renewal_requests
              WHERE status = 'pending') AS renewal_count,
             (SELECT COUNT(*)
@@ -167,27 +163,6 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
         JOIN bibliographic_records br ON br.bib_id = pr.bib_id
         WHERE pr.status = 'pending'
         ORDER BY pr.requested_at DESC, pr.reservation_id ASC
-        LIMIT ?
-    `;
-
-    const holdSql = `
-        SELECT
-            CONCAT('hold:', h.hold_id) AS notification_id,
-            h.hold_id AS reference_id,
-            'hold_request' AS type,
-            'Đăng ký chờ sách mới' AS title,
-            CONCAT('Độc giả ', r.full_name, ' đăng ký chờ sách "', br.title,
-                   '" (vị trí ', COALESCE(h.queue_position, 1), ' trong hàng chờ).') AS content,
-            h.requested_at AS created_at,
-            r.reader_id,
-            r.full_name AS reader_name,
-            r.reader_code
-        FROM holds h
-        JOIN readers r ON r.reader_id = h.reader_id
-        JOIN bibliographic_records br ON br.bib_id = h.bib_id
-        WHERE h.status = 'waiting'
-          AND (h.expires_at IS NULL OR h.expires_at > NOW())
-        ORDER BY h.requested_at DESC, h.hold_id ASC
         LIMIT ?
     `;
 
@@ -293,7 +268,6 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
     const queryResults = await Promise.all([
         db.query(countSql),
         db.query(pickupSql, [windowLimit]),
-        db.query(holdSql, [windowLimit]),
         db.query(renewalSql, [windowLimit]),
         db.query(overdueSql, [windowLimit]),
         db.query(fineSql, [windowLimit]),
@@ -303,7 +277,6 @@ exports.getLibrarianNotifications = async ({ page = 1, limit = 100 }) => {
     const countRow = queryResults[0][0][0] || {};
     const total = [
         countRow.pickup_count,
-        countRow.hold_count,
         countRow.renewal_count,
         countRow.overdue_count,
         countRow.fine_count,

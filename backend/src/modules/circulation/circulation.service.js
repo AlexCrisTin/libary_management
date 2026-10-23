@@ -146,15 +146,7 @@ exports.borrowBook = async ({ reader_id, reader_code, copy_id, barcode, due_days
                 throw new Error('Cuốn sách này đang được giữ theo slot của độc giả khác!');
             }
         } else {
-            const [holds] = await db.query(
-                `SELECT * FROM holds
-                 WHERE bib_id = ? AND reader_id = ? AND status IN ('waiting', 'notified')
-                 LIMIT 1`,
-                [copy.bib_id, reader.reader_id]
-            );
-            if (holds.length === 0) {
-                throw new Error('Cuốn sách này đang được giữ ưu tiên cho độc giả khác đặt trước!');
-            }
+            throw new Error('Bản sách đang được giữ nhưng không có slot đã duyệt hợp lệ!');
         }
     }
 
@@ -214,7 +206,7 @@ exports.borrowBook = async ({ reader_id, reader_code, copy_id, barcode, due_days
             [txId, reader.reader_id, copy.copy_id, borrowDate, dueDate, issued_by || null]
         );
 
-        // Nếu độc giả từng đặt trước đầu sách này -> Chuyển hold thành 'fulfilled' và đôn hàng đợi
+        // Nếu độc giả từng đăng ký báo khi có cho đầu sách này thì hoàn tất đăng ký.
         const [activeHolds] = await conn.query(
             `SELECT hold_id, queue_position, status 
              FROM holds 
@@ -226,7 +218,6 @@ exports.borrowBook = async ({ reader_id, reader_code, copy_id, barcode, due_days
         if (activeHolds.length > 0) {
             const userHold = activeHolds[0];
 
-            // Cập nhật lượt hold thành 'fulfilled' và gán queue_position = NULL (rời khỏi hàng chờ)
             await conn.query(
                 `UPDATE holds 
                  SET status = 'fulfilled', queue_position = NULL 
@@ -234,15 +225,6 @@ exports.borrowBook = async ({ reader_id, reader_code, copy_id, barcode, due_days
                 [userHold.hold_id]
             );
 
-            // Nếu người này vẫn còn giữ queue_position > 0, đôn các người xếp sau lên 1 bậc
-            if (userHold.queue_position && userHold.queue_position > 0) {
-                await conn.query(
-                    `UPDATE holds 
-                     SET queue_position = queue_position - 1 
-                     WHERE bib_id = ? AND status = 'waiting' AND queue_position > ?`,
-                    [copy.bib_id, userHold.queue_position]
-                );
-            }
         }
 
         // Nếu đây là bản sao được duyệt đặt slot, hoàn tất yêu cầu khi lập phiếu mượn.
@@ -372,56 +354,42 @@ exports.returnBook = async ({ barcode, copy_id, tx_id, returned_to, condition, f
             [tx.tx_id]
         );
 
-        // Kiểm tra xem đầu sách này có ai đang đặt trước trong hàng đợi (holds) không
+        // "Báo khi có" chỉ tạo thông báo, không giữ riêng bản sao vừa trả.
         const [waitingHolds] = await conn.query(
             `SELECT * FROM holds 
              WHERE bib_id = ? AND status = 'waiting'
                AND (expires_at IS NULL OR expires_at > NOW())
-             ORDER BY queue_position ASC, requested_at ASC 
-             LIMIT 1`,
+             ORDER BY requested_at ASC`,
             [tx.bib_id]
         );
 
-        let nextCopyStatus = 'available';
-        let holdNotified = null;
+        const nextCopyStatus = 'available';
+        const holdNotifications = [];
 
-        if (waitingHolds.length > 0) {
-            // Có người đặt trước -> Giữ sách cho người tiếp theo (status: 'reserved')
-            nextCopyStatus = 'reserved';
-            const nextHold = waitingHolds[0];
-
+        for (const hold of waitingHolds) {
             await conn.query(
                 `UPDATE holds 
                  SET status = 'notified', notified_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL 3 DAY), queue_position = NULL 
                  WHERE hold_id = ?`,
-                [nextHold.hold_id]
+                [hold.hold_id]
             );
 
-            // Đôn các người xếp sau trong hàng chờ (waiting) lên 1 bậc
-            await conn.query(
-                `UPDATE holds 
-                 SET queue_position = queue_position - 1 
-                 WHERE bib_id = ? AND status = 'waiting' AND queue_position > ?`,
-                [tx.bib_id, nextHold.queue_position]
-            );
+            holdNotifications.push({
+                hold_id: hold.hold_id,
+                reader_id: hold.reader_id,
+                message: 'Đã gửi thông báo sách có lại; bản sao vẫn ở trạng thái có sẵn.'
+            });
 
-            holdNotified = {
-                hold_id: nextHold.hold_id,
-                reader_id: nextHold.reader_id,
-                message: 'Cuốn sách được chuyển sang trạng thái giữ chỗ cho độc giả đặt trước.'
-            };
-
-            // Tự động tạo thông báo trong bảng notifications cho độc giả này
             const notifId = uuidv4();
             await conn.query(
                 `INSERT INTO notifications (notification_id, reader_id, title, content, type, reference_id, is_read, created_at)
                  VALUES (?, ?, ?, ?, 'hold_available', ?, 0, NOW())`,
                 [
                     notifId,
-                    nextHold.reader_id,
+                    hold.reader_id,
                     'Sách bạn đăng ký đã có sẵn tại thư viện',
-                    `Cuốn sách "${tx.book_title}" đã có. Vui lòng gửi yêu cầu đặt slot trong vòng 3 ngày tới.`,
-                    nextHold.hold_id
+                    `Cuốn sách "${tx.book_title}" đã có lại. Đây chỉ là thông báo; hãy gửi yêu cầu đặt slot nếu bạn muốn thư viện giữ sách.`,
+                    hold.hold_id
                 ]
             );
         }
@@ -454,7 +422,8 @@ exports.returnBook = async ({ barcode, copy_id, tx_id, returned_to, condition, f
             overdue_days: overdueDays,
             fine_amount: fineAmount,
             fine_paid: fineAmount === 0,
-            hold_notification: holdNotified
+            hold_notification: holdNotifications[0] || null,
+            hold_notifications: holdNotifications
         };
     } catch (error) {
         await conn.rollback();
@@ -517,15 +486,6 @@ exports.renewBook = async ({ tx_id, reader_id, user_role, extend_days = 7 }) => 
         throw new Error('Cuốn sách này đã đạt giới hạn gia hạn tối đa (2 lần)!');
     }
 
-    // Kiểm tra xem đầu sách có người khác đang chờ đặt trước (holds) không
-    const [holds] = await db.query(
-        'SELECT hold_id FROM holds WHERE bib_id = ? AND status = "waiting" LIMIT 1',
-        [tx.bib_id]
-    );
-    if (holds.length > 0) {
-        throw new Error('Đầu sách này đang có độc giả khác đặt trước nên không thể gia hạn!');
-    }
-
     // Tính ngày trả mới
     const newDueDateObj = new Date(dueDate);
     newDueDateObj.setDate(newDueDateObj.getDate() + normalizedDays);
@@ -577,14 +537,6 @@ exports.requestRenewal = async ({ tx_id, reader_id, requested_days = 7 }) => {
     }
     if (tx.renewed_count >= 2) {
         throw new Error('Cuốn sách này đã đạt giới hạn gia hạn tối đa (2 lần)!');
-    }
-
-    const [holds] = await db.query(
-        'SELECT hold_id FROM holds WHERE bib_id = ? AND status = "waiting" LIMIT 1',
-        [tx.bib_id]
-    );
-    if (holds.length > 0) {
-        throw new Error('Đầu sách đang có độc giả khác đặt trước nên không thể gia hạn!');
     }
 
     const [pending] = await db.query(
@@ -704,14 +656,6 @@ exports.resolveRenewalRequest = async ({ request_id, action, extend_days = 7, pr
         if (request.renewed_count >= 2) {
             throw new Error('Cuốn sách đã đạt giới hạn gia hạn tối đa (2 lần)!');
         }
-        const [holds] = await conn.query(
-            'SELECT hold_id FROM holds WHERE bib_id = ? AND status = "waiting" LIMIT 1',
-            [request.bib_id]
-        );
-        if (holds.length > 0) {
-            throw new Error('Đầu sách đang có độc giả khác đặt trước nên không thể gia hạn!');
-        }
-
         const newDueDateObj = new Date(dueDate);
         newDueDateObj.setDate(newDueDateObj.getDate() + normalizedDays);
         const newDueDate = newDueDateObj.toISOString().split('T')[0];

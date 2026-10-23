@@ -64,9 +64,12 @@ class _DetailBookState extends State<DetailBook> {
     if (_bookingStateError != null) return 'Tải lại trạng thái';
     if (_reservationStatus == 'pending') return 'Đang chờ duyệt';
     if (_reservationStatus == 'approved') return 'Đã giữ sách';
-    if (_holdStatus == 'waiting') return 'Đang chờ sách';
-    if (_holdStatus == 'notified') return 'Đặt slot';
-    return _availableCopies > 0 ? 'Đặt slot' : 'Báo khi có';
+    // Số bản đang có thực tế phải được ưu tiên hơn đăng ký "báo khi có"
+    // trước đó. Đăng ký cũ sẽ được chuyển thành yêu cầu đặt slot khi gửi.
+    if (_availableCopies > 0) return 'Đặt slot';
+    if (_holdStatus == 'waiting') return 'Đã bật báo có';
+    if (_holdStatus == 'notified') return 'Đã bật báo có';
+    return 'Báo khi có';
   }
 
   @override
@@ -213,17 +216,16 @@ class _DetailBookState extends State<DetailBook> {
       );
       return;
     }
-    if (_holdStatus == 'waiting') {
-      final position = apiText(_activeHold?['queue_position'], fallback: '—');
-      _showMessage('Bạn đang ở vị trí $position trong hàng chờ sách này.');
-      return;
-    }
-    if (_holdStatus == 'notified') {
-      await _requestPickupSlot(fromWaitlist: true);
-      return;
-    }
     if (_availableCopies > 0) {
-      await _requestPickupSlot();
+      await _requestPickupSlot(
+        fromWaitlist: _holdStatus == 'waiting' || _holdStatus == 'notified',
+      );
+      return;
+    }
+    if (_holdStatus == 'waiting' || _holdStatus == 'notified') {
+      _showMessage(
+        'Bạn đã đăng ký báo khi có. Hệ thống sẽ gửi thông báo khi có bản sách được trả.',
+      );
       return;
     }
 
@@ -283,7 +285,7 @@ class _DetailBookState extends State<DetailBook> {
     }
     final deadline = _dateTimeText(_activeHold?['expires_at']);
     return _confirmAndSubmitPickupSlot(
-      'Sách bạn đăng ký đã có và đang được ưu tiên cho bạn. '
+      'Sách bạn đăng ký hiện đã có lại. Thông báo này không giữ sẵn bản sao. '
       'Hãy gửi yêu cầu đặt slot${deadline == '—' ? '' : ' trước $deadline'}; '
       'sau đó thủ thư sẽ xác nhận thời hạn đến nhận.',
     );
@@ -321,7 +323,11 @@ class _DetailBookState extends State<DetailBook> {
     try {
       await ApiClient.post(
         '/pickup-reservations',
-        body: {'bib_id': widget.bookId},
+        body: {
+          'bib_id': widget.bookId,
+          if (_holdStatus == 'waiting' || _holdStatus == 'notified')
+            'hold_id': apiText(_activeHold?['hold_id'], fallback: ''),
+        },
       );
       _showMessage('Đã gửi yêu cầu đặt slot đến thủ thư.');
       await _loadBookingState();

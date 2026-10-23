@@ -19,7 +19,7 @@ exports.getAllReaders = async ({ keyword = '', reader_type = '', status = '', pa
     const normalizedLimit = Math.min(100, Math.max(1, Number(limit) || 10));
     const offset = (normalizedPage - 1) * normalizedLimit;
     const params = [];
-    const where = [];
+    const where = ['r.archived_at IS NULL'];
 
     if (keyword.trim()) {
         where.push('(r.full_name LIKE ? OR r.reader_code LIKE ? OR r.phone LIKE ? OR r.email LIKE ?)');

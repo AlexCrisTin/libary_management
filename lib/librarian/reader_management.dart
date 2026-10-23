@@ -8,7 +8,10 @@ import 'librarian_pagination.dart';
 import 'reader_detail.dart';
 
 class ReaderManagement extends StatefulWidget {
-  const ReaderManagement({super.key});
+  const ReaderManagement({super.key, this.refreshRequest = 0});
+
+  final int refreshRequest;
+
   @override
   State<ReaderManagement> createState() => _ReaderManagementState();
 }
@@ -29,6 +32,15 @@ class _ReaderManagementState extends State<ReaderManagement> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant ReaderManagement oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshRequest == widget.refreshRequest) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   @override

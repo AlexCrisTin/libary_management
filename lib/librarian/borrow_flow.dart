@@ -161,6 +161,7 @@ class _BorrowFlowState extends State<BorrowFlow> {
           '/pickup-reservations',
           query: {
             'status': 'active',
+            'reader_id': readerId,
             if (readerCode.isNotEmpty) 'keyword': readerCode,
             'limit': 100,
           },
@@ -170,7 +171,28 @@ class _BorrowFlowState extends State<BorrowFlow> {
         final reservations = apiList(
           result['data'],
         ).where((slot) => slot['reader_id']?.toString() == readerId).toList();
-        setState(() => _pickupReservations = reservations);
+        setState(() {
+          _pickupReservations = reservations;
+
+          // Slot đã được duyệt luôn đi kèm đúng một bản sao đang được giữ.
+          // Đưa sẵn bản sao vào phiếu để thủ thư không phải quét lại barcode.
+          var remaining = _maxBooks - _activeLoans - _copies.length;
+          if (remaining <= 0) return;
+          final selectedCopyIds = _copies
+              .map((copy) => apiText(copy['copy_id'], fallback: ''))
+              .where((id) => id.isNotEmpty)
+              .toSet();
+          for (final slot in reservations) {
+            if (remaining <= 0 || slot['status']?.toString() != 'approved') {
+              continue;
+            }
+            final copyId = apiText(slot['copy_id'], fallback: '');
+            if (copyId.isEmpty || selectedCopyIds.contains(copyId)) continue;
+            _copies.add(_pickupCopy(slot));
+            selectedCopyIds.add(copyId);
+            remaining--;
+          }
+        });
       }
     } catch (error) {
       if (mounted) {
@@ -216,16 +238,18 @@ class _BorrowFlowState extends State<BorrowFlow> {
       return;
     }
     setState(() {
-      _copies.add({
-        'copy_id': copyId,
-        'barcode': slot['barcode'],
-        'status': 'reserved',
-        'book_title': slot['book_title'],
-        'reservation_id': slot['reservation_id'],
-        '_pickup_slot': true,
-      });
+      _copies.add(_pickupCopy(slot));
     });
   }
+
+  Map<String, dynamic> _pickupCopy(Map<String, dynamic> slot) => {
+    'copy_id': slot['copy_id'],
+    'barcode': slot['barcode'],
+    'status': 'reserved',
+    'book_title': slot['book_title'],
+    'reservation_id': slot['reservation_id'],
+    '_pickup_slot': true,
+  };
 
   Future<void> _scanBarcode() async {
     final value = await Navigator.push<String>(
@@ -708,7 +732,9 @@ class _BorrowFlowState extends State<BorrowFlow> {
                 approved
                     ? '${apiText(slot['barcode'])} • Giữ đến '
                           '${_formatDateTime(slot['pickup_expires_at'])}'
-                    : 'Yêu cầu đang chờ thủ thư duyệt',
+                    : apiText(slot['barcode'], fallback: '').isEmpty
+                    ? 'Yêu cầu đang chờ thủ thư duyệt'
+                    : '${apiText(slot['barcode'])} • Đang chờ duyệt',
               ),
               trailing: approved
                   ? FilledButton(

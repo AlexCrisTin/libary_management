@@ -186,8 +186,6 @@ class _AdminNoticeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final type = notice['type']?.toString();
-    final opensPage = type != 'hold_request';
     return Material(
       color: kLibCardFill,
       shape: RoundedRectangleBorder(
@@ -196,7 +194,7 @@ class _AdminNoticeTile extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: opensPage ? onTap : null,
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -284,7 +282,6 @@ class _AdminNoticeTile extends StatelessWidget {
 
 IconData _noticeIcon(dynamic type) => switch (type?.toString()) {
   'pickup_request' => Icons.event_available_rounded,
-  'hold_request' => Icons.bookmark_add_rounded,
   'renewal_request' => Icons.update_rounded,
   'overdue_loan' => Icons.warning_amber_rounded,
   'unpaid_fine' => Icons.payments_outlined,
@@ -295,7 +292,6 @@ IconData _noticeIcon(dynamic type) => switch (type?.toString()) {
 Color _noticeColor(dynamic type) => switch (type?.toString()) {
   'overdue_loan' => kLibRed,
   'pickup_request' => const Color(0xFFE29A55),
-  'hold_request' => const Color(0xFF9A79B8),
   'renewal_request' => const Color(0xFF588A73),
   'unpaid_fine' => kLibRed,
   'unread_message' => kLibBrownTitle,
@@ -305,7 +301,6 @@ Color _noticeColor(dynamic type) => switch (type?.toString()) {
 String _noticeBadge(dynamic type) => switch (type?.toString()) {
   'unread_message' => 'Tin mới',
   'pickup_request' => 'Chờ duyệt',
-  'hold_request' => 'Đặt trước',
   'renewal_request' => 'Chờ duyệt',
   'overdue_loan' => 'Quá hạn',
   'unpaid_fine' => 'Chưa thu',

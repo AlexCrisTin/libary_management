@@ -16,7 +16,7 @@ require.cache[dbPath] = {
 
 const { scanAndExpireHolds } = require('../src/jobs/holdExpiration.job');
 
-test('đăng ký chờ quá 14 ngày được hết hạn và xếp lại hàng chờ', async () => {
+test('đăng ký báo khi có hết hạn mà không giữ hoặc chuyển lượt bản sao', async () => {
     const statements = [];
     let committed = false;
     const connection = {
@@ -30,9 +30,6 @@ test('đăng ký chờ quá 14 ngày được hết hạn và xếp lại hàng 
                     bib_id: 'book-1'
                 }], []];
             }
-            if (sql.includes('SELECT hold_id FROM holds')) {
-                return [[{ hold_id: 'hold-2' }, { hold_id: 'hold-3' }], []];
-            }
             if (sql.includes("WHERE h.status = 'notified'")) return [[], []];
             return [{ affectedRows: 1 }, []];
         },
@@ -45,10 +42,10 @@ test('đăng ký chờ quá 14 ngày được hết hạn và xếp lại hàng 
     const result = await scanAndExpireHolds();
 
     assert.equal(result.waiting_expired, 1);
+    assert.equal(result.notification_expired, 0);
+    assert.equal(result.orphan_copies_released, 1);
     assert.equal(committed, true);
     assert.ok(statements.some((sql) => sql.includes("SET status = 'expired'")));
-    assert.equal(
-        statements.filter((sql) => sql.includes('SET queue_position = ?')).length,
-        2
-    );
+    assert.ok(statements.every((sql) => !sql.includes('SET queue_position = ?')));
+    assert.ok(statements.some((sql) => sql.includes("bc.status = 'reserved'")));
 });
