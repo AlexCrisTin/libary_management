@@ -6,7 +6,9 @@ import 'package:libary_management/reader/notice.dart';
 import 'package:libary_management/reader/reader_nav.dart';
 
 class AllBook extends StatefulWidget {
-  const AllBook({super.key});
+  const AllBook({super.key, this.initialSubject});
+
+  final String? initialSubject;
 
   @override
   State<AllBook> createState() => _AllBookState();
@@ -41,12 +43,18 @@ class _AllBookState extends State<AllBook> {
     for (final book in _allBooks) {
       values.addAll(_subjectNames(book));
     }
-    return values.toList()..sort();
+    final subjects = values.toList()..sort();
+    if (_selectedSubject != null && subjects.remove(_selectedSubject)) {
+      subjects.insert(0, _selectedSubject!);
+    }
+    return subjects;
   }
 
   @override
   void initState() {
     super.initState();
+    final initialSubject = widget.initialSubject?.trim() ?? '';
+    _selectedSubject = initialSubject.isEmpty ? null : initialSubject;
     _load();
   }
 

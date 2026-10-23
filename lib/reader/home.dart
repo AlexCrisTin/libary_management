@@ -18,17 +18,34 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   late int _index;
+  String? _bookSubjectFilter;
+
   @override
   void initState() {
     super.initState();
     _index = widget.initialIndex;
   }
 
+  void _selectTab(int index) {
+    setState(() {
+      if (index == 1 && _index != 1) _bookSubjectFilter = null;
+      _index = index;
+    });
+  }
+
+  void _openSubject(String subject) {
+    setState(() {
+      _bookSubjectFilter = subject;
+      _index = 1;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = [
       HomeContent(
-        onOpenSearch: () => setState(() => _index = 1),
+        onOpenSearch: () => _selectTab(1),
+        onOpenSubject: _openSubject,
         onOpenNotice: () async {
           await Navigator.push(
             context,
@@ -36,8 +53,11 @@ class _HomeState extends State<Home> {
           );
         },
       ),
-      const AllBook(),
-      SeeBorrowBook(onOpenSearch: () => setState(() => _index = 1)),
+      AllBook(
+        key: ValueKey(_bookSubjectFilter),
+        initialSubject: _bookSubjectFilter,
+      ),
+      SeeBorrowBook(onOpenSearch: () => _selectTab(1)),
       const Profile(),
     ];
     return Scaffold(
@@ -48,24 +68,29 @@ class _HomeState extends State<Home> {
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => Message(
-                    onSelectTab: (index) => setState(() => _index = index),
-                  ),
+                  builder: (_) => Message(onSelectTab: _selectTab),
                 ),
               ),
             )
           : null,
       bottomNavigationBar: ReaderBottomBar(
         currentIndex: _index,
-        onSelect: (i) => setState(() => _index = i),
+        onSelect: _selectTab,
       ),
     );
   }
 }
 
 class HomeContent extends StatefulWidget {
-  const HomeContent({super.key, this.onOpenSearch, this.onOpenNotice});
+  const HomeContent({
+    super.key,
+    this.onOpenSearch,
+    this.onOpenSubject,
+    this.onOpenNotice,
+  });
+
   final VoidCallback? onOpenSearch;
+  final ValueChanged<String>? onOpenSubject;
   final Future<void> Function()? onOpenNotice;
   @override
   State<HomeContent> createState() => _HomeContentState();
@@ -138,10 +163,12 @@ class _HomeContentState extends State<HomeContent> {
     final groups = <String, List<Map<String, dynamic>>>{};
     for (final book in _books) {
       final subjects = book['subject_headings'];
-      final category = subjects is List && subjects.isNotEmpty
-          ? apiText(subjects.first, fallback: 'Sách nổi bật')
-          : 'Sách nổi bật';
-      groups.putIfAbsent(category, () => []).add(book);
+      if (subjects is! List || subjects.isEmpty) continue;
+      for (final subject in subjects) {
+        final category = apiText(subject, fallback: '').trim();
+        if (category.isEmpty) continue;
+        groups.putIfAbsent(category, () => []).add(book);
+      }
     }
     return groups;
   }
@@ -171,6 +198,7 @@ class _HomeContentState extends State<HomeContent> {
               hotBooks: _hotBooks,
               categories: _categoryGroups(),
               onOpenBook: _openBook,
+              onOpenSubject: widget.onOpenSubject,
             ),
           ),
         ),
@@ -184,15 +212,18 @@ class _HomeBookList extends StatelessWidget {
     required this.hotBooks,
     required this.categories,
     required this.onOpenBook,
+    required this.onOpenSubject,
   });
 
   final List<Map<String, dynamic>> hotBooks;
   final Map<String, List<Map<String, dynamic>>> categories;
   final ValueChanged<Map<String, dynamic>> onOpenBook;
+  final ValueChanged<String>? onOpenSubject;
 
   @override
   Widget build(BuildContext context) {
-    final categoryEntries = categories.entries.take(4).toList();
+    final categoryEntries = categories.entries.toList()
+      ..sort((left, right) => left.key.compareTo(right.key));
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 36),
@@ -230,13 +261,39 @@ class _HomeBookList extends StatelessWidget {
         const _SectionTitle('Khám phá chủ đề'),
         const SizedBox(height: 14),
         for (final entry in categoryEntries) ...[
-          Text(
-            entry.key,
-            style: const TextStyle(
-              color: Color(0xFFC05E5E),
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  entry.key,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFFC05E5E),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => onOpenSubject?.call(entry.key),
+                style: TextButton.styleFrom(
+                  foregroundColor: kBrownTitle,
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Xem thêm',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    SizedBox(width: 2),
+                    Icon(Icons.chevron_right_rounded, size: 20),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           for (final book in entry.value.take(3)) ...[
