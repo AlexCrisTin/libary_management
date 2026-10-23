@@ -96,11 +96,17 @@ exports.updateBook = async (req, res, next) => {
 exports.deleteBook = async (req, res, next) => {
     try {
         const { id } = req.params;
-        await booksService.deleteBook(id);
-        return sendSuccess(res, 'Xóa sách thành công');
+        const result = await booksService.deleteBook(id);
+        if (!result) {
+            return sendError(res, 'Không tìm thấy sách để xóa!', 404);
+        }
+        const message = result.deletion_mode === 'archived'
+            ? 'Đã xóa sách khỏi danh mục và giữ lại lịch sử mượn/trả'
+            : 'Xóa sách thành công';
+        return sendSuccess(res, message, result);
     } catch (error) {
-        if (error.message && error.message.includes('bản sao được mượn')) {
-            return sendError(res, error.message, 400);
+        if (error.code === 'BOOK_IN_USE' || error.code === 'BOOK_HAS_ACTIVE_SLOT') {
+            return sendError(res, error.message, 409);
         }
         next(error);
     }

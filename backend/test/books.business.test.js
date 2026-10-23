@@ -87,6 +87,82 @@ test('chặn xóa bản sao đã có lịch sử mượn trả', async () => {
     assert.equal(state.committed, false);
 });
 
+const bookDeletionConnection = ({
+    book = { bib_id: 'book-1', title: 'Sách thử nghiệm' },
+    copiesInUse = [],
+    activeSlots = [],
+    history = []
+} = {}) => {
+    const statements = [];
+    let committed = false;
+    let rolledBack = false;
+    const connection = {
+        beginTransaction: async () => statements.push('BEGIN'),
+        query: async (sql) => {
+            statements.push(sql);
+            if (sql.includes('FROM bibliographic_records') && sql.includes('FOR UPDATE')) {
+                return [book ? [book] : [], []];
+            }
+            if (sql.includes('FROM book_copies') && sql.includes('FOR UPDATE')) {
+                return [copiesInUse, []];
+            }
+            if (sql.includes('FROM pickup_reservations')) return [activeSlots, []];
+            if (sql.includes('FROM borrow_transactions')) return [history, []];
+            return [{ affectedRows: 1 }, []];
+        },
+        commit: async () => { committed = true; },
+        rollback: async () => { rolledBack = true; },
+        release: () => statements.push('RELEASE')
+    };
+    return {
+        connection,
+        statements,
+        get committed() { return committed; },
+        get rolledBack() { return rolledBack; }
+    };
+};
+
+test('xóa mềm đầu sách đã có lịch sử mượn trả', async () => {
+    const state = bookDeletionConnection({ history: [{ tx_id: 'tx-1' }] });
+    fakeDb.getConnection = async () => state.connection;
+
+    const deleted = await booksService.deleteBook('book-1');
+
+    assert.equal(deleted.deletion_mode, 'archived');
+    assert.equal(state.committed, true);
+    assert.ok(state.statements.some((sql) => sql.includes("SET status = 'processing'")));
+    assert.ok(state.statements.some((sql) => sql.includes('SET archived_at = NOW()')));
+    assert.equal(
+        state.statements.some((sql) => sql.startsWith('DELETE FROM bibliographic_records')),
+        false
+    );
+});
+
+test('xóa hẳn đầu sách chưa từng phát sinh giao dịch', async () => {
+    const state = bookDeletionConnection();
+    fakeDb.getConnection = async () => state.connection;
+
+    const deleted = await booksService.deleteBook('book-1');
+
+    assert.equal(deleted.deletion_mode, 'deleted');
+    assert.equal(state.committed, true);
+    assert.ok(
+        state.statements.some((sql) => sql.startsWith('DELETE FROM bibliographic_records'))
+    );
+});
+
+test('chặn xóa đầu sách đang được mượn hoặc giữ', async () => {
+    const state = bookDeletionConnection({ copiesInUse: [{ copy_id: 'copy-1' }] });
+    fakeDb.getConnection = async () => state.connection;
+
+    await assert.rejects(
+        booksService.deleteBook('book-1'),
+        (error) => error.code === 'BOOK_IN_USE'
+    );
+    assert.equal(state.rolledBack, true);
+    assert.equal(state.committed, false);
+});
+
 test('lưu và bỏ lưu sách là thao tác idempotent theo độc giả', async () => {
     const calls = [];
     fakeDb.query = async (sql, params) => {

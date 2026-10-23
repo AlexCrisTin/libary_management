@@ -40,8 +40,11 @@ exports.getStatistics = async ({ days = 7 }) => {
                 (SELECT COUNT(*) FROM borrow_transactions
                  WHERE status IN ('borrowed', 'overdue') AND due_date < CURDATE()) AS overdue_loans,
                 (SELECT COUNT(*) FROM readers WHERE archived_at IS NULL) AS total_readers,
-                (SELECT COUNT(*) FROM bibliographic_records) AS total_titles,
-                (SELECT COUNT(*) FROM book_copies) AS total_copies,
+                (SELECT COUNT(*) FROM bibliographic_records
+                 WHERE archived_at IS NULL) AS total_titles,
+                (SELECT COUNT(*) FROM book_copies bc
+                 JOIN bibliographic_records br ON br.bib_id = bc.bib_id
+                 WHERE br.archived_at IS NULL) AS total_copies,
                 (SELECT COALESCE(SUM(fine_amount), 0) FROM borrow_transactions
                  WHERE fine_amount > 0 AND fine_paid = 0) AS unpaid_fines
         `),
@@ -64,6 +67,7 @@ exports.getStatistics = async ({ days = 7 }) => {
             SELECT b.bib_id, b.subject_headings, COUNT(c.copy_id) AS copy_count
             FROM bibliographic_records b
             LEFT JOIN book_copies c ON c.bib_id = b.bib_id
+            WHERE b.archived_at IS NULL
             GROUP BY b.bib_id, b.subject_headings
         `),
         db.query(`
@@ -71,6 +75,7 @@ exports.getStatistics = async ({ days = 7 }) => {
             FROM borrow_transactions bt
             JOIN book_copies bc ON bc.copy_id = bt.copy_id
             JOIN bibliographic_records br ON br.bib_id = bc.bib_id
+            WHERE br.archived_at IS NULL
             GROUP BY br.bib_id, br.title
             ORDER BY borrow_count DESC, br.title ASC
             LIMIT 5

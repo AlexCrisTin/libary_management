@@ -34,7 +34,7 @@ exports.searchBooks = async ({
 }) => {
     const pagination = normalizePagination(page, limit, { defaultLimit: 10, maxLimit: 100 });
     const params = [];
-    let whereConditions = [];
+    let whereConditions = ['b.archived_at IS NULL'];
 
     // Tìm kiếm theo từ khóa (tên sách, tác giả, ISBN, mô tả)
     if (keyword.trim()) {
@@ -193,7 +193,7 @@ exports.getBookById = async (bibId) => {
             p.name AS publisher_name
         FROM bibliographic_records b
         LEFT JOIN publishers p ON b.publisher_id = p.publisher_id
-        WHERE b.bib_id = ?
+        WHERE b.bib_id = ? AND b.archived_at IS NULL
     `;
     const [bookRows] = await db.query(bookSql, [bibId]);
 
@@ -330,7 +330,10 @@ exports.createBook = async (bookData) => {
  */
 exports.updateBook = async (bibId, updateData) => {
     // Kiểm tra sách tồn tại
-    const [existing] = await db.query('SELECT bib_id FROM bibliographic_records WHERE bib_id = ?', [bibId]);
+    const [existing] = await db.query(
+        'SELECT bib_id FROM bibliographic_records WHERE bib_id = ? AND archived_at IS NULL',
+        [bibId]
+    );
     if (existing.length === 0) return null;
 
     const fields = [];
@@ -379,19 +382,99 @@ exports.updateBook = async (bibId, updateData) => {
  * 5. Xóa sách (Thủ thư)
  */
 exports.deleteBook = async (bibId) => {
-    // Kiểm tra xem có bản sao nào đang được mượn không
-    const [borrowed] = await db.query(
-        "SELECT copy_id FROM book_copies WHERE bib_id = ? AND status = 'borrowed'",
-        [bibId]
-    );
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+        const [books] = await connection.query(
+            `SELECT bib_id, title
+             FROM bibliographic_records
+             WHERE bib_id = ? AND archived_at IS NULL
+             FOR UPDATE`,
+            [bibId]
+        );
+        if (books.length === 0) {
+            await connection.rollback();
+            return null;
+        }
 
-    if (borrowed.length > 0) {
-        throw new Error('Không thể xóa đầu sách vì đang có bản sao được mượn!');
+        const [copiesInUse] = await connection.query(
+            `SELECT copy_id
+             FROM book_copies
+             WHERE bib_id = ? AND status IN ('borrowed', 'reserved')
+             LIMIT 1
+             FOR UPDATE`,
+            [bibId]
+        );
+        if (copiesInUse.length > 0) {
+            const error = new Error(
+                'Không thể xóa sách vì đang có bản sao được mượn hoặc giữ cho độc giả!'
+            );
+            error.code = 'BOOK_IN_USE';
+            throw error;
+        }
+
+        const [activeSlots] = await connection.query(
+            `SELECT reservation_id
+             FROM pickup_reservations
+             WHERE bib_id = ? AND status IN ('pending', 'approved')
+             LIMIT 1
+             FOR UPDATE`,
+            [bibId]
+        );
+        if (activeSlots.length > 0) {
+            const error = new Error(
+                'Không thể xóa sách vì đang có yêu cầu đặt slot chưa xử lý xong!'
+            );
+            error.code = 'BOOK_HAS_ACTIVE_SLOT';
+            throw error;
+        }
+
+        const [history] = await connection.query(
+            `SELECT bt.tx_id
+             FROM borrow_transactions bt
+             JOIN book_copies bc ON bc.copy_id = bt.copy_id
+             WHERE bc.bib_id = ?
+             LIMIT 1`,
+            [bibId]
+        );
+
+        if (history.length > 0) {
+            await connection.query(
+                `UPDATE book_copies
+                 SET status = 'processing'
+                 WHERE bib_id = ? AND status = 'available'`,
+                [bibId]
+            );
+            await connection.query(
+                `UPDATE holds
+                 SET status = 'cancelled', queue_position = NULL
+                 WHERE bib_id = ? AND status IN ('waiting', 'notified')`,
+                [bibId]
+            );
+            await connection.query(
+                'DELETE FROM reader_bookmarks WHERE bib_id = ?',
+                [bibId]
+            );
+            await connection.query(
+                'UPDATE bibliographic_records SET archived_at = NOW() WHERE bib_id = ?',
+                [bibId]
+            );
+            await connection.commit();
+            return { ...books[0], deletion_mode: 'archived' };
+        }
+
+        await connection.query(
+            'DELETE FROM bibliographic_records WHERE bib_id = ?',
+            [bibId]
+        );
+        await connection.commit();
+        return { ...books[0], deletion_mode: 'deleted' };
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
     }
-
-    // Xóa đầu sách (các bản sao sẽ tự động xóa nhờ ON DELETE CASCADE)
-    const [result] = await db.query('DELETE FROM bibliographic_records WHERE bib_id = ?', [bibId]);
-    return result.affectedRows > 0;
 };
 
 /**
@@ -490,6 +573,14 @@ exports.deleteCopy = async (copyId) => {
  * 8. Thêm bản sao vật lý mới cho sách có sẵn
  */
 exports.addCopy = async (bibId, { barcode, condition = 'good', location_id = null, acquired_price = 0 }) => {
+    const [books] = await db.query(
+        'SELECT bib_id FROM bibliographic_records WHERE bib_id = ? AND archived_at IS NULL',
+        [bibId]
+    );
+    if (books.length === 0) {
+        throw new Error('Không tìm thấy đầu sách đang hoạt động để thêm bản sao!');
+    }
+
     const copyId = uuidv4();
     const finalBarcode = barcode || `BC-${Date.now().toString().slice(-8)}`;
 
@@ -523,7 +614,8 @@ exports.getBookmark = async ({ reader_id, bib_id }) => {
  */
 exports.addBookmark = async ({ reader_id, bib_id }) => {
     const [books] = await db.query(
-        'SELECT bib_id FROM bibliographic_records WHERE bib_id = ? LIMIT 1',
+        `SELECT bib_id FROM bibliographic_records
+         WHERE bib_id = ? AND archived_at IS NULL LIMIT 1`,
         [bib_id]
     );
     if (books.length === 0) return null;
@@ -591,7 +683,7 @@ exports.scanBookByCode = async (rawCode) => {
         JOIN bibliographic_records b ON c.bib_id = b.bib_id
         LEFT JOIN publishers p ON b.publisher_id = p.publisher_id
         LEFT JOIN shelf_locations s ON c.location_id = s.location_id
-        WHERE c.barcode = ?
+        WHERE c.barcode = ? AND b.archived_at IS NULL
         LIMIT 1
     `;
     const [copyRows] = await db.query(copySql, [code]);
@@ -647,7 +739,8 @@ exports.scanBookByCode = async (rawCode) => {
             p.name AS publisher_name
         FROM bibliographic_records b
         LEFT JOIN publishers p ON b.publisher_id = p.publisher_id
-        WHERE b.isbn = ? OR REPLACE(b.isbn, '-', '') = ?
+        WHERE b.archived_at IS NULL
+          AND (b.isbn = ? OR REPLACE(b.isbn, '-', '') = ?)
         LIMIT 1
     `;
     const [bookRows] = await db.query(bookSql, [code, cleanCode]);
@@ -710,7 +803,8 @@ exports.lookupBookByIsbn = async (rawIsbn) => {
         `SELECT b.*, p.name AS publisher_name 
          FROM bibliographic_records b 
          LEFT JOIN publishers p ON b.publisher_id = p.publisher_id 
-         WHERE b.isbn = ? OR REPLACE(b.isbn, '-', '') = ?
+         WHERE b.archived_at IS NULL
+           AND (b.isbn = ? OR REPLACE(b.isbn, '-', '') = ?)
          LIMIT 1`,
         [rawIsbn.trim(), cleanIsbn]
     );

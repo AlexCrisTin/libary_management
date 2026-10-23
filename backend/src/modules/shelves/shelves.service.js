@@ -19,6 +19,11 @@ exports.getAllShelves = async () => {
             CASE WHEN COUNT(c.copy_id) >= s.capacity THEN 1 ELSE 0 END AS is_full
         FROM shelf_locations s
         LEFT JOIN book_copies c ON s.location_id = c.location_id
+          AND EXISTS (
+              SELECT 1 FROM bibliographic_records active_book
+              WHERE active_book.bib_id = c.bib_id
+                AND active_book.archived_at IS NULL
+          )
         GROUP BY s.location_id
         ORDER BY s.floor ASC, s.section ASC, s.shelf ASC, s.position ASC
     `;
@@ -43,6 +48,11 @@ exports.getShelfById = async (locationId) => {
             CASE WHEN COUNT(c.copy_id) >= s.capacity THEN 1 ELSE 0 END AS is_full
         FROM shelf_locations s
         LEFT JOIN book_copies c ON s.location_id = c.location_id
+          AND EXISTS (
+              SELECT 1 FROM bibliographic_records active_book
+              WHERE active_book.bib_id = c.bib_id
+                AND active_book.archived_at IS NULL
+          )
         WHERE s.location_id = ?
         GROUP BY s.location_id
     `;
@@ -75,7 +85,7 @@ exports.getBooksOnShelf = async (locationId) => {
             b.call_number
         FROM book_copies c
         JOIN bibliographic_records b ON c.bib_id = b.bib_id
-        WHERE c.location_id = ?
+        WHERE c.location_id = ? AND b.archived_at IS NULL
         ORDER BY c.barcode ASC
     `;
     const [rows] = await db.query(sql, [locationId]);

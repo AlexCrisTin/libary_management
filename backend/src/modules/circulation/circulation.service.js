@@ -98,7 +98,7 @@ exports.borrowBook = async ({ reader_id, reader_code, copy_id, barcode, due_days
             `SELECT bc.*, br.title, br.isbn 
              FROM book_copies bc 
              JOIN bibliographic_records br ON bc.bib_id = br.bib_id 
-             WHERE bc.copy_id = ?`,
+             WHERE bc.copy_id = ? AND br.archived_at IS NULL`,
             [copy_id]
         );
         copy = rows[0];
@@ -107,7 +107,7 @@ exports.borrowBook = async ({ reader_id, reader_code, copy_id, barcode, due_days
             `SELECT bc.*, br.title, br.isbn 
              FROM book_copies bc 
              JOIN bibliographic_records br ON bc.bib_id = br.bib_id 
-             WHERE bc.barcode = ?`,
+             WHERE bc.barcode = ? AND br.archived_at IS NULL`,
             [barcode]
         );
         copy = rows[0];

@@ -97,10 +97,12 @@ CREATE TABLE IF NOT EXISTS bibliographic_records (
     cover_url TEXT DEFAULT NULL,
     metadata JSON DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    archived_at DATETIME DEFAULT NULL,
     PRIMARY KEY (bib_id),
     KEY idx_books_isbn (isbn),
     KEY idx_books_title (title(191)),
     KEY idx_books_publisher (publisher_id),
+    KEY idx_books_archived (archived_at),
     KEY idx_books_ddc_language_year (ddc_class, language, publish_year),
     CONSTRAINT fk_bib_publisher FOREIGN KEY (publisher_id) REFERENCES publishers(publisher_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

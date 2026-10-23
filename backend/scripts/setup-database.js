@@ -176,6 +176,37 @@ async function ensureReaderArchiveSchema(connection) {
     }
 }
 
+async function ensureBookArchiveSchema(connection) {
+    const [columns] = await connection.query(
+        `SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = DATABASE()
+           AND table_name = 'bibliographic_records'
+           AND column_name = 'archived_at'
+         LIMIT 1`
+    );
+    if (columns.length === 0) {
+        await connection.query(
+            'ALTER TABLE bibliographic_records ADD COLUMN archived_at DATETIME DEFAULT NULL AFTER created_at'
+        );
+        console.log('Đã bổ sung trạng thái lưu trữ đầu sách.');
+    }
+
+    const [indexes] = await connection.query(
+        `SELECT 1
+         FROM information_schema.statistics
+         WHERE table_schema = DATABASE()
+           AND table_name = 'bibliographic_records'
+           AND index_name = 'idx_books_archived'
+         LIMIT 1`
+    );
+    if (indexes.length === 0) {
+        await connection.query(
+            'ALTER TABLE bibliographic_records ADD INDEX idx_books_archived (archived_at)'
+        );
+    }
+}
+
 async function main() {
     let connection;
     try {
@@ -196,6 +227,7 @@ async function main() {
             await ensurePerformanceIndexes(connection);
             await ensureSecuritySchema(connection);
             await ensureReaderArchiveSchema(connection);
+            await ensureBookArchiveSchema(connection);
             console.log('Đã cài đặt schema.');
         }
 

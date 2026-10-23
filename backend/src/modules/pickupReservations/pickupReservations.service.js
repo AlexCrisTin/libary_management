@@ -82,7 +82,8 @@ exports.createReservation = async ({ reader_id, bib_id, hold_id = null }) => {
     assertReaderCanReserve(reader);
 
     const [books] = await db.query(
-        'SELECT bib_id, title, isbn FROM bibliographic_records WHERE bib_id = ?',
+        `SELECT bib_id, title, isbn FROM bibliographic_records
+         WHERE bib_id = ? AND archived_at IS NULL`,
         [bib_id]
     );
     if (books.length === 0) throw new Error('Không tìm thấy thông tin đầu sách này!');

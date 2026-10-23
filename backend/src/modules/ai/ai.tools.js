@@ -30,7 +30,8 @@ async function searchBooks({ keyword, limit = 5 }) {
             br.subject_headings
         FROM bibliographic_records br
         LEFT JOIN publishers p ON br.publisher_id = p.publisher_id
-        WHERE br.title LIKE ? OR br.authors LIKE ? OR br.isbn LIKE ?
+        WHERE br.archived_at IS NULL
+          AND (br.title LIKE ? OR br.authors LIKE ? OR br.isbn LIKE ?)
         LIMIT ?
     `;
     const term = `%${cleanKeyword}%`;
@@ -49,14 +50,14 @@ async function searchBooks({ keyword, limit = 5 }) {
  * 2. Kiem tra so luong ban sao san co va vi tri ke sach
  */
 async function getBookAvailability({ title, isbn }) {
-    let whereClause = '';
+    const where = ['br.archived_at IS NULL'];
     const params = [];
 
     if (isbn) {
-        whereClause = 'WHERE br.isbn = ?';
+        where.push('br.isbn = ?');
         params.push(isbn.trim());
     } else if (title) {
-        whereClause = 'WHERE br.title LIKE ?';
+        where.push('br.title LIKE ?');
         params.push(`%${title.trim()}%`);
     } else {
         return { message: 'Vui long cung cap ten sach hoac ma ISBN de kiem tra!' };
@@ -78,7 +79,7 @@ async function getBookAvailability({ title, isbn }) {
         FROM bibliographic_records br
         JOIN book_copies bc ON br.bib_id = bc.bib_id
         LEFT JOIN shelf_locations s ON bc.location_id = s.location_id
-        ${whereClause}
+        WHERE ${where.join(' AND ')}
         LIMIT 20
     `;
 
@@ -279,7 +280,8 @@ async function getReaderSummary({ keyword }) {
                 WHERE reader_id = r.reader_id AND fine_paid = 0
             ) AS unpaid_fines_total
         FROM readers r
-        WHERE r.reader_code = ? OR r.full_name LIKE ?
+        WHERE r.archived_at IS NULL
+          AND (r.reader_code = ? OR r.full_name LIKE ?)
         LIMIT 3
     `;
 
@@ -308,9 +310,22 @@ async function getReaderSummary({ keyword }) {
  * 7. Thong ke tong quan toan thu vien (Dashboard)
  */
 async function getDashboardStatistics() {
-    const [books] = await db.query('SELECT COUNT(*) AS total_books FROM bibliographic_records');
-    const [copies] = await db.query('SELECT COUNT(*) AS total_copies, SUM(status = "available") AS available_copies, SUM(status = "borrowed") AS borrowed_copies FROM book_copies');
-    const [readers] = await db.query('SELECT COUNT(*) AS total_readers, SUM(status = "active") AS active_readers FROM readers');
+    const [books] = await db.query(
+        'SELECT COUNT(*) AS total_books FROM bibliographic_records WHERE archived_at IS NULL'
+    );
+    const [copies] = await db.query(
+        `SELECT COUNT(*) AS total_copies,
+                SUM(bc.status = "available") AS available_copies,
+                SUM(bc.status = "borrowed") AS borrowed_copies
+         FROM book_copies bc
+         JOIN bibliographic_records br ON br.bib_id = bc.bib_id
+         WHERE br.archived_at IS NULL`
+    );
+    const [readers] = await db.query(
+        `SELECT COUNT(*) AS total_readers,
+                SUM(status = "active") AS active_readers
+         FROM readers WHERE archived_at IS NULL`
+    );
     const [loans] = await db.query(`
         SELECT 
             COUNT(*) AS total_active_loans,
@@ -348,6 +363,7 @@ async function getPopularBooks({ limit = 5 }) {
         FROM bibliographic_records br
         JOIN book_copies bc ON br.bib_id = bc.bib_id
         JOIN borrow_transactions bt ON bc.copy_id = bt.copy_id
+        WHERE br.archived_at IS NULL
         GROUP BY br.bib_id, br.title, br.authors, br.isbn
         ORDER BY borrow_count DESC
         LIMIT ?
@@ -420,6 +436,7 @@ async function getExpiringReaderCards({ days = 30, limit = 10 }) {
             DATEDIFF(card_expired, CURDATE()) AS days_until_expiration
         FROM readers
         WHERE card_expired IS NOT NULL
+          AND archived_at IS NULL
           AND card_expired <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
         ORDER BY card_expired ASC
         LIMIT ?

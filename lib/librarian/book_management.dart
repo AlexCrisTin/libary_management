@@ -97,7 +97,9 @@ class _BookManagementState extends State<BookManagement> {
         title: const Text('Xóa sách?'),
         content: Text(
           'Bạn có chắc muốn xóa “$title”?\n\n'
-          'Các bản sao của đầu sách này cũng sẽ bị xóa. Sách đang được mượn sẽ không thể xóa.',
+          'Sách chưa từng được mượn sẽ bị xóa cùng các bản sao. Nếu đã có '
+          'lịch sử mượn/trả, sách chỉ bị ẩn khỏi danh mục để bảo toàn dữ liệu. '
+          'Không thể xóa sách đang được mượn hoặc đang giữ cho độc giả.',
         ),
         actions: [
           TextButton(

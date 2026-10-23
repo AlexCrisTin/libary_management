@@ -28,7 +28,10 @@ exports.createHold = async ({ reader_id, bib_id }) => {
     }
 
     // 2. Kiểm tra đầu sách
-    const [books] = await db.query('SELECT * FROM bibliographic_records WHERE bib_id = ?', [bib_id]);
+    const [books] = await db.query(
+        'SELECT * FROM bibliographic_records WHERE bib_id = ? AND archived_at IS NULL',
+        [bib_id]
+    );
     if (books.length === 0) {
         throw new Error('Không tìm thấy thông tin đầu sách này!');
     }
